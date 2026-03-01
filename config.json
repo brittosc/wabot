@@ -1,0 +1,7 @@
+{
+    "targetGroups": [
+        "transporte"
+    ],
+    "pollTime": "06:00",
+    "timezone": "America/Sao_Paulo"
+}
