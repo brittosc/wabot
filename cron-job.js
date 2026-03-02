@@ -69,13 +69,13 @@ const sendPolls = async (sock) => {
             if (group) {
                 const ptDay = getDaysOfWeekDesc(dayOfWeek);
                 const dateStr = now.format('DD/MM');
-                const pollName = `Bom dia, você vai hoje, ${ptDay}, ${dateStr}?`;
+                const pollName = `Bom dia. Você irá hoje, ${ptDay}, ${dateStr}?`;
 
                 try {
                     const { Poll } = require('whatsapp-web.js');
                     const poll = new Poll(pollName, [
                         "Sim!",
-                        "Nao irei, apenas retornarei"
+                        "Não irei, apenas retornarei."
                     ], { allowMultipleAnswers: false });
 
                     await group.sendMessage(poll);
