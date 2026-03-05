@@ -74,8 +74,10 @@ const sendPolls = async (sock) => {
                 try {
                     const { Poll } = require('whatsapp-web.js');
                     const poll = new Poll(pollName, [
-                        "Sim!",
-                        "Não irei, apenas retornarei."
+                        "Irei, ida e volta.",
+                        "Irei, mas não retornarei.",
+                        "Não irei, apenas retornarei.",
+                        "Não irei à faculdade hoje."
                     ], { allowMultipleAnswers: false });
 
                     await group.sendMessage(poll);
