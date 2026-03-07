@@ -44,24 +44,24 @@ const sendPolls = async (sock) => {
         const dayOfWeek = now.day();
 
         const ignoreWeekend = process.argv.includes('--fim');
+        const forceNow = process.argv.includes('--now');
         const skipDates = config.skipDates || [];
 
-        if (skipDates.includes(todayBR)) {
+        if (skipDates.includes(todayBR) && !forceNow) {
             dashboard.addLog(`Data ignorada via config (${todayBR}). Nenhuma enquete programada.`);
             return;
         }
 
         // 1-5 são segunda a sexta
-        if ((dayOfWeek === 0 || dayOfWeek === 6) && !ignoreWeekend) {
+        if ((dayOfWeek === 0 || dayOfWeek === 6) && !ignoreWeekend && !forceNow) {
             dashboard.addLog('Fim de semana. Nenhuma enquete programada para envio.');
             return;
         }
 
-        if (history[todayStr]) {
+        if (history[todayStr] && !forceNow) {
             dashboard.addLog(`Enquete já enviada hoje (${todayStr}). Pulando...`);
             return;
         }
-
         dashboard.addLog('Iniciando o envio de enquetes...');
 
         // Pegar todos os chats

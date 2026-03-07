@@ -2,6 +2,7 @@ const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 const dashboard = require('./dashboard');
 const cronJob = require('./cron-job');
+const statistics = require('./statistics');
 
 async function startBot() {
     dashboard.setStatus('Processando inicialização...');
@@ -38,6 +39,20 @@ async function startBot() {
 
         // Inicia o cronJob com a instância do client
         cronJob.scheduleJob(client);
+
+        if (process.argv.includes('--now')) {
+            dashboard.addLog('Parâmetro --now detectado. Forçando envio imediato 🎉');
+            cronJob.sendPolls(client);
+        }
+    });
+
+    client.on('vote_update', async (vote) => {
+        try {
+            await statistics.registerVote(vote);
+            dashboard.addLog(`Voto computado de ${vote.voter}`);
+        } catch (error) {
+            dashboard.addLog(`Erro ao computar voto: ${error.message}`);
+        }
     });
 
     client.on('authenticated', () => {
