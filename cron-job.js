@@ -40,9 +40,16 @@ const sendPolls = async (sock) => {
 
         const now = moment().tz('America/Sao_Paulo');
         const todayStr = now.format('YYYY-MM-DD');
+        const todayBR = now.format('DD/MM/YYYY');
         const dayOfWeek = now.day();
 
         const ignoreWeekend = process.argv.includes('--fim');
+        const skipDates = config.skipDates || [];
+
+        if (skipDates.includes(todayBR)) {
+            dashboard.addLog(`Data ignorada via config (${todayBR}). Nenhuma enquete programada.`);
+            return;
+        }
 
         // 1-5 são segunda a sexta
         if ((dayOfWeek === 0 || dayOfWeek === 6) && !ignoreWeekend) {
@@ -131,6 +138,9 @@ const scheduleJob = (sock) => {
 };
 
 const updateNextPollDisplay = (targetHour, targetMinute) => {
+    const config = readJson(configFile);
+    const skipDates = config.skipDates || [];
+
     const now = moment().tz('America/Sao_Paulo');
     let nextDate = moment().tz('America/Sao_Paulo').hours(targetHour).minutes(targetMinute).seconds(0);
 
@@ -141,11 +151,17 @@ const updateNextPollDisplay = (targetHour, targetMinute) => {
 
     const ignoreWeekend = process.argv.includes('--fim');
 
-    if (!ignoreWeekend) {
-        // Se for sábado (6), move para segunda (8 = 1 da próx sem)
-        if (nextDate.day() === 6) nextDate.add(2, 'days');
-        // Se for domingo (0), move para segunda
-        if (nextDate.day() === 0) nextDate.add(1, 'days');
+    // Busca o próximo dia válido (ignorando fins de semana se necessário e as datas puladas)
+    let isDayValid = false;
+    while (!isDayValid) {
+        let isWeekend = !ignoreWeekend && (nextDate.day() === 0 || nextDate.day() === 6);
+        let isSkipDate = skipDates.includes(nextDate.format('DD/MM/YYYY'));
+
+        if (isWeekend || isSkipDate) {
+            nextDate.add(1, 'days');
+        } else {
+            isDayValid = true;
+        }
     }
 
     const formatDiffStr = () => {
