@@ -3,6 +3,7 @@ const qrcode = require('qrcode-terminal');
 const dashboard = require('./dashboard');
 const cronJob = require('./cron-job');
 const statistics = require('./statistics');
+const { startServer } = require('./server');
 
 async function startBot() {
     dashboard.setStatus('Processando inicialização...');
@@ -83,4 +84,5 @@ async function startBot() {
 
 // Inicia Dashboard no terminal
 dashboard.render();
+startServer();
 startBot();

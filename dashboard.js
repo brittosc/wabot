@@ -10,6 +10,7 @@ class Dashboard {
         this.totalSent = 0;
         this.logs = [];
         this.maxLogs = 5;
+        this.serverUrl = '';
     }
 
     setStatus(newStatus) {
@@ -24,6 +25,11 @@ class Dashboard {
 
     setNextPoll(timeStr) {
         this.nextPollTime = timeStr;
+        this.render();
+    }
+
+    setServerUrl(url) {
+        this.serverUrl = url;
         this.render();
     }
 
@@ -51,8 +57,9 @@ class Dashboard {
         const infoSection = [
             `Status: ${statusColor(this.status)}`,
             `Próxima Enquete: ${chalk.cyan(this.nextPollTime)}`,
-            `Total de Enquetes Enviadas: ${chalk.magenta(this.totalSent)}`
-        ].join('\n');
+            `Total de Enquetes Enviadas: ${chalk.magenta(this.totalSent)}`,
+            this.serverUrl ? `Painel Web: ${chalk.cyan.underline(this.serverUrl)}` : ''
+        ].filter(Boolean).join('\n');
 
         const logsSection = [
             chalk.bold.underline('Últimos Eventos:'),
