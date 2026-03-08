@@ -22,39 +22,43 @@ const startServer = () => {
     <link rel="icon" href="https://dayz.com/favicon.ico">
     <style>
         :root {
-            --bg-color: #f4f7f6;
-            --card-bg: #ffffff;
-            --text-color: #333;
+            --bg-color: #121212;
+            --card-bg: #1e1e1e;
+            --text-color: #e0e0e0;
             --accent: #2196f3;
+            --border-color: #333; /* Adicionado para o container */
         }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            text-align: center;
             background-color: var(--bg-color);
             color: var(--text-color);
-            margin: 0;
-            height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
+            height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
         }
         .container {
-            background: var(--card-bg);
-            padding: 50px;
-            border-radius: 20px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.08);
-            text-align: center;
-            max-width: 450px;
-            width: 90%;
-            animation: fadeIn 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            max-width: 600px;
+            width: 100%;
+            background-color: var(--card-bg);
+            padding: 40px 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            border: 1px solid var(--border-color);
+            box-sizing: border-box;
         }
         h1 {
-            color: #2c3e50;
+            color: #ffffff;
             font-size: 1.8rem;
             margin-bottom: 15px;
             font-weight: 600;
         }
         p {
-            color: #7f8c8d;
+            color: #aaa;
             font-size: 1.05rem;
             line-height: 1.6;
             margin-bottom: 30px;
@@ -62,7 +66,7 @@ const startServer = () => {
         .loader {
             width: 50px;
             height: 50px;
-            border: 4px solid #f0f0f0;
+            border: 4px solid #333;
             border-top: 4px solid var(--accent);
             border-radius: 50%;
             animation: spin 1s linear infinite;

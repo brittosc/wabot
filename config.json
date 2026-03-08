@@ -1,6 +1,6 @@
 {
     "targetGroups": [
-        "Ônibus unesc 01 2026"
+        "transporte_univer"
     ],
     "pollTime": "05:30",
     "timezone": "America/Sao_Paulo",

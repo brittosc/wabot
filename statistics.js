@@ -95,11 +95,12 @@ const generateHtmlDashboard = (stats) => {
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
     <style>
         :root {
-            --bg-color: #f4f7f6;
-            --card-bg: #ffffff;
-            --text-color: #333;
-            --title-color: #2c3e50;
+            --bg-color: #121212;
+            --card-bg: #1e1e1e;
+            --text-color: #e0e0e0;
+            --title-color: #ffffff;
             --accent: #2196f3;
+            --border-color: #333;
         }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -126,13 +127,13 @@ const generateHtmlDashboard = (stats) => {
         select {
             padding: 10px 15px;
             border-radius: 8px;
-            border: 1px solid #ccc;
+            border: 1px solid var(--border-color);
             font-size: 1rem;
             outline: none;
             cursor: pointer;
-            background-color: white;
+            background-color: #2c2c2c;
             color: var(--title-color);
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
         select:focus {
             border-color: var(--accent);
@@ -144,6 +145,47 @@ const generateHtmlDashboard = (stats) => {
             max-width: 1000px;
             width: 100%;
         }
+        .highlights {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            width: 100%;
+            max-width: 1000px;
+            margin-bottom: 20px;
+        }
+        .highlight-card {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            padding: 15px;
+            border: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        .highlight-card i {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+        }
+        .highlight-card h3 {
+            font-size: 0.9rem;
+            color: #7f8c8d;
+            margin: 0 0 5px 0;
+            font-weight: normal;
+        }
+        .highlight-card .value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--title-color);
+            margin: 0;
+        }
+        .highlight-card .date {
+            font-size: 0.8rem;
+            color: var(--accent);
+            margin-top: 5px;
+            font-weight: bold;
+        }
         @media (min-width: 768px) {
             .dashboard {
                 grid-template-columns: 1fr 1fr;
@@ -152,11 +194,12 @@ const generateHtmlDashboard = (stats) => {
         .card {
             background-color: var(--card-bg);
             border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
             padding: 20px;
             display: flex;
             flex-direction: column;
             align-items: center;
+            border: 1px solid var(--border-color);
         }
         .card h2 {
             font-size: 1.2rem;
@@ -195,6 +238,33 @@ const generateHtmlDashboard = (stats) => {
         </select>
     </div>
 
+    <div class="highlights">
+        <div class="highlight-card">
+            <i>🔥</i>
+            <h3>Pico de Lotação (Ida/Volta)</h3>
+            <p class="value" id="hlLotacaoVal">-</p>
+            <p class="date" id="hlLotacaoDate">-</p>
+        </div>
+        <div class="highlight-card">
+            <i>🏖️</i>
+            <h3>Maior Ausência</h3>
+            <p class="value" id="hlAusenciaVal">-</p>
+            <p class="date" id="hlAusenciaDate">-</p>
+        </div>
+        <div class="highlight-card">
+            <i>🚌</i>
+            <h3>Demanda (Só Ida)</h3>
+            <p class="value" id="hlSoIdaVal">-</p>
+            <p class="date" id="hlSoIdaDate">-</p>
+        </div>
+        <div class="highlight-card">
+            <i>🏠</i>
+            <h3>Demanda (Só Volta)</h3>
+            <p class="value" id="hlSoVoltaVal">-</p>
+            <p class="date" id="hlSoVoltaDate">-</p>
+        </div>
+    </div>
+
     <div class="dashboard">
         <div class="card">
             <h2>Média / Total Geral (Opções)</h2>
@@ -207,6 +277,13 @@ const generateHtmlDashboard = (stats) => {
             <h2>Votos por Dia</h2>
             <div class="chart-container">
                 <canvas id="barChart"></canvas>
+            </div>
+        </div>
+        
+        <div class="card" style="grid-column: 1 / -1;">
+            <h2>Proporção Diária (Stacked)</h2>
+            <div class="chart-container">
+                <canvas id="stackedBarChart"></canvas>
             </div>
         </div>
         
@@ -271,14 +348,16 @@ const generateHtmlDashboard = (stats) => {
             // Get all days from DB that are within the targetDays range (comparing string dates vs today)
             const todayMoment = moment().startOf('day');
             
-            // Filter and sort applicable dates
-            const applicableDates = Object.keys(rawDB).filter(dateStr => {
-                const diff = todayMoment.diff(moment(dateStr, 'YYYY-MM-DD'), 'days');
-                return diff >= 0 && diff < targetDays; // Within the past N days including today
-            }).sort((a,b) => new Date(a) - new Date(b));
-
             let barLabels = [];
             let barData = [];
+            
+            // Arrays for stacked chart
+            let stackedData = {
+                "Irei, ida e volta.": [],
+                "Irei, mas não retornarei.": [],
+                "Não irei, apenas retornarei.": [],
+                "Não irei à faculdade hoje.": []
+            };
             
             let globalOptionCounts = {
                 "Irei, ida e volta.": 0,
@@ -289,57 +368,122 @@ const generateHtmlDashboard = (stats) => {
 
             let accumTotalVotes = 0;
 
-            applicableDates.forEach(dateStr => {
-                barLabels.push(moment(dateStr).format('DD/MM'));
+            // Trackers for highlights
+            let peakLotacao = { val: -1, date: "" };
+            let peakAusencia = { val: -1, date: "" };
+            let peakSoIda = { val: -1, date: "" };
+            let peakSoVolta = { val: -1, date: "" };
+
+            for (let i = targetDays - 1; i >= 0; i--) {
+                const day = todayMoment.clone().subtract(i, 'days');
+                const dateStr = day.format('YYYY-MM-DD');
+                const displayDate = day.format('DD/MM');
+                barLabels.push(displayDate);
                 
                 let dayTotal = 0;
-                const dayEntry = rawDB[dateStr];
+                
+                let dayCounts = {
+                    "Irei, ida e volta.": 0,
+                    "Irei, mas não retornarei.": 0,
+                    "Não irei, apenas retornarei.": 0,
+                    "Não irei à faculdade hoje.": 0
+                };
+                
+                if (rawDB[dateStr]) {
+                    const dayEntry = rawDB[dateStr];
 
-                // Determine if legacy or V2
-                let groupsToProcess = [];
-                if(dayEntry.Version2 && dayEntry.grupos) {
-                    if (targetGroup === "Todos") {
-                        groupsToProcess = Object.values(dayEntry.grupos);
-                    } else if (dayEntry.grupos[targetGroup]) {
-                        groupsToProcess = [ dayEntry.grupos[targetGroup] ];
+                    // Determine if legacy or V2
+                    let groupsToProcess = [];
+                    if(dayEntry.Version2 && dayEntry.grupos) {
+                        if (targetGroup === "Todos") {
+                            groupsToProcess = Object.values(dayEntry.grupos);
+                        } else if (dayEntry.grupos[targetGroup]) {
+                            groupsToProcess = [ dayEntry.grupos[targetGroup] ];
+                        }
+                    } else if (!dayEntry.Version2) {
+                        // Legacy data exists for this day
+                        if (targetGroup === "Todos" || targetGroup === "Grupo Geral (Legado)") {
+                            groupsToProcess = [ dayEntry ]; // DayEntry itself is the poll in legacy
+                        }
                     }
-                } else if (!dayEntry.Version2) {
-                    // Legacy data exists for this day
-                    if (targetGroup === "Todos" || targetGroup === "Grupo Geral (Legado)") {
-                        groupsToProcess = [ dayEntry ]; // DayEntry itself is the poll in legacy
-                    }
+
+                    groupsToProcess.forEach(groupPayload => {
+                        if(!groupPayload.votes) return;
+                        const voters = Object.keys(groupPayload.votes);
+                        dayTotal += voters.length;
+
+                        voters.forEach(v => {
+                            const opt = groupPayload.votes[v];
+                            if (globalOptionCounts[opt] !== undefined) globalOptionCounts[opt]++;
+                            else globalOptionCounts[opt] = 1;
+
+                            if (dayCounts[opt] !== undefined) dayCounts[opt]++;
+                        });
+                    });
                 }
 
-                groupsToProcess.forEach(groupPayload => {
-                    if(!groupPayload.votes) return;
-                    const voters = Object.keys(groupPayload.votes);
-                    dayTotal += voters.length;
+                // Check Peaks
+                if (dayCounts["Irei, ida e volta."] > peakLotacao.val) {
+                    peakLotacao.val = dayCounts["Irei, ida e volta."];
+                    peakLotacao.date = displayDate;
+                }
+                if (dayCounts["Não irei à faculdade hoje."] > peakAusencia.val) {
+                    peakAusencia.val = dayCounts["Não irei à faculdade hoje."];
+                    peakAusencia.date = displayDate;
+                }
+                if (dayCounts["Irei, mas não retornarei."] > peakSoIda.val) {
+                    peakSoIda.val = dayCounts["Irei, mas não retornarei."];
+                    peakSoIda.date = displayDate;
+                }
+                if (dayCounts["Não irei, apenas retornarei."] > peakSoVolta.val) {
+                    peakSoVolta.val = dayCounts["Não irei, apenas retornarei."];
+                    peakSoVolta.date = displayDate;
+                }
 
-                    voters.forEach(v => {
-                        const opt = groupPayload.votes[v];
-                        if (globalOptionCounts[opt] !== undefined) globalOptionCounts[opt]++;
-                        else globalOptionCounts[opt] = 1;
-                    });
-                });
+                stackedData["Irei, ida e volta."].push(dayCounts["Irei, ida e volta."]);
+                stackedData["Irei, mas não retornarei."].push(dayCounts["Irei, mas não retornarei."]);
+                stackedData["Não irei, apenas retornarei."].push(dayCounts["Não irei, apenas retornarei."]);
+                stackedData["Não irei à faculdade hoje."].push(dayCounts["Não irei à faculdade hoje."]);
 
                 barData.push(dayTotal);
                 accumTotalVotes += dayTotal;
-            });
+            }
 
             // Update Labels
             document.getElementById("txtPeriod").innerText = targetDaysStr;
-            document.getElementById("lblTotalVotes").innerText = accumTotalVotes;
+            document.getElementById("lblTotalVotes").innerText = accumTotalVotes.toLocaleString('pt-BR');
             
-            const numActiveDays = applicableDates.length > 0 ? applicableDates.length : 1;
-            document.getElementById("lblAverage").innerText = (accumTotalVotes / numActiveDays).toFixed(1);
+            // Update Highlights
+            const setHighlight = (valId, dateId, peakObj) => {
+                if(peakObj.val > 0) {
+                    document.getElementById(valId).innerText = peakObj.val.toLocaleString('pt-BR');
+                    document.getElementById(dateId).innerText = "(" + peakObj.date + ")";
+                } else {
+                    document.getElementById(valId).innerText = "0";
+                    document.getElementById(dateId).innerText = "Sem dados";
+                }
+            };
 
-            renderCharts(barLabels, barData, globalOptionCounts);
+            setHighlight("hlLotacaoVal", "hlLotacaoDate", peakLotacao);
+            setHighlight("hlAusenciaVal", "hlAusenciaDate", peakAusencia);
+            setHighlight("hlSoIdaVal", "hlSoIdaDate", peakSoIda);
+            setHighlight("hlSoVoltaVal", "hlSoVoltaDate", peakSoVolta);
+            
+            const numActiveDays = targetDays; // Always use target days since we show all days now
+            document.getElementById("lblAverage").innerText = (accumTotalVotes / numActiveDays).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
+            renderCharts(barLabels, barData, globalOptionCounts, stackedData);
         };
 
-        const renderCharts = (barLabels, barData, pieCountsMap) => {
+        let stackedChartIns = null;
+
+        const renderCharts = (barLabels, barData, pieCountsMap, stackedData) => {
             const pieLabels = Object.keys(pieCountsMap);
             const pieData = Object.values(pieCountsMap);
             const pieColors = pieLabels.map(l => optionColors[l] || "#9e9e9e");
+
+            Chart.defaults.color = '#e0e0e0';
+            Chart.defaults.borderColor = '#333';
 
             if(pieChartIns) pieChartIns.destroy();
             const pieCtx = document.getElementById('pieChart').getContext('2d');
@@ -363,21 +507,70 @@ const generateHtmlDashboard = (stats) => {
             if(barChartIns) barChartIns.destroy();
             const barCtx = document.getElementById('barChart').getContext('2d');
             barChartIns = new Chart(barCtx, {
-                type: 'bar',
+                type: 'line',
                 data: {
                     labels: barLabels,
                     datasets: [{
                         label: 'Número de Votos',
                         data: barData,
-                        backgroundColor: '#2196f3',
-                        borderRadius: 4
+                        borderColor: '#2196f3',
+                        backgroundColor: 'rgba(33, 150, 243, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: '#2196f3'
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
+                    scales: { 
+                        y: { 
+                            beginAtZero: true, 
+                            ticks: { stepSize: 1 } 
+                        } 
+                    },
                     plugins: { legend: { display: false } }
+                }
+            });
+
+            if(stackedChartIns) stackedChartIns.destroy();
+            const stackedCtx = document.getElementById('stackedBarChart').getContext('2d');
+            stackedChartIns = new Chart(stackedCtx, {
+                type: 'bar',
+                data: {
+                    labels: barLabels,
+                    datasets: [
+                        {
+                            label: 'Ida e Volta',
+                            data: stackedData["Irei, ida e volta."],
+                            backgroundColor: optionColors["Irei, ida e volta."]
+                        },
+                        {
+                            label: 'Só Ida',
+                            data: stackedData["Irei, mas não retornarei."],
+                            backgroundColor: optionColors["Irei, mas não retornarei."]
+                        },
+                        {
+                            label: 'Só Volta',
+                            data: stackedData["Não irei, apenas retornarei."],
+                            backgroundColor: optionColors["Não irei, apenas retornarei."]
+                        },
+                        {
+                            label: 'Ausente',
+                            data: stackedData["Não irei à faculdade hoje."],
+                            backgroundColor: optionColors["Não irei à faculdade hoje."]
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { stacked: true },
+                        y: { stacked: true, beginAtZero: true, ticks: { stepSize: 1 } }
+                    },
+                    plugins: { legend: { position: 'bottom' } }
                 }
             });
         };
