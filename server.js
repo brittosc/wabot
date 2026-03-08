@@ -125,9 +125,9 @@ const startServer = () => {
         }
     });
 
-    server.listen(port, () => {
+    server.listen(port, '0.0.0.0', () => {
         dashboard.addLog(`Servidor Web iniciado na porta ${port}`);
-        dashboard.setServerUrl(`http://localhost:${port}`);
+        dashboard.setServerUrl(`http://0.0.0.0:${port}`);
     });
 };
 
