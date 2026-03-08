@@ -88,7 +88,6 @@ const generateHtmlDashboard = (stats) => {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="refresh" content="30">
     <title>Painel Avançado</title>
     <link rel="icon" href="https://dayz.com/favicon.ico">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -300,11 +299,11 @@ const generateHtmlDashboard = (stats) => {
     </div>
 
     <div class="footer">
-        Atualizado pela última vez em: ${lastUpdateFormated}
+        Atualizado pela última vez em: <span id="lblLastUpdate">${lastUpdateFormated}</span>
     </div>
 
     <script>
-        const rawDB = ${statsJSONStr};
+        let rawDB = ${statsJSONStr};
         const optionColors = {
             "Irei, ida e volta.": "#4caf50",
             "Irei, mas não retornarei.": "#2196f3",
@@ -584,6 +583,30 @@ const generateHtmlDashboard = (stats) => {
         // Boot
         initSelects();
         updateDash();
+
+        // Auto-refresh via JS fetch para não piscar a tela
+        const fetchStats = async () => {
+            try {
+                const res = await fetch('/api/stats');
+                if (res.ok) {
+                    const data = await res.json();
+                    
+                    // Compara as chaves para verificar levemente as mudanças, caso contrário o dashboard recarrega
+                    if (JSON.stringify(rawDB) !== JSON.stringify(data)) {
+                        rawDB = data;
+                        updateDash(); // Re-render dos gráficos
+                        
+                        const now = new Date();
+                        document.getElementById('lblLastUpdate').innerText = now.toLocaleDateString('pt-BR') + ' ' + now.toLocaleTimeString('pt-BR');
+                    }
+                }
+            } catch (err) {
+                console.error('Erro no Auto-Refresh:', err);
+            }
+        };
+
+        // Poll de 10 em 10 segundos
+        setInterval(fetchStats, 10000);
     </script>
 </body>
 </html>

@@ -1,11 +1,144 @@
 const http = require('http');
 const fs = require('fs');
+const os = require('os');
+const https = require('https');
+const { exec } = require('child_process');
 const dashboard = require('./dashboard');
+const { readStats } = require('./statistics');
+
+// Variável em memória para cachear o IP público da VPS, evitando travar a API fazendo request toda hora
+let publicIpCache = "Desconhecido";
+
+// Helpers do Hardware
+const getCpuTicks = () => {
+    const cpus = os.cpus();
+    let totalTick = 0;
+    let totalIdle = 0;
+    for (let i = 0, len = cpus.length; i < len; i++) {
+        const cpu = cpus[i];
+        for (const type in cpu.times) {
+            totalTick += cpu.times[type];
+        }
+        totalIdle += cpu.times.idle;
+    }
+    return { idle: totalIdle, total: totalTick };
+};
+
+let previousCpuInfo = getCpuTicks();
+
+// Helper de Rede (Bandwidth Windows)
+let previousNetInfo = { rx: 0, tx: 0, time: Date.now() };
+let currentNetUsage = { rxSpeed: 0, txSpeed: 0 }; // Bytes per second
 
 const startServer = () => {
     const port = process.env.PORT || 3000;
+
+    // Iniciar poller de rede (a cada 2 segundos via shell Windows)
+    setInterval(() => {
+        exec('netstat -e', (err, stdout) => {
+            if (err) return;
+            const lines = stdout.split('\n');
+            const bytesLine = lines.find(line => line.toLowerCase().includes('bytes'));
+            if (bytesLine) {
+                const parts = bytesLine.trim().split(/\s+/);
+                const rx = parseInt(parts[1], 10) || 0;
+                const tx = parseInt(parts[2], 10) || 0;
+                const now = Date.now();
+                const timeDiff = (now - previousNetInfo.time) / 1000;
+
+                if (timeDiff > 0 && previousNetInfo.rx > 0) {
+                    currentNetUsage.rxSpeed = Math.max(0, (rx - previousNetInfo.rx) / timeDiff);
+                    currentNetUsage.txSpeed = Math.max(0, (tx - previousNetInfo.tx) / timeDiff);
+                }
+
+                previousNetInfo = { rx, tx, time: now };
+            }
+        });
+    }, 2000);
+
+    // Buscar IP Público assincronamente logo quando o server inicia
+    https.get('https://api.ipify.org', (res) => {
+        let rawData = '';
+        res.on('data', (chunk) => rawData += chunk);
+        res.on('end', () => {
+            publicIpCache = rawData.trim();
+        });
+    }).on('error', (e) => {
+        console.error(`Falha ao obter IP Público: ${e.message}`);
+    });
+
     const server = http.createServer((req, res) => {
-        if (req.url === '/' || req.url === '/estatisticas' || req.url === '/estatisticas.html') {
+
+        // Rota API de Monitoramento da Máquina (SysInfo)
+        if (req.url === '/api/sysinfo') {
+            const totalMem = os.totalmem();
+            const freeMem = os.freemem();
+            const usedMem = totalMem - freeMem;
+
+            const usedMemGB = (usedMem / 1024 / 1024 / 1024).toFixed(2);
+            const totalMemGB = (totalMem / 1024 / 1024 / 1024).toFixed(2);
+            const ramPercentage = ((usedMem / totalMem) * 100).toFixed(1);
+
+            // CPU Load: Usando medição por ticks (compatível com Windows/Linux)
+            const cores = os.cpus().length;
+            const currentCpuInfo = getCpuTicks();
+            const idleDifference = currentCpuInfo.idle - previousCpuInfo.idle;
+            const totalDifference = currentCpuInfo.total - previousCpuInfo.total;
+            let cpuPercentage = 100 - Math.floor((100 * idleDifference) / totalDifference);
+            previousCpuInfo = currentCpuInfo;
+
+            if (isNaN(cpuPercentage) || cpuPercentage < 0) cpuPercentage = 0;
+            if (cpuPercentage > 100) cpuPercentage = 100.0;
+            cpuPercentage = cpuPercentage.toFixed(1);
+
+            const sysInfo = {
+                publicIp: publicIpCache,
+                ram: {
+                    usedGB: usedMemGB,
+                    totalGB: totalMemGB,
+                    percentage: ramPercentage
+                },
+                cpu: {
+                    cores: cores,
+                    loadPercentage: cpuPercentage
+                },
+                networkUsage: currentNetUsage
+            };
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify(sysInfo));
+            return;
+        }
+
+        // Rota API de rawDB para o Auto-Refresh do frontend das Estatísticas
+        if (req.url === '/api/stats') {
+            try {
+                const data = readStats();
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify(data));
+            } catch (err) {
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: err.message }));
+            }
+            return;
+        }
+
+        // Rota Raiz (Dashboard Root da VPS)
+        if (req.url === '/') {
+            fs.readFile('./index.html', 'utf8', (err, data) => {
+                if (err) {
+                    res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' });
+                    res.end('Erro: Arquivo index.html (Dashboard da VPS) não encontrado na pasta raiz.');
+                    return;
+                }
+                res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+                res.end(data);
+            });
+            return;
+        }
+
+        // Rota Estatísticas do WhatsApp
+        if (req.url === '/estatisticas' || req.url === '/estatisticas.html') {
             fs.readFile('./estatisticas.html', 'utf8', (err, data) => {
                 if (err) {
                     if (err.code === 'ENOENT') {
@@ -17,7 +150,6 @@ const startServer = () => {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="refresh" content="30">
     <title>Aguardando Dados</title>
     <link rel="icon" href="https://dayz.com/favicon.ico">
     <style>
@@ -112,6 +244,10 @@ const startServer = () => {
         <p>As estatísticas das enquetes ainda não foram geradas.</p>
         <div class="waiting-text">Aguardando interações...</div>
     </div>
+    <script>
+        // Refresh fallback dynamically to avoid screen flickers
+        setInterval(() => window.location.reload(), 10000);
+    </script>
 </body>
 </html>
                         `);
@@ -124,10 +260,12 @@ const startServer = () => {
                 res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
                 res.end(data);
             });
-        } else {
-            res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
-            res.end('Página não encontrada.');
+            return;
         }
+
+        // Endpoint Padrão Isolado
+        res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+        res.end('Página não encontrada.');
     });
 
     server.listen(port, '0.0.0.0', () => {

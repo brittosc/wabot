@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VPS Dashboard</title>
+    <link rel="icon" href="https://dayz.com/favicon.ico">
+    <style>
+        :root {
+            --bg-color: #0b0d12;
+            --card-bg: rgba(26, 29, 36, 0.7);
+            --card-hover: rgba(35, 39, 48, 0.9);
+            --text-color: #e2e8f0;
+            --accent: #3b82f6;
+            --accent-glow: rgba(59, 130, 246, 0.4);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --danger-color: #ef4444;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-color);
+            background-image:
+                radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.15) 0px, transparent 50%),
+                radial-gradient(at 100% 0%, rgba(16, 185, 129, 0.05) 0px, transparent 50%);
+            background-attachment: fixed;
+            color: var(--text-color);
+            margin: 0;
+            padding: 30px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes pulseIndicator {
+            0% {
+                box-shadow: 0 0 0 0 var(--success-color);
+            }
+
+            70% {
+                box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+            }
+        }
+
+        .header {
+            width: 100%;
+            max-width: 1200px;
+            margin-bottom: 40px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 20px;
+            animation: slideUp 0.6s ease-out;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 2.2rem;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 25px;
+            width: 100%;
+            max-width: 1200px;
+            animation: slideUp 0.8s ease-out;
+        }
+
+        .card {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: 16px;
+            padding: 25px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, var(--border-color), transparent);
+            opacity: 0.5;
+        }
+
+        .card.interactive:hover {
+            transform: translateY(-8px);
+            background: var(--card-hover);
+            border-color: rgba(59, 130, 246, 0.3);
+            box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.7), 0 0 20px var(--accent-glow);
+            cursor: pointer;
+        }
+
+        .card.interactive:hover::before {
+            background: linear-gradient(90deg, transparent, var(--accent), transparent);
+            opacity: 1;
+        }
+
+        .card h2 {
+            margin-top: 0;
+            font-size: 1.3rem;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding-bottom: 15px;
+            margin-bottom: 25px;
+            font-weight: 600;
+        }
+
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .metric-title {
+            color: #94a3b8;
+            font-size: 0.95rem;
+            font-weight: 500;
+        }
+
+        .metric-value {
+            font-weight: 700;
+            font-size: 1.15rem;
+            color: #f8fafc;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 10px;
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 10px;
+            position: relative;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .progress-fill {
+            height: 100%;
+            background-color: var(--success-color);
+            border-radius: 8px;
+            transition: width 0.8s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.5s ease;
+            position: relative;
+        }
+
+        .ip-box {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            font-family: 'JetBrains Mono', 'Courier New', Courier, monospace;
+            font-size: 1.4rem;
+            color: var(--accent);
+            letter-spacing: 1.5px;
+            margin-top: 15px;
+            text-shadow: 0 0 10px var(--accent-glow);
+        }
+
+        .network-list {
+            margin-top: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .network-badge {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-left: 3px solid var(--accent);
+            padding: 10px 15px;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .net-name {
+            font-size: 0.85rem;
+            color: #94a3b8;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+
+        .net-ip {
+            font-family: monospace;
+            font-size: 1rem;
+            color: #f8fafc;
+        }
+
+        .app-link {
+            text-decoration: none;
+            color: inherit;
+            display: contents;
+        }
+
+        .feature-icon {
+            font-size: 3.5rem;
+            text-align: center;
+            margin: 25px 0;
+            filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.3));
+            transition: transform 0.3s ease;
+        }
+
+        .card.interactive:hover .feature-icon {
+            transform: scale(1.1);
+        }
+
+        .card.placeholder {
+            opacity: 0.8;
+            background-image: repeating-linear-gradient(45deg,
+                    rgba(255, 255, 255, 0.02),
+                    rgba(255, 255, 255, 0.02) 10px,
+                    transparent 10px,
+                    transparent 20px);
+        }
+
+        .card.placeholder:hover {
+            transform: none;
+            box-shadow: none;
+            border-color: var(--border-color);
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            background-color: var(--success-color);
+            border-radius: 50%;
+            display: inline-block;
+            box-shadow: 0 0 10px var(--success-color);
+            animation: pulseIndicator 2s infinite;
+        }
+
+        .updated-timestamp {
+            font-size: 0.85rem;
+            color: #64748b;
+            text-align: right;
+            margin-top: 25px;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            padding-top: 10px;
+        }
+
+        /* Mobile specific spacing */
+        @media (max-width: 768px) {
+            body {
+                padding: 15px 10px;
+            }
+
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .header h1 {
+                font-size: 1.8rem;
+            }
+
+            .card {
+                padding: 20px;
+            }
+
+            .ip-box {
+                font-size: 1.2rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="header">
+        <h1><span class="status-dot" id="serverStatus"></span> VPS Dashboard <span
+                style="font-size: 1rem; color: #64748b; font-weight: 400; margin-left: auto; display: inline-block;">Painel
+                Unificado</span></h1>
+    </div>
+
+    <div class="dashboard-grid">
+
+        <!-- Card 1: Sistema e Desempenho -->
+        <div class="card">
+            <h2>🖥️ Desempenho da Máquina</h2>
+
+            <div class="metric">
+                <span class="metric-title">Memória RAM</span>
+                <span class="metric-value" id="ramText">-- / -- GB</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="ramBar" style="width: 0%;"></div>
+            </div>
+            <div style="margin-bottom: 35px;"></div>
+
+            <div class="metric">
+                <span class="metric-title">CPU Status (<span id="cpuCores">-</span> cores)</span>
+                <span class="metric-value" id="cpuText">--%</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="cpuBar" style="width: 0%;"></div>
+            </div>
+
+            <div style="margin-top: 40px;">
+                <span class="metric-title">IP Público (GW)</span>
+                <div class="ip-box" id="ipAddress">Aguardando...</div>
+            </div>
+
+            <div class="updated-timestamp" id="lastUpdate">Obtendo dados...</div>
+        </div>
+
+        <!-- Card 1.5: Uso de Rede (Banda Livre) -->
+        <div class="card">
+            <h2>🌍 Uso de Rede (Tempo Real)</h2>
+            <div class="metric" style="margin-bottom: 20px;">
+                <span class="metric-title">Velocidade de Tráfego do Servidor:</span>
+            </div>
+
+            <div id="networkContainer" class="network-list">
+                <!-- Row Upload -->
+                <div class="network-badge"
+                    style="border-left-color: var(--accent); flex-direction: row; justify-content: space-between; align-items: center;">
+                    <span class="net-name" style="font-size: 1rem; color: #f8fafc; font-weight: normal;">
+                        <span style="display:inline-block; margin-right: 8px; transform: rotate(-45deg);">➤</span>
+                        Enviando
+                    </span>
+                    <span class="net-ip" id="txSpeedTxt">0.00 KB/s</span>
+                </div>
+                <!-- Row Download -->
+                <div class="network-badge"
+                    style="border-left-color: var(--success-color); flex-direction: row; justify-content: space-between; align-items: center;">
+                    <span class="net-name" style="font-size: 1rem; color: #f8fafc; font-weight: normal;">
+                        <span
+                            style="display:inline-block; margin-right: 8px; transform: rotate(135deg); color: var(--success-color);">➤</span>
+                        Recebendo
+                    </span>
+                    <span class="net-ip" style="color: var(--success-color);" id="rxSpeedTxt">0.00 KB/s</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 2: Aplicação WA -->
+        <a href="/estatisticas" class="app-link">
+            <div class="card interactive">
+                <h2 style="color: var(--accent);">📊 WhatsApp Bot - Estatísticas</h2>
+                <div class="feature-icon">📈</div>
+                <div class="metric"
+                    style="justify-content: center; flex-direction: column; text-align: center; gap: 15px;">
+                    <span class="metric-value" style="font-size: 1.25rem;">Painel de Lotação e Enquetes</span>
+                    <span class="metric-title" style="line-height: 1.5;">Visualização de métricas de votos, gráficos em
+                        linha, barras empilhadas e histórico de interações com o WABot.</span>
+                </div>
+                <div
+                    style="margin-top: auto; padding-top: 25px; text-align: center; color: var(--accent); font-weight: bold; letter-spacing: 1px;">
+                    ACESSAR PAINEL ➔
+                </div>
+            </div>
+        </a>
+
+        <!-- Card 3: Placeholder 1 -->
+        <div class="card placeholder" style="cursor: not-allowed;">
+            <h2>🔒 Módulo Restrito</h2>
+            <div class="feature-icon">🚧</div>
+            <div class="metric" style="justify-content: center; flex-direction: column; text-align: center; gap: 15px;">
+                <span class="metric-value">Gestão de Catracas</span>
+                <span class="metric-title">Interface reservada para integração futura via controle de acesso
+                    Node.js.</span>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const formatColor = (bar, percentage) => {
+            if (percentage < 60) bar.style.backgroundColor = 'var(--success-color)';
+            else if (percentage < 85) bar.style.backgroundColor = 'var(--warning-color)';
+            else bar.style.backgroundColor = 'var(--danger-color)';
+        };
+
+        const formatBandwidth = (bytesPerSec) => {
+            if (bytesPerSec < 1024) return bytesPerSec.toFixed(1) + ' B/s';
+            if (bytesPerSec < 1024 * 1024) return (bytesPerSec / 1024).toFixed(2) + ' KB/s';
+            if (bytesPerSec < 1024 * 1024 * 1024) return (bytesPerSec / 1024 / 1024).toFixed(2) + ' MB/s';
+            return (bytesPerSec / 1024 / 1024 / 1024).toFixed(2) + ' GB/s';
+        };
+
+        const renderNetworkUsage = (networkUsage) => {
+            if (!networkUsage) return;
+            document.getElementById('rxSpeedTxt').innerText = formatBandwidth(networkUsage.rxSpeed);
+            document.getElementById('txSpeedTxt').innerText = formatBandwidth(networkUsage.txSpeed);
+        };
+
+        const fetchSysInfo = async () => {
+            try {
+                const res = await fetch('/api/sysinfo');
+                if (!res.ok) throw new Error('Falha na resposta da API');
+
+                const data = await res.json();
+
+                // IP Público Gateway
+                if (data.publicIp) {
+                    document.getElementById('ipAddress').innerText = data.publicIp;
+                }
+
+                // RAM Refresh
+                document.getElementById('ramText').innerText =
+                    `${data.ram.usedGB} / ${data.ram.totalGB} GB (${data.ram.percentage}%)`;
+                const ramBar = document.getElementById('ramBar');
+                ramBar.style.width = `${data.ram.percentage}%`;
+                formatColor(ramBar, parseFloat(data.ram.percentage));
+
+                // CPU Ticks Refresh
+                document.getElementById('cpuCores').innerText = data.cpu.cores;
+                document.getElementById('cpuText').innerText = `${data.cpu.loadPercentage}%`;
+                const cpuBar = document.getElementById('cpuBar');
+                cpuBar.style.width = `${data.cpu.loadPercentage}%`;
+                formatColor(cpuBar, parseFloat(data.cpu.loadPercentage));
+
+                // Network List Refresh
+                if (data.networkUsage) renderNetworkUsage(data.networkUsage);
+
+                // LED Status
+                const dot = document.getElementById('serverStatus');
+                dot.style.backgroundColor = 'var(--success-color)';
+                dot.style.boxShadow = '0 0 10px var(--success-color)';
+            } catch (err) {
+                console.error("Erro ao buscar sysinfo:", err);
+                const dot = document.getElementById('serverStatus');
+                dot.style.backgroundColor = 'var(--danger-color)';
+                dot.style.boxShadow = '0 0 10px var(--danger-color)';
+            } finally {
+                const now = new Date();
+                document.getElementById('lastUpdate').innerText = `Última sincronização online: ${now.toLocaleTimeString()}`;
+            }
+        };
+
+        // Bootstrap: Executa instantaneamente na primeira montagem DOM
+        fetchSysInfo();
+
+        // Loop: A cada 10 segundos
+        setInterval(fetchSysInfo, 10000);
+    </script>
+</body>
+
+</html>
