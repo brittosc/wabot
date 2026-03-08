@@ -17,8 +17,9 @@ const startServer = () => {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="refresh" content="60">
-    <title>Aguardando Dados - WABot</title>
+    <meta http-equiv="refresh" content="30">
+    <title>Aguardando Dados</title>
+    <link rel="icon" href="https://dayz.com/favicon.ico">
     <style>
         :root {
             --bg-color: #f4f7f6;
