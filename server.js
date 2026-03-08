@@ -3,7 +3,7 @@ const fs = require('fs');
 const dashboard = require('./dashboard');
 
 const startServer = () => {
-    const port = process.env.PORT || 80;
+    const port = process.env.PORT || 3000;
     const server = http.createServer((req, res) => {
         if (req.url === '/' || req.url === '/estatisticas' || req.url === '/estatisticas.html') {
             fs.readFile('./estatisticas.html', 'utf8', (err, data) => {
