@@ -255,18 +255,33 @@ const startServer = () => {
                             const isRain = rainScore.includes('1');
                             const isThunder = thunderScore.includes('1');
 
-                            let weatherLabel = 'Limpo ☁️';
+                            let weatherLabel = 'Limpo';
                             let weatherIcon = '';
 
-                            if (isThunder) { weatherLabel = 'Tempestade'; weatherIcon = '⛈️'; }
-                            else if (isRain) { weatherLabel = 'Chuvoso'; weatherIcon = '🌧️'; }
+                            if (isThunder) {
+                                weatherLabel = 'Tempestade';
+                                weatherIcon = '⛈️';
+                            } else if (isRain) {
+                                weatherLabel = 'Chuva';
+                                weatherIcon = '🌧️';
+                            }
 
-                            // Frase Dinâmica
-                            // Exemplos: "Dia ☀️ com Chuvoso 🌧️", "Noite 🌃" (se limpo)
-                            if (weatherLabel === 'Limpo ☁️') {
+                            // Frase Dinâmica - Linguagem Natural V2
+                            if (weatherLabel === 'Limpo') {
                                 worldStats.combined = `${timeLabel} ${timeIcon}`;
                             } else {
-                                worldStats.combined = `${timeLabel} ${timeIcon} com ${weatherLabel} ${weatherIcon}`;
+                                if (weatherLabel === 'Tempestade') {
+                                    worldStats.combined = `${timeLabel} com Tempestade ${weatherIcon}`;
+                                } else {
+                                    // Regra para Chuva
+                                    if (timeLabel === 'Dia') {
+                                        worldStats.combined = `Dia com tempo Chuvoso ${weatherIcon}`;
+                                    } else if (timeLabel === 'Noite') {
+                                        worldStats.combined = `Noite com Chuva ${weatherIcon}`;
+                                    } else {
+                                        worldStats.combined = `${timeLabel} com Chuva ${weatherIcon}`;
+                                    }
+                                }
                             }
 
                             rcon.end();
