@@ -82,6 +82,16 @@ const generateHtmlDashboard = (stats) => {
     const statsJSONStr = JSON.stringify(stats);
     const lastUpdateFormated = moment().tz('America/Sao_Paulo').format('DD/MM/YYYY HH:mm:ss');
 
+    // Carregar capacidades do config.json
+    let capacities = {};
+    try {
+        const config = JSON.parse(fs.readFileSync('./config.json', 'utf8'));
+        capacities = config.groupCapacities || {};
+    } catch (e) {
+        console.error("Erro ao ler capacidades do config.json:", e.message);
+    }
+    const capacitiesJSONStr = JSON.stringify(capacities);
+
     const htmlContent = `
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -264,6 +274,15 @@ const generateHtmlDashboard = (stats) => {
         </div>
     </div>
 
+    <!-- Barra de Lotação do Dia -->
+    <div id="capacitySection" style="display: none; width: 100%; max-width: 1000px; margin-bottom: 20px;">
+        <div class="card" style="width: 100%; align-items: stretch; padding: 15px 20px; box-sizing: border-box;">
+            <div id="capacityList">
+                <!-- Preenchido via JS para suportar múltiplos grupos de forma compacta -->
+            </div>
+        </div>
+    </div>
+
     <div class="dashboard">
         <div class="card">
             <h2>Média / Total Geral (Opções)</h2>
@@ -280,7 +299,7 @@ const generateHtmlDashboard = (stats) => {
         </div>
         
         <div class="card" style="grid-column: 1 / -1;">
-            <h2>Proporção Diária (Stacked)</h2>
+            <h2>Proporção Diária</h2>
             <div class="chart-container">
                 <canvas id="stackedBarChart"></canvas>
             </div>
@@ -304,6 +323,7 @@ const generateHtmlDashboard = (stats) => {
 
     <script>
         let rawDB = ${statsJSONStr};
+        let capacities = ${capacitiesJSONStr};
         const optionColors = {
             "Irei, ida e volta.": "#4caf50",
             "Irei, mas não retornarei.": "#2196f3",
@@ -471,7 +491,86 @@ const generateHtmlDashboard = (stats) => {
             const numActiveDays = targetDays; // Always use target days since we show all days now
             document.getElementById("lblAverage").innerText = (accumTotalVotes / numActiveDays).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
+            // Atualizar Lotação do Dia (Hoje)
+            updateCapacityCard(targetGroup);
+
             renderCharts(barLabels, barData, globalOptionCounts, stackedData);
+        };
+
+        const updateCapacityCard = (targetGroup) => {
+            const todayStr = moment().startOf('day').format('YYYY-MM-DD');
+            const capacitySection = document.getElementById("capacitySection");
+            const capacityList = document.getElementById("capacityList");
+            capacityList.innerHTML = "";
+            
+            let hasAnyCapacity = false;
+
+            if (rawDB[todayStr]) {
+                const dayEntry = rawDB[todayStr];
+                let groupEntries = [];
+
+                if (dayEntry.Version2 && dayEntry.grupos) {
+                    if (targetGroup === "Todos") {
+                        Object.keys(dayEntry.grupos).forEach(gName => {
+                            if (capacities[gName]) {
+                                groupEntries.push({ name: gName, payload: dayEntry.grupos[gName], cap: capacities[gName] });
+                            }
+                        });
+                    } else if (dayEntry.grupos[targetGroup] && capacities[targetGroup]) {
+                        groupEntries.push({ name: targetGroup, payload: dayEntry.grupos[targetGroup], cap: capacities[targetGroup] });
+                    }
+                }
+
+                groupEntries.forEach(entry => {
+                    let confirmations = 0;
+                    if (entry.payload.votes) {
+                        Object.values(entry.payload.votes).forEach(opt => {
+                            // Confirmados: "Irei, ida e volta.", "Irei, mas não retornarei." e "Não irei, apenas retornarei."
+                            if (opt === "Irei, ida e volta." || opt === "Irei, mas não retornarei." || opt === "Não irei, apenas retornarei.") {
+                                confirmations++;
+                            }
+                        });
+                    }
+                    renderCompactBar(entry.name, confirmations, entry.cap);
+                    hasAnyCapacity = true;
+                });
+            } else if (targetGroup !== "Todos" && capacities[targetGroup]) {
+                renderCompactBar(targetGroup, 0, capacities[targetGroup]);
+                hasAnyCapacity = true;
+            }
+
+            capacitySection.style.display = hasAnyCapacity ? "block" : "none";
+        };
+
+        const renderCompactBar = (name, count, cap) => {
+            const capacityList = document.getElementById("capacityList");
+            const percentage = Math.min(100, (count / cap) * 100);
+            
+            let statusColor = "#94a3b8";
+            let statusText = (cap - count) + " vagas";
+            if (count >= cap) {
+                statusColor = "#f44336";
+                statusText = "LOTADO! \u26A0\uFE0F";
+            } else if (percentage > 85) {
+                statusColor = "#ff9800";
+                statusText = "Quase lotado";
+            }
+
+            const barHtml = \`
+                <div style="margin-bottom: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 6px;">
+                        <span style="font-size: 0.9rem; font-weight: 600; color: var(--title-color);">\${name}</span>
+                        <div style="text-align: right;">
+                            <span style="font-size: 0.8rem; color: \${statusColor}; font-weight: 500; margin-right: 8px;">\${statusText}</span>
+                            <span style="font-size: 1rem; font-weight: bold; color: var(--accent);">\${count}/\${cap}</span>
+                        </div>
+                    </div>
+                    <div style="width: 100%; height: 10px; background: #2c2c2c; border-radius: 5px; overflow: hidden; border: 1px solid var(--border-color);">
+                        <div style="width: \${percentage}%; height: 100%; background: linear-gradient(90deg, #2196f3, #4caf50); transition: width 0.8s ease;"></div>
+                    </div>
+                </div>
+            \`;
+            capacityList.innerHTML += barHtml;
         };
 
         let stackedChartIns = null;

@@ -2,6 +2,9 @@
     "targetGroups": [
         "Ônibus unesc 01 2026"
     ],
+    "groupCapacities": {
+        "Ônibus unesc 01 2026": 51
+    },
     "pollTime": "05:30",
     "timezone": "America/Sao_Paulo",
     "skipDates": [
