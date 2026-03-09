@@ -179,11 +179,11 @@ const startServer = () => {
                             else
                                 worldStats.time = 'Madrugada 🌙';
 
-                            const rainCheck = await rcon.send('execute if predicate {condition:"weather_check","raining":true} run say Raining!');
-                            const thunderCheck = await rcon.send('execute if predicate {condition:"weather_check","thundering":true} run say Thundering!');
+                            const rainCheck = await rcon.send('execute if predicate {condition:"weather_check","raining":true} run tellraw @a {"text":"RainingCheck"}');
+                            const thunderCheck = await rcon.send('execute if predicate {condition:"weather_check","thundering":true} run tellraw @a {"text":"ThunderCheck"}');
 
-                            const isThunder = thunderCheck.toLowerCase().includes('thundering!');
-                            const isRain = rainCheck.toLowerCase().includes('raining!');
+                            const isThunder = thunderCheck.toLowerCase().includes('thundercheck');
+                            const isRain = rainCheck.toLowerCase().includes('rainingcheck');
 
                             if (isThunder) {
                                 worldStats.weather = 'Tempestade ⛈️';
