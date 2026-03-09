@@ -236,16 +236,15 @@ const startServer = () => {
                             const timeTicks = parseInt(timeOutput.match(/\d+/)[0], 10) % 24000;
 
                             // Ciclo Solar Minecraft (Regras Oficiais):
-                            if (timeTicks >= 23000 || timeTicks < 1000)
-                                worldStats.time = 'Amanhecer 🌅';
-                            else if (timeTicks >= 1000 && timeTicks < 12000)
-                                worldStats.time = 'Dia ☀️';
-                            else if (timeTicks >= 12000 && timeTicks < 13000)
-                                worldStats.time = 'Entardecer 🌇';
-                            else if (timeTicks >= 13000 && timeTicks < 18000)
-                                worldStats.time = 'Noite 🌙';
-                            else
-                                worldStats.time = 'Madrugada 🌙';
+                            let timeLabel = '';
+                            let timeIcon = '';
+                            if (timeTicks >= 23000 || timeTicks < 1000) { timeLabel = 'Amanhecer'; timeIcon = '🌅'; }
+                            else if (timeTicks >= 1000 && timeTicks < 12000) { timeLabel = 'Dia'; timeIcon = '☀️'; }
+                            else if (timeTicks >= 12000 && timeTicks < 13000) { timeLabel = 'Entardecer'; timeIcon = '🌇'; }
+                            else if (timeTicks >= 13000 && timeTicks < 18000) { timeLabel = 'Noite'; timeIcon = '🌃'; }
+                            else { timeLabel = 'Madrugada'; timeIcon = '🌙'; }
+
+                            worldStats.time = `${timeLabel} ${timeIcon}`;
 
                             await rcon.send('execute store success score #rain weatherCheck if predicate {condition:"weather_check","raining":true}');
                             await rcon.send('execute store success score #thunder weatherCheck if predicate {condition:"weather_check","thundering":true}');
