@@ -3,6 +3,7 @@ const fs = require('fs');
 const os = require('os');
 const https = require('https');
 const { exec } = require('child_process');
+const util = require('minecraft-server-util');
 const dashboard = require('./dashboard');
 const { readStats } = require('./statistics');
 
@@ -120,6 +121,35 @@ const startServer = () => {
                 res.writeHead(500, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ error: err.message }));
             }
+            return;
+        }
+
+        // Rota API de Status do Minecraft (GameSpy4 Query)
+        if (req.url === '/api/mcstatus') {
+            util.queryFull('0.0.0.0', 25565, { timeout: 5000 })
+                .then((result) => {
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({
+                        online: true,
+                        version: result.version,
+                        software: result.software,
+                        map: result.map,
+                        plugins: result.plugins || [],
+                        players: {
+                            online: result.players.online,
+                            max: result.players.max,
+                            list: result.players.list || []
+                        },
+                        motd: result.motd.clean
+                    }));
+                })
+                .catch((err) => {
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({
+                        online: false,
+                        error: err.message
+                    }));
+                });
             return;
         }
 
