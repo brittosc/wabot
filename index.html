@@ -455,6 +455,22 @@
                 <span class="metric-value" id="mcVersionText">--</span>
             </div>
 
+            <!-- Adicionais: Tempo e Uptime -->
+            <div
+                style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(255, 255, 255, 0.05);">
+                <div class="metric" style="flex-direction: column; align-items: flex-start; gap: 4px;">
+                    <span class="metric-title"
+                        style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px;">Estado do
+                        Mundo</span>
+                    <span class="metric-value" id="mcWorldTime" style="font-size: 0.9rem;">--</span>
+                </div>
+                <div class="metric" style="flex-direction: column; align-items: flex-end; gap: 4px;">
+                    <span class="metric-title"
+                        style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px;">Uptime</span>
+                    <span class="metric-value" id="mcUptime" style="font-size: 0.9rem;">--</span>
+                </div>
+            </div>
+
             <div class="updated-timestamp" id="lastMinecraftUpdate" style="border: none;"></div>
         </div>
 
@@ -488,6 +504,15 @@
     </div>
 
     <script>
+        const formatUptime = (ms) => {
+            if (!ms) return '0m';
+            const totalSeconds = Math.floor(ms / 1000);
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            if (hours > 0) return `${hours}h ${minutes}m`;
+            return `${minutes}m`;
+        };
+
         const copyIp = () => {
             const ip = document.getElementById('ipAddress').innerText;
             if (ip && ip !== 'Aguardando...') {
@@ -546,13 +571,11 @@
                     mapText.innerText = data.map || 'world';
                     motdText.innerText = data.motd || '--';
 
-                    pluginsCount.innerText = data.plugins ? data.plugins.length : '0';
-                    if (data.plugins && data.plugins.length > 0) {
-                        const pluginNames = data.plugins.map(p => p.name).join(', ');
-                        pluginsText.innerText = pluginNames;
-                    } else {
-                        pluginsText.innerText = '--';
-                    }
+                    pluginsText.innerText = data.plugins && data.plugins.length > 0 ? data.plugins.map(p => p.name).join(', ') : '--';
+
+                    // Uptime e World
+                    document.getElementById('mcUptime').innerText = formatUptime(data.uptime);
+                    document.getElementById('mcWorldTime').innerText = data.world ? data.world.time : '--';
 
                     // Render player list if available
                     if (data.players.list && data.players.list.length > 0) {

@@ -4,11 +4,16 @@ const os = require('os');
 const https = require('https');
 const { exec } = require('child_process');
 const util = require('minecraft-server-util');
+const { Rcon } = require('rcon-client');
 const dashboard = require('./dashboard');
 const { readStats } = require('./statistics');
 
 // Variável em memória para cachear o IP público da VPS, evitando travar a API fazendo request toda hora
 let publicIpCache = "Desconhecido";
+
+// Minecraft Uptime Tracking
+let mcUptimeStart = null;
+let lastMcOnlineStatus = false;
 
 // Helpers do Hardware
 const getCpuTicks = () => {
@@ -126,19 +131,59 @@ const startServer = () => {
 
         // Rota API de Status do Minecraft (GameSpy4 Query)
         if (req.url === '/api/mcstatus') {
+            const config = JSON.parse(fs.readFileSync('./config.json', 'utf8'));
+
             util.queryFull('0.0.0.0', 25565, { timeout: 5000 })
-                .then((result) => {
+                .then(async (result) => {
+                    // Update Uptime Tracker
+                    if (!lastMcOnlineStatus) {
+                        mcUptimeStart = Date.now();
+                        lastMcOnlineStatus = true;
+                    }
+
                     // Limpeza de caracteres de cor do Minecraft (§ ou Â)
                     const cleanString = (str) => {
                         if (!str) return '';
-                        // Remove especificamente o caractere Â puro e códigos de cor §+char
                         return str.replace(/§[0-9a-fk-or]/gi, '').replace(/Â/g, '').trim();
                     };
 
-                    // Simplificar a versão (Pegar apenas a primeira palavra se for Paper)
+                    // Simplificar a versão
                     let version = result.version;
                     if (version && version.toLowerCase().includes('paper')) {
                         version = 'Paper';
+                    }
+
+                    // RCON Data (Opcional)
+                    let worldStats = { time: 'Desconhecido', weather: 'Limpo' };
+                    if (config.minecraft && config.minecraft.rcon && config.minecraft.rcon.enabled) {
+                        try {
+                            const rcon = await Rcon.connect({
+                                host: config.minecraft.rcon.host,
+                                port: config.minecraft.rcon.port,
+                                password: config.minecraft.rcon.password,
+                                timeout: 2000
+                            });
+
+                            const timeOutput = await rcon.send('time query daytime');
+                            const timeTicks = parseInt(timeOutput.match(/\d+/)[0], 10);
+
+                            // Converter Ticks para Ciclo
+                            // 0 = Amanhecer, 6000 = Meio-dia, 12000 = Entardecer, 18000 = Meia-noite
+                            if (timeTicks >= 0 && timeTicks < 1000) worldStats.time = 'Amanhecer 🌅';
+                            else if (timeTicks >= 1000 && timeTicks < 11000) worldStats.time = 'Dia ☀️';
+                            else if (timeTicks >= 11000 && timeTicks < 13000) worldStats.time = 'Entardecer 🌅';
+                            else if (timeTicks >= 13000 && timeTicks < 23000) worldStats.time = 'Noite 🌙';
+                            else worldStats.time = 'Madrugada 🌙';
+
+                            // Check Weather
+                            // Não há comando direto simples via Query, mas podemos tentar 'isthundering' ou similar via plugins ou dedução.
+                            // Por padrão no vanilla, usamos o comando 'weather' mas ele não retorna o estado atual fácil.
+                            // Mas se o RCON está habilitado, podemos assumir o padrão por agora ou deixar como bônus.
+
+                            rcon.end();
+                        } catch (rconErr) {
+                            console.error("Erro RCON:", rconErr.message);
+                        }
                     }
 
                     res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -153,10 +198,14 @@ const startServer = () => {
                             max: result.players.max,
                             list: result.players.list || []
                         },
-                        motd: cleanString(result.motd.clean)
+                        motd: cleanString(result.motd.clean),
+                        uptime: mcUptimeStart ? (Date.now() - mcUptimeStart) : 0,
+                        world: worldStats
                     }));
                 })
                 .catch((err) => {
+                    lastMcOnlineStatus = false;
+                    mcUptimeStart = null;
                     res.writeHead(200, { 'Content-Type': 'application/json' });
                     res.end(JSON.stringify({
                         online: false,
