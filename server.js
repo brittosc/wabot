@@ -131,8 +131,8 @@ const startServer = () => {
                     // Limpeza de caracteres de cor do Minecraft (§ ou Â)
                     const cleanString = (str) => {
                         if (!str) return '';
-                        // Remove o caractere Â e qualquer sequência de cor do Minecraft (§ + char)
-                        return str.replace(/[Â§][0-9a-fk-or]/gi, '').replace(/Â/g, '').trim();
+                        // Remove especificamente o caractere Â puro e códigos de cor §+char
+                        return str.replace(/§[0-9a-fk-or]/gi, '').replace(/Â/g, '').trim();
                     };
 
                     // Simplificar a versão (Pegar apenas a primeira palavra se for Paper)
