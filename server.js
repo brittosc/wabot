@@ -266,20 +266,21 @@ const startServer = () => {
                                 weatherIcon = '🌧️';
                             }
 
-                            // Frase Dinâmica - Linguagem Natural V2
+                            // Frase Dinâmica - Linguagem Natural V3 (Compacta)
                             if (weatherLabel === 'Limpo') {
                                 worldStats.combined = `${timeLabel} ${timeIcon}`;
                             } else {
                                 if (weatherLabel === 'Tempestade') {
-                                    worldStats.combined = `${timeLabel} com Tempestade ${weatherIcon}`;
+                                    // "Dia de Tempestade", "Amanhecer Tempestivo" -> Vamos padronizar "Ciclo de Tempestade"
+                                    worldStats.combined = `${timeLabel} de Tempestade ${weatherIcon}`;
                                 } else {
                                     // Regra para Chuva
                                     if (timeLabel === 'Dia') {
-                                        worldStats.combined = `Dia com tempo Chuvoso ${weatherIcon}`;
+                                        worldStats.combined = `Dia Chuvoso ${weatherIcon}`;
                                     } else if (timeLabel === 'Noite') {
-                                        worldStats.combined = `Noite com Chuva ${weatherIcon}`;
+                                        worldStats.combined = `Noite de Chuva ${weatherIcon}`;
                                     } else {
-                                        worldStats.combined = `${timeLabel} com Chuva ${weatherIcon}`;
+                                        worldStats.combined = `${timeLabel} de Chuva ${weatherIcon}`;
                                     }
                                 }
                             }
