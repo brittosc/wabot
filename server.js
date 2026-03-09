@@ -168,19 +168,22 @@ const startServer = () => {
                             const timeTicks = parseInt(timeOutput.match(/\d+/)[0], 10) % 24000;
 
                             // Ciclo Solar Minecraft (Regras Oficiais):
-                            if (timeTicks >= 22200 || timeTicks < 1000) worldStats.time = 'Amanhecer 🌅';
-                            else if (timeTicks >= 1000 && timeTicks < 12000) worldStats.time = 'Dia ☀️';
-                            else if (timeTicks >= 12000 && timeTicks < 13800) worldStats.time = 'Entardecer 🌅';
-                            else if (timeTicks >= 13800 && timeTicks < 21000) worldStats.time = 'Noite 🌙';
-                            else worldStats.time = 'Madrugada 🌙';
+                            if (timeTicks >= 23000 || timeTicks < 1000)
+                                worldStats.time = 'Amanhecer 🌅';
+                            else if (timeTicks >= 1000 && timeTicks < 12000)
+                                worldStats.time = 'Dia ☀️';
+                            else if (timeTicks >= 12000 && timeTicks < 13000)
+                                worldStats.time = 'Entardecer 🌇';
+                            else if (timeTicks >= 13000 && timeTicks < 18000)
+                                worldStats.time = 'Noite 🌙';
+                            else
+                                worldStats.time = 'Madrugada 🌙';
 
-                            // Check Weather via 'execute if'
-                            const rainCheck = await rcon.send('execute if weather rain');
-                            const thunderCheck = await rcon.send('execute if weather thunder');
+                            const rainCheck = await rcon.send('execute if weather rain run say rain_test');
+                            const thunderCheck = await rcon.send('execute if weather thunder run say thunder_test');
 
-                            // Resposta padrão do Minecraft para 'if passes' é "Test passed" ou traduzido.
-                            const isThunder = thunderCheck.toLowerCase().includes('pass') || thunderCheck.toLowerCase().includes('sucesso') || thunderCheck.toLowerCase().includes('passou');
-                            const isRain = rainCheck.toLowerCase().includes('pass') || rainCheck.toLowerCase().includes('sucesso') || rainCheck.toLowerCase().includes('passou');
+                            const isThunder = thunderCheck.toLowerCase().includes('thunder_test');
+                            const isRain = rainCheck.toLowerCase().includes('rain_test');
 
                             if (isThunder) {
                                 worldStats.weather = 'Tempestade ⛈️';
