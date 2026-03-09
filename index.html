@@ -443,14 +443,14 @@
                 <span class="metric-value" id="mcMapText" style="font-size: 0.95rem;">--</span>
             </div>
 
-            <div class="metric" style="margin-top: 15px; flex-direction: column; align-items: flex-start;">
-                <span class="metric-title" style="margin-bottom: 8px;">Plugins (<span
+            <div class="metric" style="margin-top: 2px; flex-direction: column; align-items: flex-start;">
+                <span class="metric-title" style="margin-bottom: 2px;">Plugins (<span
                         id="mcPluginsCount">0</span>)</span>
                 <span class="metric-value" id="mcPluginsText"
                     style="font-size: 0.85rem; font-weight: normal; color: #64748b; line-height: 1.4;">--</span>
             </div>
 
-            <div class="metric" style="margin-top: 15px;">
+            <div class="metric" style="margin-top: 2px;">
                 <span class="metric-title">Versão</span>
                 <span class="metric-value" id="mcVersionText">--</span>
             </div>
@@ -572,6 +572,7 @@
                     motdText.innerText = data.motd || '--';
 
                     pluginsText.innerText = data.plugins && data.plugins.length > 0 ? data.plugins.map(p => p.name).join(', ') : '--';
+                    pluginsCount.innerText = data.plugins ? data.plugins.length : '0';
 
                     // Uptime e World
                     document.getElementById('mcUptime').innerText = formatUptime(data.uptime);
