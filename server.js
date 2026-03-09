@@ -128,10 +128,23 @@ const startServer = () => {
         if (req.url === '/api/mcstatus') {
             util.queryFull('0.0.0.0', 25565, { timeout: 5000 })
                 .then((result) => {
+                    // Limpeza de caracteres de cor do Minecraft (§ ou Â)
+                    const cleanString = (str) => {
+                        if (!str) return '';
+                        // Remove o caractere Â e qualquer sequência de cor do Minecraft (§ + char)
+                        return str.replace(/[Â§][0-9a-fk-or]/gi, '').replace(/Â/g, '').trim();
+                    };
+
+                    // Simplificar a versão (Pegar apenas a primeira palavra se for Paper)
+                    let version = result.version;
+                    if (version && version.toLowerCase().includes('paper')) {
+                        version = 'Paper';
+                    }
+
                     res.writeHead(200, { 'Content-Type': 'application/json' });
                     res.end(JSON.stringify({
                         online: true,
-                        version: result.version,
+                        version: version,
                         software: result.software,
                         map: result.map,
                         plugins: result.plugins || [],
@@ -140,7 +153,7 @@ const startServer = () => {
                             max: result.players.max,
                             list: result.players.list || []
                         },
-                        motd: result.motd.clean
+                        motd: cleanString(result.motd.clean)
                     }));
                 })
                 .catch((err) => {

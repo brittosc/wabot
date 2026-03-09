@@ -542,7 +542,7 @@
                     const percentage = data.players.max > 0 ? (data.players.online / data.players.max) * 100 : 0;
                     playersBar.style.width = `${percentage}%`;
 
-                    versionText.innerText = `${data.software} ${data.version}`.trim();
+                    versionText.innerText = data.version || '--';
                     mapText.innerText = data.map || 'world';
                     motdText.innerText = data.motd || '--';
 
