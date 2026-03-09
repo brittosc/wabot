@@ -11,9 +11,48 @@ const { readStats } = require('./statistics');
 // Variável em memória para cachear o IP público da VPS, evitando travar a API fazendo request toda hora
 let publicIpCache = "Desconhecido";
 
-// Minecraft Uptime Tracking
+// Minecraft Uptime Tracking (Persistent via Windows Process)
 let mcUptimeStart = null;
 let lastMcOnlineStatus = false;
+
+const getMcProcessStartTime = () => {
+    return new Promise((resolve) => {
+        const isWindows = os.platform() === 'win32';
+
+        if (isWindows) {
+            // Busca o processo java no Windows
+            exec('wmic process where "name=\'java.exe\'" get CreationDate /value', (err, stdout) => {
+                if (err || !stdout) return resolve(null);
+                const match = stdout.match(/CreationDate=(\d+)/);
+                if (match && match[1]) {
+                    const dateStr = match[1];
+                    const year = dateStr.substring(0, 4);
+                    const month = dateStr.substring(4, 6) - 1;
+                    const day = dateStr.substring(6, 8);
+                    const hour = dateStr.substring(8, 10);
+                    const minute = dateStr.substring(10, 12);
+                    const second = dateStr.substring(12, 14);
+                    resolve(new Date(year, month, day, hour, minute, second).getTime());
+                } else {
+                    resolve(null);
+                }
+            });
+        } else {
+            // Busca o processo java no Linux (Ubuntu)
+            // 'ps -C java -o lstart=' retorna a data de início (ex: Mon Mar 9 10:00:00 2026)
+            exec('ps -C java -o lstart= || ps -ef | grep "[j]ava" | awk \'{print $5}\'', (err, stdout) => {
+                if (err || !stdout) return resolve(null);
+                const dateStr = stdout.trim().split('\n')[0]; // Pega a primeira linha
+                if (dateStr) {
+                    const startTime = new Date(dateStr).getTime();
+                    resolve(isNaN(startTime) ? null : startTime);
+                } else {
+                    resolve(null);
+                }
+            });
+        }
+    });
+};
 
 // Helpers do Hardware
 const getCpuTicks = () => {
@@ -39,28 +78,56 @@ let currentNetUsage = { rxSpeed: 0, txSpeed: 0 }; // Bytes per second
 const startServer = () => {
     const port = process.env.PORT || 3000;
 
-    // Iniciar poller de rede (a cada 2 segundos via shell Windows)
+    // Iniciar poller de rede (a cada 2 segundos)
     setInterval(() => {
-        exec('netstat -e', (err, stdout) => {
-            if (err) return;
-            const lines = stdout.split('\n');
-            const bytesLine = lines.find(line => line.toLowerCase().includes('bytes'));
-            if (bytesLine) {
-                const parts = bytesLine.trim().split(/\s+/);
-                const rx = parseInt(parts[1], 10) || 0;
-                const tx = parseInt(parts[2], 10) || 0;
-                const now = Date.now();
-                const timeDiff = (now - previousNetInfo.time) / 1000;
+        const isWindows = os.platform() === 'win32';
 
-                if (timeDiff > 0 && previousNetInfo.rx > 0) {
-                    currentNetUsage.rxSpeed = Math.max(0, (rx - previousNetInfo.rx) / timeDiff);
-                    currentNetUsage.txSpeed = Math.max(0, (tx - previousNetInfo.tx) / timeDiff);
+        if (isWindows) {
+            exec('netstat -e', (err, stdout) => {
+                if (err) return;
+                const lines = stdout.split('\n');
+                const bytesLine = lines.find(line => line.toLowerCase().includes('bytes'));
+                if (bytesLine) {
+                    const parts = bytesLine.trim().split(/\s+/);
+                    const rx = parseInt(parts[1], 10) || 0;
+                    const tx = parseInt(parts[2], 10) || 0;
+                    updateNetUsage(rx, tx);
                 }
-
-                previousNetInfo = { rx, tx, time: now };
-            }
-        });
+            });
+        } else {
+            // Linux (Ubuntu) - Lê do /proc/net/dev (mais eficiente)
+            fs.readFile('/proc/net/dev', 'utf8', (err, data) => {
+                if (err) return;
+                const lines = data.split('\n');
+                let totalRx = 0;
+                let totalTx = 0;
+                // Pular as 2 primeiras linhas de cabeçalho
+                for (let i = 2; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    if (!line) continue;
+                    const parts = line.split(/\s+/);
+                    // RX bytes está no índice 1, TX bytes no índice 9 (geralmente)
+                    if (parts.length > 10) {
+                        totalRx += parseInt(parts[1], 10) || 0;
+                        totalTx += parseInt(parts[9], 10) || 0;
+                    }
+                }
+                updateNetUsage(totalRx, totalTx);
+            });
+        }
     }, 2000);
+
+    const updateNetUsage = (rx, tx) => {
+        const now = Date.now();
+        const timeDiff = (now - previousNetInfo.time) / 1000;
+
+        if (timeDiff > 0 && previousNetInfo.rx > 0) {
+            currentNetUsage.rxSpeed = Math.max(0, (rx - previousNetInfo.rx) / timeDiff);
+            currentNetUsage.txSpeed = Math.max(0, (tx - previousNetInfo.tx) / timeDiff);
+        }
+
+        previousNetInfo = { rx, tx, time: now };
+    };
 
     // Buscar IP Público assincronamente logo quando o server inicia
     https.get('https://api.ipify.org', (res) => {
@@ -135,9 +202,10 @@ const startServer = () => {
 
             util.queryFull('0.0.0.0', 25565, { timeout: 5000 })
                 .then(async (result) => {
-                    // Update Uptime Tracker
-                    if (!lastMcOnlineStatus) {
-                        mcUptimeStart = Date.now();
+                    // Update Uptime Tracker (Persistent)
+                    if (!lastMcOnlineStatus || !mcUptimeStart) {
+                        const processStart = await getMcProcessStartTime();
+                        mcUptimeStart = processStart || Date.now();
                         lastMcOnlineStatus = true;
                     }
 
@@ -154,7 +222,7 @@ const startServer = () => {
                     }
 
                     // RCON Data (Opcional)
-                    let worldStats = { time: 'Desconhecido', weather: 'Limpo' };
+                    let worldStats = { time: 'Desconhecido', weather: 'Limpo', combined: '--' };
                     if (config.minecraft && config.minecraft.rcon && config.minecraft.rcon.enabled) {
                         try {
                             const rcon = await Rcon.connect({
@@ -188,12 +256,18 @@ const startServer = () => {
                             const isRain = rainScore.includes('1');
                             const isThunder = thunderScore.includes('1');
 
-                            if (isThunder) {
-                                worldStats.weather = 'Tempestade ⛈️';
-                            } else if (isRain) {
-                                worldStats.weather = 'Chuva 🌧️';
+                            let weatherLabel = 'Limpo ☁️';
+                            let weatherIcon = '';
+
+                            if (isThunder) { weatherLabel = 'Tempestade'; weatherIcon = '⛈️'; }
+                            else if (isRain) { weatherLabel = 'Chuvoso'; weatherIcon = '🌧️'; }
+
+                            // Frase Dinâmica
+                            // Exemplos: "Dia ☀️ com Chuvoso 🌧️", "Noite 🌃" (se limpo)
+                            if (weatherLabel === 'Limpo ☁️') {
+                                worldStats.combined = `${timeLabel} ${timeIcon}`;
                             } else {
-                                worldStats.weather = 'Limpo ☀️';
+                                worldStats.combined = `${timeLabel} ${timeIcon} com ${weatherLabel} ${weatherIcon}`;
                             }
 
                             rcon.end();

@@ -575,8 +575,7 @@
 
                     // Uptime e World
                     document.getElementById('mcUptime').innerText = formatUptime(data.uptime);
-                    const worldStatus = data.world ? `${data.world.time} | ${data.world.weather}` : '--';
-                    document.getElementById('mcWorldTime').innerText = worldStatus;
+                    document.getElementById('mcWorldTime').innerText = data.world ? data.world.combined : '--';
 
                     // Render player list if available
                     if (data.players.list && data.players.list.length > 0) {
