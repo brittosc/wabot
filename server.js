@@ -175,10 +175,17 @@ const startServer = () => {
                             else if (timeTicks >= 13000 && timeTicks < 23000) worldStats.time = 'Noite 🌙';
                             else worldStats.time = 'Madrugada 🌙';
 
-                            // Check Weather
-                            // Não há comando direto simples via Query, mas podemos tentar 'isthundering' ou similar via plugins ou dedução.
-                            // Por padrão no vanilla, usamos o comando 'weather' mas ele não retorna o estado atual fácil.
-                            // Mas se o RCON está habilitado, podemos assumir o padrão por agora ou deixar como bônus.
+                            // Check Weather via 'execute if'
+                            const rainCheck = await rcon.send('execute if weather rain');
+                            const thunderCheck = await rcon.send('execute if weather thunder');
+
+                            if (thunderCheck.toLowerCase().includes('success') || thunderCheck.toLowerCase().includes('passou')) {
+                                worldStats.weather = 'Tempestade ⛈️';
+                            } else if (rainCheck.toLowerCase().includes('success') || rainCheck.toLowerCase().includes('passou')) {
+                                worldStats.weather = 'Chuva 🌧️';
+                            } else {
+                                worldStats.weather = 'Limpo ☀️';
+                            }
 
                             rcon.end();
                         } catch (rconErr) {
