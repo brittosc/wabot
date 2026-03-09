@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VPS Dashboard</title>
+    <title>Dashboard</title>
     <link rel="icon" href="https://dayz.com/favicon.ico">
     <style>
         :root {
@@ -85,8 +85,9 @@
         }
 
         .dashboard-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
             gap: 25px;
             width: 100%;
             max-width: 1200px;
@@ -94,6 +95,8 @@
         }
 
         .card {
+            flex: 1 1 400px;
+            max-width: 500px;
             background: var(--card-bg);
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
@@ -183,7 +186,15 @@
             position: relative;
         }
 
+        .ip-container {
+            display: flex;
+            gap: 10px;
+            align-items: stretch;
+            margin-top: 15px;
+        }
+
         .ip-box {
+            flex-grow: 1;
             background: rgba(0, 0, 0, 0.4);
             border: 1px solid rgba(255, 255, 255, 0.1);
             padding: 15px;
@@ -193,8 +204,26 @@
             font-size: 1.4rem;
             color: var(--accent);
             letter-spacing: 1.5px;
-            margin-top: 15px;
             text-shadow: 0 0 10px var(--accent-glow);
+        }
+
+        .copy-btn {
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            color: var(--accent);
+            border-radius: 10px;
+            padding: 0 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .copy-btn:hover {
+            background: var(--accent);
+            color: white;
+            box-shadow: 0 0 10px var(--accent-glow);
         }
 
         .network-list {
@@ -308,16 +337,16 @@
 <body>
 
     <div class="header">
-        <h1><span class="status-dot" id="serverStatus"></span> VPS Dashboard <span
+        <h1><span class="status-dot" id="serverStatus"></span> Dashboard <span
                 style="font-size: 1rem; color: #64748b; font-weight: 400; margin-left: auto; display: inline-block;">Painel
                 Unificado</span></h1>
     </div>
 
     <div class="dashboard-grid">
 
-        <!-- Card 1: Sistema e Desempenho -->
+        <!-- Card 1: Sistema, Desempenho e Rede -->
         <div class="card">
-            <h2>🖥️ Desempenho da Máquina</h2>
+            <h2>🖥️ Desempenho da Máquina e Rede</h2>
 
             <div class="metric">
                 <span class="metric-title">Memória RAM</span>
@@ -326,7 +355,7 @@
             <div class="progress-bar">
                 <div class="progress-fill" id="ramBar" style="width: 0%;"></div>
             </div>
-            <div style="margin-bottom: 35px;"></div>
+            <div style="margin-bottom: 25px;"></div>
 
             <div class="metric">
                 <span class="metric-title">CPU Status (<span id="cpuCores">-</span> cores)</span>
@@ -335,24 +364,13 @@
             <div class="progress-bar">
                 <div class="progress-fill" id="cpuBar" style="width: 0%;"></div>
             </div>
+            <div style="margin-bottom: 30px;"></div>
 
-            <div style="margin-top: 40px;">
-                <span class="metric-title">IP Público (GW)</span>
-                <div class="ip-box" id="ipAddress">Aguardando...</div>
+            <!-- Uso de Rede -->
+            <div class="metric" style="margin-bottom: 15px;">
+                <span class="metric-title">Uso de Rede</span>
             </div>
-
-            <div class="updated-timestamp" id="lastUpdate">Obtendo dados...</div>
-        </div>
-
-        <!-- Card 1.5: Uso de Rede (Banda Livre) -->
-        <div class="card">
-            <h2>🌍 Uso de Rede (Tempo Real)</h2>
-            <div class="metric" style="margin-bottom: 20px;">
-                <span class="metric-title">Velocidade de Tráfego do Servidor:</span>
-            </div>
-
-            <div id="networkContainer" class="network-list">
-                <!-- Row Upload -->
+            <div id="networkContainer" class="network-list" style="margin-top: 0;">
                 <div class="network-badge"
                     style="border-left-color: var(--accent); flex-direction: row; justify-content: space-between; align-items: center;">
                     <span class="net-name" style="font-size: 1rem; color: #f8fafc; font-weight: normal;">
@@ -361,7 +379,6 @@
                     </span>
                     <span class="net-ip" id="txSpeedTxt">0.00 KB/s</span>
                 </div>
-                <!-- Row Download -->
                 <div class="network-badge"
                     style="border-left-color: var(--success-color); flex-direction: row; justify-content: space-between; align-items: center;">
                     <span class="net-name" style="font-size: 1rem; color: #f8fafc; font-weight: normal;">
@@ -372,40 +389,59 @@
                     <span class="net-ip" style="color: var(--success-color);" id="rxSpeedTxt">0.00 KB/s</span>
                 </div>
             </div>
+
+            <div style="margin-top: 35px;">
+                <span class="metric-title">IP Público (GW)</span>
+                <div class="ip-container">
+                    <div class="ip-box" id="ipAddress">Aguardando...</div>
+                    <button class="copy-btn" onclick="copyIp()" title="Copiar IP">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <div class="updated-timestamp" id="lastUpdate">Obtendo dados...</div>
         </div>
 
         <!-- Card 2: Aplicação WA -->
-        <a href="/estatisticas" class="app-link">
-            <div class="card interactive">
-                <h2 style="color: var(--accent);">📊 WhatsApp Bot - Estatísticas</h2>
-                <div class="feature-icon">📈</div>
+        <a href="/estatisticas" class="app-link" style="height: fit-content; align-self: flex-start; max-width: 500px;">
+            <div class="card interactive" style="justify-content: flex-start; padding: 20px;">
+                <h2 style="color: var(--accent); margin-bottom: 5px; font-size: 1.15rem; padding-bottom: 10px;">📊
+                    Estatísticas</h2>
+                <div class="feature-icon" style="margin: 5px 0 10px 0; font-size: 2.8rem;">📈</div>
                 <div class="metric"
-                    style="justify-content: center; flex-direction: column; text-align: center; gap: 15px;">
-                    <span class="metric-value" style="font-size: 1.25rem;">Painel de Lotação e Enquetes</span>
-                    <span class="metric-title" style="line-height: 1.5;">Visualização de métricas de votos, gráficos em
-                        linha, barras empilhadas e histórico de interações com o WABot.</span>
+                    style="justify-content: center; flex-direction: column; text-align: center; gap: 8px; margin-bottom: 15px;">
+                    <span class="metric-value" style="font-size: 1.05rem;">Transporte Universitário (Balneário
+                        Gaivota)</span>
+                    <span class="metric-title" style="line-height: 1.3; font-size: 0.85rem;">Análise e previsão de
+                        lotação diária dos veículos cedidos pelo município, baseadas nas respostas das enquetes dos
+                        grupos de WhatsApp.</span>
                 </div>
                 <div
-                    style="margin-top: auto; padding-top: 25px; text-align: center; color: var(--accent); font-weight: bold; letter-spacing: 1px;">
+                    style="padding-top: 15px; border-top: 1px solid rgba(255, 255, 255, 0.05); text-align: center; color: var(--accent); font-weight: bold; letter-spacing: 1px; font-size: 0.9rem;">
                     ACESSAR PAINEL ➔
                 </div>
             </div>
         </a>
 
-        <!-- Card 3: Placeholder 1 -->
-        <div class="card placeholder" style="cursor: not-allowed;">
-            <h2>🔒 Módulo Restrito</h2>
-            <div class="feature-icon">🚧</div>
-            <div class="metric" style="justify-content: center; flex-direction: column; text-align: center; gap: 15px;">
-                <span class="metric-value">Gestão de Catracas</span>
-                <span class="metric-title">Interface reservada para integração futura via controle de acesso
-                    Node.js.</span>
-            </div>
-        </div>
-
     </div>
 
     <script>
+        const copyIp = () => {
+            const ip = document.getElementById('ipAddress').innerText;
+            if (ip && ip !== 'Aguardando...') {
+                navigator.clipboard.writeText(ip).then(() => {
+                    alert('IP copiado para a área de transferência!');
+                }).catch(err => {
+                    console.error('Erro ao copiar IP:', err);
+                });
+            }
+        };
+
         const formatColor = (bar, percentage) => {
             if (percentage < 60) bar.style.backgroundColor = 'var(--success-color)';
             else if (percentage < 85) bar.style.backgroundColor = 'var(--warning-color)';
