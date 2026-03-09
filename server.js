@@ -165,23 +165,26 @@ const startServer = () => {
                             });
 
                             const timeOutput = await rcon.send('time query daytime');
-                            const timeTicks = parseInt(timeOutput.match(/\d+/)[0], 10);
+                            const timeTicks = parseInt(timeOutput.match(/\d+/)[0], 10) % 24000;
 
-                            // Converter Ticks para Ciclo
-                            // 0 = Amanhecer, 6000 = Meio-dia, 12000 = Entardecer, 18000 = Meia-noite
-                            if (timeTicks >= 0 && timeTicks < 1000) worldStats.time = 'Amanhecer 🌅';
-                            else if (timeTicks >= 1000 && timeTicks < 11000) worldStats.time = 'Dia ☀️';
-                            else if (timeTicks >= 11000 && timeTicks < 13000) worldStats.time = 'Entardecer 🌅';
-                            else if (timeTicks >= 13000 && timeTicks < 23000) worldStats.time = 'Noite 🌙';
+                            // Ciclo Solar Minecraft (Regras Oficiais):
+                            if (timeTicks >= 22200 || timeTicks < 1000) worldStats.time = 'Amanhecer 🌅';
+                            else if (timeTicks >= 1000 && timeTicks < 12000) worldStats.time = 'Dia ☀️';
+                            else if (timeTicks >= 12000 && timeTicks < 13800) worldStats.time = 'Entardecer 🌅';
+                            else if (timeTicks >= 13800 && timeTicks < 21000) worldStats.time = 'Noite 🌙';
                             else worldStats.time = 'Madrugada 🌙';
 
                             // Check Weather via 'execute if'
                             const rainCheck = await rcon.send('execute if weather rain');
                             const thunderCheck = await rcon.send('execute if weather thunder');
 
-                            if (thunderCheck.toLowerCase().includes('success') || thunderCheck.toLowerCase().includes('passou')) {
+                            // Resposta padrão do Minecraft para 'if passes' é "Test passed" ou traduzido.
+                            const isThunder = thunderCheck.toLowerCase().includes('pass') || thunderCheck.toLowerCase().includes('sucesso') || thunderCheck.toLowerCase().includes('passou');
+                            const isRain = rainCheck.toLowerCase().includes('pass') || rainCheck.toLowerCase().includes('sucesso') || rainCheck.toLowerCase().includes('passou');
+
+                            if (isThunder) {
                                 worldStats.weather = 'Tempestade ⛈️';
-                            } else if (rainCheck.toLowerCase().includes('success') || rainCheck.toLowerCase().includes('passou')) {
+                            } else if (isRain) {
                                 worldStats.weather = 'Chuva 🌧️';
                             } else {
                                 worldStats.weather = 'Limpo ☀️';
