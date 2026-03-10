@@ -504,40 +504,31 @@ const generateHtmlDashboard = (stats) => {
             capacityList.innerHTML = "";
             
             let hasAnyCapacity = false;
-
-            if (rawDB[todayStr]) {
-                const dayEntry = rawDB[todayStr];
-                let groupEntries = [];
-
-                if (dayEntry.Version2 && dayEntry.grupos) {
-                    if (targetGroup === "Todos") {
-                        Object.keys(dayEntry.grupos).forEach(gName => {
-                            if (capacities[gName]) {
-                                groupEntries.push({ name: gName, payload: dayEntry.grupos[gName], cap: capacities[gName] });
-                            }
-                        });
-                    } else if (dayEntry.grupos[targetGroup] && capacities[targetGroup]) {
-                        groupEntries.push({ name: targetGroup, payload: dayEntry.grupos[targetGroup], cap: capacities[targetGroup] });
-                    }
-                }
-
-                groupEntries.forEach(entry => {
-                    let confirmations = 0;
-                    if (entry.payload.votes) {
-                        Object.values(entry.payload.votes).forEach(opt => {
-                            // Confirmados: "Irei, ida e volta.", "Irei, mas não retornarei." e "Não irei, apenas retornarei."
-                            if (opt === "Irei, ida e volta." || opt === "Irei, mas não retornarei." || opt === "Não irei, apenas retornarei.") {
-                                confirmations++;
-                            }
-                        });
-                    }
-                    renderCompactBar(entry.name, confirmations, entry.cap);
-                    hasAnyCapacity = true;
-                });
-            } else if (targetGroup !== "Todos" && capacities[targetGroup]) {
-                renderCompactBar(targetGroup, 0, capacities[targetGroup]);
-                hasAnyCapacity = true;
+            const dayEntry = rawDB[todayStr] || { Version2: true, grupos: {} };
+            
+            let groupsToShow = [];
+            if (targetGroup === "Todos") {
+                // Mostrar todos os grupos que possuem capacidade configurada
+                groupsToShow = Object.keys(capacities);
+            } else if (capacities[targetGroup]) {
+                groupsToShow = [targetGroup];
             }
+
+            groupsToShow.forEach(gName => {
+                let confirmations = 0;
+                const groupData = dayEntry.grupos ? dayEntry.grupos[gName] : null;
+
+                if (groupData && groupData.votes) {
+                    Object.values(groupData.votes).forEach(opt => {
+                        if (opt === "Irei, ida e volta." || opt === "Irei, mas não retornarei." || opt === "Não irei, apenas retornarei.") {
+                            confirmations++;
+                        }
+                    });
+                }
+                
+                renderCompactBar(gName, confirmations, capacities[gName]);
+                hasAnyCapacity = true;
+            });
 
             capacitySection.style.display = hasAnyCapacity ? "block" : "none";
         };

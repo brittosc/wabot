@@ -18,6 +18,9 @@ const saveStats = (data) => {
     fs.writeFileSync(statsFile, JSON.stringify(data, null, 2));
 };
 
+const config = JSON.parse(fs.readFileSync('./config.json', 'utf8'));
+const targetGroups = config.targetGroups || [];
+
 const generateData = () => {
     // Resetando o JSON para evitar acumular dados a cada execução do script
     const stats = {};
@@ -42,11 +45,8 @@ const generateData = () => {
             };
         }
 
-        // Gerar entre 1 e 3 grupos aleatórios
-        const numGroups = Math.floor(Math.random() * 3) + 1;
-        for (let g = 1; g <= numGroups; g++) {
-            const groupName = `Grupo Teste ${g}`;
-
+        // Usar grupos reais da configuração
+        targetGroups.forEach(groupName => {
             if (!stats[dateStr].grupos[groupName]) {
                 stats[dateStr].grupos[groupName] = {
                     pollName: `Enquete do dia ${dateStr}`,
@@ -54,8 +54,8 @@ const generateData = () => {
                 };
             }
 
-            // Gerar centenas de votos para cada dia (ex: 50 a 150)
-            const numVotes = Math.floor(Math.random() * 100) + 50;
+            // Gerar centenas de votos para cada dia (ex: 40 a 60 para ficar próximo das capacidades)
+            const numVotes = Math.floor(Math.random() * 20) + 40;
 
             // Variar radicalmente as probabilidades a cada dia para que os picos não caiam na mesma data
             const isRainyDay = Math.random() < 0.15; // Dias com muita falta (15% chance)
@@ -93,7 +93,7 @@ const generateData = () => {
 
                 stats[dateStr].grupos[groupName].votes[voterId] = selectedOption;
             }
-        }
+        });
     }
 
     saveStats(stats);
