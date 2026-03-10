@@ -718,9 +718,9 @@ const generateHtmlDashboard = (stats) => {
             } else if (count === cap) {
                 statusColor = "#f44336";
                 statusText = "Lotado!";
-            } else if (percentage > 85) {
+            } else if (percentage > 80) {
                 statusColor = "#ff9800";
-                statusText = "Quase lotado.";
+                statusText = "Quase lotado!";
             }
 
             const barHtml = \`
