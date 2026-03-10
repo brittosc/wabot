@@ -1,4 +1,4 @@
-process.env.NODE_NO_WARNINGS = '1';
+process.removeAllListeners('warning');
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 const dashboard = require('./dashboard');
