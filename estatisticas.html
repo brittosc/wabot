@@ -1,6 +1,6 @@
+
 <!DOCTYPE html>
 <html lang="pt-BR">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -17,17 +17,13 @@
             --accent: #2196f3;
             --border-color: #333;
         }
-
-        html,
-        body {
+        html, body {
             max-width: 100%;
             overflow-x: hidden;
         }
-
         * {
             box-sizing: border-box;
         }
-
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: var(--bg-color);
@@ -38,20 +34,15 @@
             flex-direction: column;
             align-items: center;
         }
-
-        h1,
-        h2,
-        h3 {
+        h1, h2, h3 {
             word-wrap: break-word;
             max-width: 100%;
         }
-
         h1 {
             color: var(--title-color);
             margin-bottom: 20px;
             text-align: center;
         }
-
         .controls {
             display: flex;
             gap: 15px;
@@ -59,7 +50,6 @@
             flex-wrap: wrap;
             justify-content: center;
         }
-
         select {
             padding: 10px 15px;
             border-radius: 8px;
@@ -69,13 +59,11 @@
             cursor: pointer;
             background-color: #2c2c2c;
             color: var(--title-color);
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
-
         select:focus {
             border-color: var(--accent);
         }
-
         .dashboard {
             display: grid;
             grid-template-columns: 1fr;
@@ -83,7 +71,6 @@
             max-width: 1000px;
             width: 100%;
         }
-
         .highlights {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -92,13 +79,11 @@
             max-width: 1000px;
             margin-bottom: 20px;
         }
-
         @media (max-width: 600px) {
             .highlights {
                 grid-template-columns: 1fr;
             }
         }
-
         .highlight-card {
             background-color: var(--card-bg);
             border-radius: 12px;
@@ -107,11 +92,10 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
             position: relative;
             min-height: 120px;
         }
-
         .highlight-card .card-title {
             position: absolute;
             top: 10px;
@@ -121,19 +105,17 @@
             pointer-events: none;
             text-align: center;
         }
-
         .highlight-card h3 {
             font-size: 0.8rem;
             color: #ffffff;
             margin: 0;
             font-weight: 600;
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
-            background: rgba(0, 0, 0, 0.3);
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+            background: rgba(0,0,0,0.3);
             display: inline-block;
             padding: 2px 8px;
             border-radius: 4px;
         }
-
         .split-container {
             display: flex;
             width: 100%;
@@ -143,7 +125,6 @@
             left: 0;
             background: linear-gradient(135deg, rgba(76, 175, 80, 0.15) 0%, rgba(76, 175, 80, 0.05) 49.9%, rgba(244, 67, 54, 0.05) 50.1%, rgba(244, 67, 54, 0.15) 100%);
         }
-
         .split-half {
             flex: 1;
             display: flex;
@@ -153,17 +134,14 @@
             position: relative;
             z-index: 1;
         }
-
         .split-peak {
             align-items: flex-start;
             text-align: left;
         }
-
         .split-valley {
             align-items: flex-end;
             text-align: right;
         }
-
         .split-half .label {
             font-size: 0.65rem;
             text-transform: uppercase;
@@ -171,14 +149,8 @@
             margin-bottom: 4px;
             font-weight: 800;
         }
-
-        .split-peak .label {
-            color: #4caf50;
-        }
-
-        .split-valley .label {
-            color: #f44336;
-        }
+        .split-peak .label { color: #4caf50; }
+        .split-valley .label { color: #f44336; }
 
         .split-half .value {
             font-size: 1.8rem;
@@ -186,7 +158,6 @@
             color: var(--title-color);
             line-height: 1;
         }
-
         .split-half .date {
             font-size: 0.7rem;
             color: var(--accent);
@@ -194,55 +165,45 @@
             font-weight: bold;
             opacity: 0.9;
         }
-
         @media (min-width: 768px) {
             .dashboard {
                 grid-template-columns: 1fr 1fr;
             }
         }
-
         @media (max-width: 600px) {
             .controls {
                 flex-direction: column;
                 width: 100%;
             }
-
             select {
                 width: 100%;
             }
-
             .summary-card {
                 flex-direction: column !important;
                 gap: 20px;
                 padding: 20px !important;
             }
-
             .highlight-card {
                 min-height: 100px;
             }
-
             .split-half .value {
                 font-size: 1.4rem;
             }
-
             .card h2 {
                 font-size: 1rem;
                 text-align: center;
-                word-wrap: break-word;
             }
         }
-
         .summary-card {
             display: flex;
             flex-direction: row;
             justify-content: space-around;
             padding: 30px;
         }
-
         .card {
             background-color: var(--card-bg);
             border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
             padding: 20px;
             display: flex;
             flex-direction: column;
@@ -250,19 +211,16 @@
             border: 1px solid var(--border-color);
             max-width: 100%;
         }
-
         .card h2 {
             font-size: 1.2rem;
             margin-bottom: 20px;
             color: var(--title-color);
         }
-
         .chart-container {
             position: relative;
             width: 100%;
             height: 300px;
         }
-
         .footer {
             margin-top: 40px;
             font-size: 0.9rem;
@@ -270,7 +228,6 @@
         }
     </style>
 </head>
-
 <body>
 
     <h1>Estatísticas das Enquetes</h1>
@@ -316,7 +273,7 @@
                 <canvas id="barChart"></canvas>
             </div>
         </div>
-
+        
         <div class="card" style="grid-column: 1 / -1;">
             <h2>Proporção Diária</h2>
             <div class="chart-container">
@@ -327,9 +284,7 @@
         <!-- Cards de Picos e Vales agora abaixo da Proporção Diária -->
         <div class="highlights" style="grid-column: 1 / -1;">
             <div class="highlight-card">
-                <div class="card-title">
-                    <h3>Lotação (Ida/Volta)</h3>
-                </div>
+                <div class="card-title"><h3>Lotação (Ida/Volta)</h3></div>
                 <div class="split-container">
                     <div class="split-half split-peak">
                         <span class="label">Pico</span>
@@ -344,9 +299,7 @@
                 </div>
             </div>
             <div class="highlight-card">
-                <div class="card-title">
-                    <h3>Ausência</h3>
-                </div>
+                <div class="card-title"><h3>Ausência</h3></div>
                 <div class="split-container">
                     <div class="split-half split-peak">
                         <span class="label">Pico</span>
@@ -361,9 +314,7 @@
                 </div>
             </div>
             <div class="highlight-card">
-                <div class="card-title">
-                    <h3>Demanda (Só Ida)</h3>
-                </div>
+                <div class="card-title"><h3>Demanda (Só Ida)</h3></div>
                 <div class="split-container">
                     <div class="split-half split-peak">
                         <span class="label">Pico</span>
@@ -378,9 +329,7 @@
                 </div>
             </div>
             <div class="highlight-card">
-                <div class="card-title">
-                    <h3>Demanda (Só Volta)</h3>
-                </div>
+                <div class="card-title"><h3>Demanda (Só Volta)</h3></div>
                 <div class="split-container">
                     <div class="split-half split-peak">
                         <span class="label">Pico</span>
@@ -395,29 +344,26 @@
                 </div>
             </div>
         </div>
-
+        
         <div class="card summary-card" style="grid-column: 1 / -1;">
             <div style="text-align: center;">
-                <h3 style="margin: 0; color: #7f8c8d; font-size: 1rem;">Total Votos (<span id="txtPeriod">7</span> dias)
-                </h3>
-                <p id="lblTotalVotes"
-                    style="margin: 10px 0 0 0; font-size: 2.5rem; font-weight: bold; color: var(--title-color);">0</p>
+                <h3 style="margin: 0; color: #7f8c8d; font-size: 1rem;">Total Votos (<span id="txtPeriod">7</span> dias)</h3>
+                <p id="lblTotalVotes" style="margin: 10px 0 0 0; font-size: 2.5rem; font-weight: bold; color: var(--title-color);">0</p>
             </div>
             <div style="text-align: center;">
                 <h3 style="margin: 0; color: #7f8c8d; font-size: 1rem;">Média Diária</h3>
-                <p id="lblAverage"
-                    style="margin: 10px 0 0 0; font-size: 2.5rem; font-weight: bold; color: var(--title-color);">0</p>
+                <p id="lblAverage" style="margin: 10px 0 0 0; font-size: 2.5rem; font-weight: bold; color: var(--title-color);">0</p>
             </div>
         </div>
     </div>
 
     <div class="footer" style="margin-bottom: 40px;">
-        Atualizado pela última vez em: <span id="lblLastUpdate">10/03/2026 12:58:35</span>
+        Atualizado pela última vez em: <span id="lblLastUpdate">10/03/2026 13:10:37</span>
     </div>
 
     <script>
-        let rawDB = { "2026-03-10": { "Version2": true, "grupos": { "Ônibus unesc 01 2026": { "pollName": "Bom dia. Você irá hoje, terça-feira, 10/03?", "votes": { "129252829724739@lid": "Irei, ida e volta.", "138727829536853@lid": "Irei, ida e volta.", "61938360971301@lid": "Irei, ida e volta.", "265210086592530@lid": "Irei, ida e volta.", "111385749004360@lid": "Irei, ida e volta.", "170454484562057@lid": "Não irei à faculdade hoje.", "27427812176068@lid": "Não irei à faculdade hoje.", "220787088875734@lid": "Irei, ida e volta.", "131284399595765@lid": "Não irei à faculdade hoje.", "193398585692254@lid": "Não irei, apenas retornarei.", "183244997804057@lid": "Irei, ida e volta.", "78065644339288@lid": "Irei, ida e volta.", "194437598728354@lid": "Não irei à faculdade hoje.", "132727575695361@lid": "Irei, ida e volta.", "27676987420804@lid": "Irei, ida e volta.", "124287948169446@lid": "Irei, ida e volta.", "15526474547403@lid": "Irei, ida e volta.", "161998214025440@lid": "Irei, ida e volta.", "209646296006859@lid": "Irei, ida e volta.", "70536348598294@lid": "Não irei, apenas retornarei.", "260086190596351@lid": "Irei, ida e volta.", "88467887415542@lid": "Irei, ida e volta.", "13950188056647@lid": "Irei, ida e volta.", "161018525261893@lid": "Irei, ida e volta.", "229514546299045@lid": "Irei, ida e volta.", "270785021259968@lid": "Irei, ida e volta.", "69763623559211@lid": "Não irei à faculdade hoje.", "211432750739655@lid": "Irei, ida e volta.", "135575055147050@lid": "Irei, ida e volta.", "186998765666438@lid": "Irei, ida e volta.", "238005629530169@lid": "Irei, ida e volta.", "202606626488435@lid": "Irei, ida e volta.", "186221225578715@lid": "Irei, ida e volta.", "214924525604941@lid": "Irei, ida e volta.", "252269266210976@lid": "Não irei à faculdade hoje.", "225889543577744@lid": "Não irei à faculdade hoje.", "3152640249885@lid": "Irei, ida e volta.", "217162169991213@lid": "Irei, ida e volta.", "243919933706463@lid": "Não irei à faculdade hoje.", "136863696343144@lid": "Irei, ida e volta.", "20332559773911@lid": "Irei, ida e volta.", "105076458844319@lid": "Irei, ida e volta.", "86359041691857@lid": "Irei, ida e volta.", "212248828092459@lid": "Irei, ida e volta.", "248184752365577@lid": "Irei, ida e volta.", "158347089195059@lid": "Irei, ida e volta.", "104019863294048@lid": "Não irei à faculdade hoje.", "159519514579027@lid": "Não irei à faculdade hoje.", "150190778511373@lid": "Não irei à faculdade hoje.", "210530992148635@lid": "Irei, ida e volta.", "150676193693918@lid": "Irei, ida e volta.", "123291532562563@lid": "Não irei à faculdade hoje.", "155726924222702@lid": "Não irei à faculdade hoje.", "120294064812189@lid": "Irei, ida e volta.", "212777025183761@lid": "Irei, ida e volta.", "230979146887275@lid": "Irei, ida e volta." } } } }, "2026-03-09": { "Version2": true, "grupos": { "Ônibus unesc 01 2026": { "pollName": "Bom dia. Você irá hoje, segunda-feira, 09/03?", "votes": { "135575055147050@lid": "Irei, ida e volta.", "49748740432041@lid": "Irei, ida e volta.", "200978749984917@lid": "Não irei à faculdade hoje.", "61938360971301@lid": "Irei, ida e volta.", "260086190596351@lid": "Irei, ida e volta.", "27676987420804@lid": "Irei, ida e volta.", "131284399595765@lid": "Não irei à faculdade hoje.", "150190778511373@lid": "Não irei à faculdade hoje.", "265210086592530@lid": "Irei, ida e volta.", "225889543577744@lid": "Irei, ida e volta.", "20332559773911@lid": "Irei, ida e volta.", "111385749004360@lid": "Irei, ida e volta.", "183244997804057@lid": "Irei, ida e volta.", "77376548914@lid": "Irei, ida e volta.", "129252829724739@lid": "Irei, ida e volta.", "69763623559211@lid": "Irei, ida e volta.", "132727575695361@lid": "Não irei à faculdade hoje.", "209646296006859@lid": "Irei, ida e volta.", "124287948169446@lid": "Irei, ida e volta.", "78065644339288@lid": "Irei, ida e volta.", "202606626488435@lid": "Irei, ida e volta.", "159519514579027@lid": "Irei, ida e volta.", "161018525261893@lid": "Irei, ida e volta.", "88467887415542@lid": "Irei, ida e volta.", "13950188056647@lid": "Irei, ida e volta.", "172202519433364@lid": "Não irei à faculdade hoje.", "132718834770159@lid": "Irei, ida e volta.", "186998765666438@lid": "Irei, ida e volta.", "238005629530169@lid": "Irei, ida e volta.", "161998214025440@lid": "Não irei à faculdade hoje.", "220787088875734@lid": "Irei, ida e volta.", "211432750739655@lid": "Irei, ida e volta.", "229514546299045@lid": "Irei, ida e volta.", "243919933706463@lid": "Não irei à faculdade hoje.", "123291532562563@lid": "Não irei à faculdade hoje.", "138727829536853@lid": "Irei, ida e volta.", "194437598728354@lid": "Irei, ida e volta.", "27427812176068@lid": "Não irei à faculdade hoje.", "150676193693918@lid": "Não irei à faculdade hoje.", "214924525604941@lid": "Não irei à faculdade hoje.", "248184752365577@lid": "Irei, ida e volta.", "70536348598294@lid": "Irei, ida e volta.", "86359041691857@lid": "Irei, ida e volta.", "186221225578715@lid": "Irei, ida e volta.", "104019863294048@lid": "Não irei à faculdade hoje.", "210530992148635@lid": "Irei, ida e volta.", "155726924222702@lid": "Irei, ida e volta.", "136863696343144@lid": "Irei, ida e volta.", "170454484562057@lid": "Não irei à faculdade hoje.", "105076458844319@lid": "Irei, ida e volta.", "5450414182521@lid": "Não irei à faculdade hoje.", "252269266210976@lid": "Não irei à faculdade hoje.", "158347089195059@lid": "Não irei à faculdade hoje.", "270785021259968@lid": "Não irei à faculdade hoje.", "217162169991213@lid": "Irei, ida e volta.", "230979146887275@lid": "Irei, ida e volta.", "3152640249885@lid": "Irei, ida e volta." } } } } };
-        let capacities = { "Ônibus unesc 01 2026": 51, "Ônibus unesc 02 2026": 47 };
+        let rawDB = {"2026-03-10":{"Version2":true,"grupos":{"Ônibus unesc 01 2026":{"pollName":"Bom dia. Você irá hoje, terça-feira, 10/03?","votes":{"129252829724739@lid":"Irei, ida e volta.","138727829536853@lid":"Irei, ida e volta.","61938360971301@lid":"Irei, ida e volta.","265210086592530@lid":"Irei, ida e volta.","111385749004360@lid":"Irei, ida e volta.","170454484562057@lid":"Não irei à faculdade hoje.","27427812176068@lid":"Não irei à faculdade hoje.","220787088875734@lid":"Irei, ida e volta.","131284399595765@lid":"Não irei à faculdade hoje.","193398585692254@lid":"Não irei, apenas retornarei.","183244997804057@lid":"Irei, ida e volta.","78065644339288@lid":"Irei, ida e volta.","194437598728354@lid":"Não irei à faculdade hoje.","132727575695361@lid":"Irei, ida e volta.","27676987420804@lid":"Irei, ida e volta.","124287948169446@lid":"Irei, ida e volta.","15526474547403@lid":"Irei, ida e volta.","161998214025440@lid":"Irei, ida e volta.","209646296006859@lid":"Irei, ida e volta.","70536348598294@lid":"Não irei, apenas retornarei.","260086190596351@lid":"Irei, ida e volta.","88467887415542@lid":"Irei, ida e volta.","13950188056647@lid":"Irei, ida e volta.","161018525261893@lid":"Irei, ida e volta.","229514546299045@lid":"Irei, ida e volta.","270785021259968@lid":"Irei, ida e volta.","69763623559211@lid":"Não irei à faculdade hoje.","211432750739655@lid":"Irei, ida e volta.","135575055147050@lid":"Irei, ida e volta.","186998765666438@lid":"Irei, ida e volta.","238005629530169@lid":"Irei, ida e volta.","202606626488435@lid":"Irei, ida e volta.","186221225578715@lid":"Irei, ida e volta.","214924525604941@lid":"Irei, ida e volta.","252269266210976@lid":"Não irei à faculdade hoje.","225889543577744@lid":"Não irei à faculdade hoje.","3152640249885@lid":"Irei, ida e volta.","217162169991213@lid":"Irei, ida e volta.","243919933706463@lid":"Não irei à faculdade hoje.","136863696343144@lid":"Irei, ida e volta.","20332559773911@lid":"Irei, ida e volta.","105076458844319@lid":"Irei, ida e volta.","86359041691857@lid":"Irei, ida e volta.","212248828092459@lid":"Irei, ida e volta.","248184752365577@lid":"Irei, ida e volta.","158347089195059@lid":"Irei, ida e volta.","104019863294048@lid":"Não irei à faculdade hoje.","159519514579027@lid":"Não irei à faculdade hoje.","150190778511373@lid":"Não irei à faculdade hoje.","210530992148635@lid":"Irei, ida e volta.","150676193693918@lid":"Irei, ida e volta.","123291532562563@lid":"Não irei à faculdade hoje.","155726924222702@lid":"Não irei à faculdade hoje.","120294064812189@lid":"Irei, ida e volta.","212777025183761@lid":"Irei, ida e volta.","230979146887275@lid":"Irei, ida e volta."}}}},"2026-03-09":{"Version2":true,"grupos":{"Ônibus unesc 01 2026":{"pollName":"Bom dia. Você irá hoje, segunda-feira, 09/03?","votes":{"135575055147050@lid":"Irei, ida e volta.","49748740432041@lid":"Irei, ida e volta.","200978749984917@lid":"Não irei à faculdade hoje.","61938360971301@lid":"Irei, ida e volta.","260086190596351@lid":"Irei, ida e volta.","27676987420804@lid":"Irei, ida e volta.","131284399595765@lid":"Não irei à faculdade hoje.","150190778511373@lid":"Não irei à faculdade hoje.","265210086592530@lid":"Irei, ida e volta.","225889543577744@lid":"Irei, ida e volta.","20332559773911@lid":"Irei, ida e volta.","111385749004360@lid":"Irei, ida e volta.","183244997804057@lid":"Irei, ida e volta.","77376548914@lid":"Irei, ida e volta.","129252829724739@lid":"Irei, ida e volta.","69763623559211@lid":"Irei, ida e volta.","132727575695361@lid":"Não irei à faculdade hoje.","209646296006859@lid":"Irei, ida e volta.","124287948169446@lid":"Irei, ida e volta.","78065644339288@lid":"Irei, ida e volta.","202606626488435@lid":"Irei, ida e volta.","159519514579027@lid":"Irei, ida e volta.","161018525261893@lid":"Irei, ida e volta.","88467887415542@lid":"Irei, ida e volta.","13950188056647@lid":"Irei, ida e volta.","172202519433364@lid":"Não irei à faculdade hoje.","132718834770159@lid":"Irei, ida e volta.","186998765666438@lid":"Irei, ida e volta.","238005629530169@lid":"Irei, ida e volta.","161998214025440@lid":"Não irei à faculdade hoje.","220787088875734@lid":"Irei, ida e volta.","211432750739655@lid":"Irei, ida e volta.","229514546299045@lid":"Irei, ida e volta.","243919933706463@lid":"Não irei à faculdade hoje.","123291532562563@lid":"Não irei à faculdade hoje.","138727829536853@lid":"Irei, ida e volta.","194437598728354@lid":"Irei, ida e volta.","27427812176068@lid":"Não irei à faculdade hoje.","150676193693918@lid":"Não irei à faculdade hoje.","214924525604941@lid":"Não irei à faculdade hoje.","248184752365577@lid":"Irei, ida e volta.","70536348598294@lid":"Irei, ida e volta.","86359041691857@lid":"Irei, ida e volta.","186221225578715@lid":"Irei, ida e volta.","104019863294048@lid":"Não irei à faculdade hoje.","210530992148635@lid":"Irei, ida e volta.","155726924222702@lid":"Irei, ida e volta.","136863696343144@lid":"Irei, ida e volta.","170454484562057@lid":"Não irei à faculdade hoje.","105076458844319@lid":"Irei, ida e volta.","5450414182521@lid":"Não irei à faculdade hoje.","252269266210976@lid":"Não irei à faculdade hoje.","158347089195059@lid":"Não irei à faculdade hoje.","270785021259968@lid":"Não irei à faculdade hoje.","217162169991213@lid":"Irei, ida e volta.","230979146887275@lid":"Irei, ida e volta.","3152640249885@lid":"Irei, ida e volta."}}}}};
+        let capacities = {"Ônibus unesc 01 2026":51,"Ônibus unesc 02 2026":47};
         const optionColors = {
             "Irei, ida e volta.": "#4caf50",
             "Irei, mas não retornarei.": "#2196f3",
@@ -432,7 +378,7 @@
         const extractGroups = () => {
             const groups = new Set();
             Object.values(rawDB).forEach(dayData => {
-                if (dayData.Version2 && dayData.grupos) {
+                if(dayData.Version2 && dayData.grupos) {
                     Object.keys(dayData.grupos).forEach(g => groups.add(g));
                 } else {
                     // Legacy fallback
@@ -457,13 +403,13 @@
 
         const processData = (targetGroup, targetDaysStr) => {
             const targetDays = parseInt(targetDaysStr, 10);
-
+            
             // Get all days from DB that are within the targetDays range (comparing string dates vs today)
             const todayMoment = moment().startOf('day');
-
+            
             let barLabels = [];
             let barData = [];
-
+            
             // Arrays for stacked chart
             let stackedData = {
                 "Irei, ida e volta.": [],
@@ -471,7 +417,7 @@
                 "Não irei, apenas retornarei.": [],
                 "Não irei à faculdade hoje.": []
             };
-
+            
             let globalOptionCounts = {
                 "Irei, ida e volta.": 0,
                 "Irei, mas não retornarei.": 0,
@@ -484,13 +430,13 @@
             // Trackers for highlights (Peaks and Valleys)
             let peakLotacao = { val: -1, date: "" };
             let valleyLotacao = { val: Infinity, date: "" };
-
+            
             let peakAusencia = { val: -1, date: "" };
             let valleyAusencia = { val: Infinity, date: "" };
-
+            
             let peakSoIda = { val: -1, date: "" };
             let valleySoIda = { val: Infinity, date: "" };
-
+            
             let peakSoVolta = { val: -1, date: "" };
             let valleySoVolta = { val: Infinity, date: "" };
 
@@ -499,36 +445,36 @@
                 const dateStr = day.format('YYYY-MM-DD');
                 const displayDate = day.format('DD/MM');
                 barLabels.push(displayDate);
-
+                
                 let dayTotal = 0;
-
+                
                 let dayCounts = {
                     "Irei, ida e volta.": 0,
                     "Irei, mas não retornarei.": 0,
                     "Não irei, apenas retornarei.": 0,
                     "Não irei à faculdade hoje.": 0
                 };
-
+                
                 if (rawDB[dateStr]) {
                     const dayEntry = rawDB[dateStr];
 
                     // Determine if legacy or V2
                     let groupsToProcess = [];
-                    if (dayEntry.Version2 && dayEntry.grupos) {
+                    if(dayEntry.Version2 && dayEntry.grupos) {
                         if (targetGroup === "Todos") {
                             groupsToProcess = Object.values(dayEntry.grupos);
                         } else if (dayEntry.grupos[targetGroup]) {
-                            groupsToProcess = [dayEntry.grupos[targetGroup]];
+                            groupsToProcess = [ dayEntry.grupos[targetGroup] ];
                         }
                     } else if (!dayEntry.Version2) {
                         // Legacy data exists for this day
                         if (targetGroup === "Todos" || targetGroup === "Grupo Geral (Legado)") {
-                            groupsToProcess = [dayEntry]; // DayEntry itself is the poll in legacy
+                            groupsToProcess = [ dayEntry ]; // DayEntry itself is the poll in legacy
                         }
                     }
 
                     groupsToProcess.forEach(groupPayload => {
-                        if (!groupPayload.votes) return;
+                        if(!groupPayload.votes) return;
                         const voters = Object.keys(groupPayload.votes);
                         dayTotal += voters.length;
 
@@ -595,12 +541,12 @@
             // Update Labels
             document.getElementById("txtPeriod").innerText = targetDaysStr;
             document.getElementById("lblTotalVotes").innerText = accumTotalVotes.toLocaleString('pt-BR');
-
+            
             // Update Highlights
             const setHighlight = (valId, dateId, peakObj) => {
                 const valEl = document.getElementById(valId);
                 const dateEl = document.getElementById(dateId);
-                if (peakObj.val !== -1 && peakObj.val !== Infinity) {
+                if(peakObj.val !== -1 && peakObj.val !== Infinity) {
                     valEl.innerText = peakObj.val.toLocaleString('pt-BR');
                     dateEl.innerText = peakObj.date;
                 } else {
@@ -620,7 +566,7 @@
 
             setHighlight("hlSoVoltaVal", "hlSoVoltaDate", peakSoVolta);
             setHighlight("hlSoVoltaMinVal", "hlSoVoltaMinDate", valleySoVolta);
-
+            
             const numActiveDays = targetDays; // Always use target days since we show all days now
             document.getElementById("lblAverage").innerText = (accumTotalVotes / numActiveDays).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
@@ -635,10 +581,10 @@
             const capacitySection = document.getElementById("capacitySection");
             const capacityList = document.getElementById("capacityList");
             capacityList.innerHTML = "";
-
+            
             let hasAnyCapacity = false;
             const dayEntry = rawDB[todayStr] || { Version2: true, grupos: {} };
-
+            
             let groupsToShow = [];
             if (targetGroup === "Todos") {
                 // Mostrar todos os grupos que possuem capacidade configurada
@@ -658,7 +604,7 @@
                         }
                     });
                 }
-
+                
                 renderCompactBar(gName, confirmations, capacities[gName]);
                 hasAnyCapacity = true;
             });
@@ -669,7 +615,7 @@
         const renderCompactBar = (name, count, cap) => {
             const capacityList = document.getElementById("capacityList");
             const percentage = Math.min(100, (count / cap) * 100);
-
+            
             let statusColor = "#94a3b8";
             let statusText = (cap - count) + " vagas";
             if (count > cap) {
@@ -710,7 +656,7 @@
             Chart.defaults.color = '#e0e0e0';
             Chart.defaults.borderColor = '#333';
 
-            if (pieChartIns) pieChartIns.destroy();
+            if(pieChartIns) pieChartIns.destroy();
             const pieCtx = document.getElementById('pieChart').getContext('2d');
             pieChartIns = new Chart(pieCtx, {
                 type: 'doughnut',
@@ -725,8 +671,8 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
+                    plugins: { 
+                        legend: { 
                             position: 'bottom',
                             labels: {
                                 boxWidth: 10,
@@ -735,12 +681,12 @@
                                     size: window.innerWidth < 400 ? 8 : (window.innerWidth < 600 ? 10 : 12)
                                 }
                             }
-                        }
+                        } 
                     }
                 }
             });
 
-            if (barChartIns) barChartIns.destroy();
+            if(barChartIns) barChartIns.destroy();
             const barCtx = document.getElementById('barChart').getContext('2d');
             barChartIns = new Chart(barCtx, {
                 type: 'line',
@@ -760,17 +706,17 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: { stepSize: 1 }
-                        }
+                    scales: { 
+                        y: { 
+                            beginAtZero: true, 
+                            ticks: { stepSize: 1 } 
+                        } 
                     },
                     plugins: { legend: { display: false } }
                 }
             });
 
-            if (stackedChartIns) stackedChartIns.destroy();
+            if(stackedChartIns) stackedChartIns.destroy();
             const stackedCtx = document.getElementById('stackedBarChart').getContext('2d');
             stackedChartIns = new Chart(stackedCtx, {
                 type: 'bar',
@@ -806,8 +752,8 @@
                         x: { stacked: true },
                         y: { stacked: true, beginAtZero: true, ticks: { stepSize: 1 } }
                     },
-                    plugins: {
-                        legend: {
+                    plugins: { 
+                        legend: { 
                             position: 'bottom',
                             labels: {
                                 boxWidth: 10,
@@ -816,7 +762,7 @@
                                     size: window.innerWidth < 400 ? 8 : (window.innerWidth < 600 ? 9 : 12)
                                 }
                             }
-                        }
+                        } 
                     }
                 }
             });
@@ -830,13 +776,13 @@
 
         // Boot instantâneo
         initSelects();
-
+        
         // Pequeno delay apenas para garantir que o DOM e Charts estejam prontos
         window.addEventListener('load', () => {
             updateDash();
             fetchStats(); // Forçar busca imediata para garantir dados frescos
         });
-
+        
         // Execução imediata caso o load já tenha passado
         if (document.readyState === 'complete') {
             updateDash();
@@ -849,12 +795,12 @@
                 const res = await fetch('/api/stats');
                 if (res.ok) {
                     const data = await res.json();
-
+                    
                     // Compara as chaves para verificar levemente as mudanças, caso contrário o dashboard recarrega
                     if (JSON.stringify(rawDB) !== JSON.stringify(data)) {
                         rawDB = data;
                         updateDash(); // Re-render dos gráficos
-
+                        
                         const now = new Date();
                         document.getElementById('lblLastUpdate').innerText = now.toLocaleDateString('pt-BR') + ' ' + now.toLocaleTimeString('pt-BR');
                     }
@@ -868,5 +814,5 @@
         setInterval(fetchStats, 10000);
     </script>
 </body>
-
 </html>
+    

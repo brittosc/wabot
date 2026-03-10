@@ -158,15 +158,26 @@ const generateHtmlDashboard = (stats) => {
             --accent: #2196f3;
             --border-color: #333;
         }
+        html, body {
+            max-width: 100%;
+            overflow-x: hidden;
+        }
+        * {
+            box-sizing: border-box;
+        }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: var(--bg-color);
             color: var(--text-color);
             margin: 0;
-            padding: 20px;
+            padding: 10px;
             display: flex;
             flex-direction: column;
             align-items: center;
+        }
+        h1, h2, h3 {
+            word-wrap: break-word;
+            max-width: 100%;
         }
         h1 {
             color: var(--title-color);
@@ -208,6 +219,11 @@ const generateHtmlDashboard = (stats) => {
             width: 100%;
             max-width: 1000px;
             margin-bottom: 20px;
+        }
+        @media (max-width: 600px) {
+            .highlights {
+                grid-template-columns: 1fr;
+            }
         }
         .highlight-card {
             background-color: var(--card-bg);
@@ -295,6 +311,36 @@ const generateHtmlDashboard = (stats) => {
                 grid-template-columns: 1fr 1fr;
             }
         }
+        @media (max-width: 600px) {
+            .controls {
+                flex-direction: column;
+                width: 100%;
+            }
+            select {
+                width: 100%;
+            }
+            .summary-card {
+                flex-direction: column !important;
+                gap: 20px;
+                padding: 20px !important;
+            }
+            .highlight-card {
+                min-height: 100px;
+            }
+            .split-half .value {
+                font-size: 1.4rem;
+            }
+            .card h2 {
+                font-size: 1rem;
+                text-align: center;
+            }
+        }
+        .summary-card {
+            display: flex;
+            flex-direction: row;
+            justify-content: space-around;
+            padding: 30px;
+        }
         .card {
             background-color: var(--card-bg);
             border-radius: 12px;
@@ -304,6 +350,7 @@ const generateHtmlDashboard = (stats) => {
             flex-direction: column;
             align-items: center;
             border: 1px solid var(--border-color);
+            max-width: 100%;
         }
         .card h2 {
             font-size: 1.2rem;
@@ -439,7 +486,7 @@ const generateHtmlDashboard = (stats) => {
             </div>
         </div>
         
-        <div class="card" style="grid-column: 1 / -1; display: flex; flex-direction: row; justify-content: space-around; padding: 30px;">
+        <div class="card summary-card" style="grid-column: 1 / -1;">
             <div style="text-align: center;">
                 <h3 style="margin: 0; color: #7f8c8d; font-size: 1rem;">Total Votos (<span id="txtPeriod">7</span> dias)</h3>
                 <p id="lblTotalVotes" style="margin: 10px 0 0 0; font-size: 2.5rem; font-weight: bold; color: var(--title-color);">0</p>
@@ -765,7 +812,18 @@ const generateHtmlDashboard = (stats) => {
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: { legend: { position: 'bottom' } }
+                    plugins: { 
+                        legend: { 
+                            position: 'bottom',
+                            labels: {
+                                boxWidth: 10,
+                                padding: 10,
+                                font: {
+                                    size: window.innerWidth < 400 ? 8 : (window.innerWidth < 600 ? 10 : 12)
+                                }
+                            }
+                        } 
+                    }
                 }
             });
 
@@ -835,7 +893,18 @@ const generateHtmlDashboard = (stats) => {
                         x: { stacked: true },
                         y: { stacked: true, beginAtZero: true, ticks: { stepSize: 1 } }
                     },
-                    plugins: { legend: { position: 'bottom' } }
+                    plugins: { 
+                        legend: { 
+                            position: 'bottom',
+                            labels: {
+                                boxWidth: 10,
+                                padding: 8,
+                                font: {
+                                    size: window.innerWidth < 400 ? 8 : (window.innerWidth < 600 ? 9 : 12)
+                                }
+                            }
+                        } 
+                    }
                 }
             });
         };
