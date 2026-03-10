@@ -129,15 +129,18 @@ const generateHtmlDashboard = (stats) => {
     const statsJSONStr = JSON.stringify(stats);
     const lastUpdateFormated = moment().tz('America/Sao_Paulo').format('DD/MM/YYYY HH:mm:ss');
 
-    // Carregar capacidades do config.json
+    // Carregar capacidades e apelidos do config.json
     let capacities = {};
+    let aliases = {};
     try {
         const config = JSON.parse(fs.readFileSync('./config/config.json', 'utf8'));
         capacities = config.groupCapacities || {};
+        aliases = config.groupAliases || {};
     } catch (e) {
-        console.error("Erro ao ler capacidades do config.json:", e.message);
+        console.error("Erro ao ler config.json:", e.message);
     }
     const capacitiesJSONStr = JSON.stringify(capacities);
+    const aliasesJSONStr = JSON.stringify(aliases);
 
     const htmlContent = `
 <!DOCTYPE html>
@@ -505,6 +508,7 @@ const generateHtmlDashboard = (stats) => {
     <script>
         let rawDB = ${statsJSONStr};
         let capacities = ${capacitiesJSONStr};
+        let groupAliases = ${aliasesJSONStr};
         const optionColors = {
             "Irei, ida e volta.": "#4caf50",
             "Irei, mas não retornarei.": "#2196f3",
@@ -534,7 +538,7 @@ const generateHtmlDashboard = (stats) => {
             extractGroups().forEach(g => {
                 const opt = document.createElement("option");
                 opt.value = g;
-                opt.textContent = g;
+                opt.textContent = groupAliases[g] || g;
                 gSelect.appendChild(opt);
             });
 
@@ -756,6 +760,7 @@ const generateHtmlDashboard = (stats) => {
         const renderCompactBar = (name, count, cap) => {
             const capacityList = document.getElementById("capacityList");
             const percentage = Math.min(100, (count / cap) * 100);
+            const displayName = groupAliases[name] || name;
             
             let statusColor = "#94a3b8";
             let statusText = (cap - count) + " vagas";
@@ -773,7 +778,7 @@ const generateHtmlDashboard = (stats) => {
             const barHtml = \`
                 <div style="margin-bottom: 12px;">
                     <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 6px;">
-                        <span style="font-size: 0.9rem; font-weight: 600; color: var(--title-color);">\${name}</span>
+                        <span style="font-size: 0.9rem; font-weight: 600; color: var(--title-color);">\${displayName}</span>
                         <div style="text-align: right;">
                             <span style="font-size: 0.8rem; color: \${statusColor}; font-weight: 500; margin-right: 8px;">\${statusText}</span>
                             <span style="font-size: 1rem; font-weight: bold; color: var(--accent);">\${count}/\${cap}</span>
@@ -938,8 +943,10 @@ const generateHtmlDashboard = (stats) => {
                     const data = await res.json();
                     
                     // Compara as chaves para verificar levemente as mudanças, caso contrário o dashboard recarrega
-                    if (JSON.stringify(rawDB) !== JSON.stringify(data)) {
-                        rawDB = data;
+                    if (JSON.stringify(rawDB) !== JSON.stringify(data.votes)) {
+                        rawDB = data.votes || {};
+                        capacities = data.capacities || {};
+                        groupAliases = data.aliases || {};
                         updateDash(); // Re-render dos gráficos
                         
                         const now = new Date();

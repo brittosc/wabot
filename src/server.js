@@ -175,9 +175,14 @@ const startServer = () => {
         // Rota API de rawDB para o Auto-Refresh do frontend das Estatísticas
         if (req.url === '/api/stats') {
             try {
-                const data = await readStats();
+                const votes = await readStats();
+                const config = JSON.parse(fs.readFileSync('./config/config.json', 'utf8'));
                 res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify(data));
+                res.end(JSON.stringify({
+                    votes,
+                    capacities: config.groupCapacities || {},
+                    aliases: config.groupAliases || {}
+                }));
             } catch (err) {
                 res.writeHead(500, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ error: err.message }));
