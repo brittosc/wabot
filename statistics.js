@@ -1,22 +1,46 @@
 const fs = require('fs');
 const moment = require('moment-timezone');
 const dashboard = require('./dashboard');
+const supabase = require('./supabaseClient');
 
-const statsFile = './statistics.json';
 const htmlFile = './estatisticas.html';
 
-const readStats = () => {
+const readStats = async () => {
     try {
-        if (!fs.existsSync(statsFile)) return {};
-        const data = fs.readFileSync(statsFile, 'utf8');
-        return JSON.parse(data);
+        // Buscamos os últimos 10.000 votos (suficiente para vários meses)
+        // Mais para frente, podemos otimizar filtrando apenas o período necessário
+        const { data: rows, error } = await supabase
+            .from('votes')
+            .select('*')
+            .order('vote_date', { ascending: false })
+            .limit(10000);
+
+        if (error) throw error;
+
+        const stats = {};
+        rows.forEach(row => {
+            const date = row.vote_date; // 'YYYY-MM-DD'
+            if (!stats[date]) {
+                stats[date] = { Version2: true, grupos: {} };
+            }
+            if (!stats[date].grupos[row.group_name]) {
+                stats[date].grupos[row.group_name] = {
+                    pollName: row.poll_name || 'Enquete do dia',
+                    votes: {}
+                };
+            }
+            stats[date].grupos[row.group_name].votes[row.voter_id] = row.option;
+        });
+        return stats;
     } catch (e) {
+        console.error("Erro ao ler stats do Supabase:", e.message);
         return {};
     }
 };
 
-const updateTerminalOccupancy = (stats) => {
+const updateTerminalOccupancy = async (stats) => {
     try {
+        if (!stats) stats = await readStats();
         const todayStr = moment().tz('America/Sao_Paulo').format('YYYY-MM-DD');
         const dayEntry = stats[todayStr];
         if (!dayEntry || !dayEntry.grupos) {
@@ -30,6 +54,7 @@ const updateTerminalOccupancy = (stats) => {
         const occupancySummary = [];
         Object.keys(capacities).forEach(gName => {
             let count = 0;
+            const cap = capacities[gName];
             const groupData = dayEntry.grupos[gName];
             if (groupData && groupData.votes) {
                 Object.values(groupData.votes).forEach(opt => {
@@ -38,7 +63,12 @@ const updateTerminalOccupancy = (stats) => {
                     }
                 });
             }
-            occupancySummary.push({ name: gName, count, cap: capacities[gName] });
+
+            let status = `${count}/${cap}`;
+            if (count > cap) status += " (EXCEDENTE)";
+            else if (count === cap) status += " (LOTADO)";
+
+            occupancySummary.push({ name: gName, count, cap, status });
         });
 
         dashboard.setOccupancy(occupancySummary);
@@ -47,67 +77,50 @@ const updateTerminalOccupancy = (stats) => {
     }
 };
 
-const saveStats = (data) => {
-    fs.writeFileSync(statsFile, JSON.stringify(data, null, 2));
+const saveStats = async (data) => {
+    // Esta função era usada para salvar o JSON inteiro. 
+    // Agora o salvamento é feito de forma atômica no registerVote via Supabase.
+    // Mantida apenas para evitar erros de referência se esquecida em algum lugar, mas sem efeito.
 };
 
 const registerVote = async (vote) => {
     const now = moment().tz('America/Sao_Paulo');
     const todayStr = now.format('YYYY-MM-DD');
 
-    const stats = readStats();
-
-    // Migração de Estrutura Antiga (V1 para V2)
-    if (stats[todayStr] && !stats[todayStr].Version2) {
-        const oldData = stats[todayStr];
-        stats[todayStr] = {
-            Version2: true,
-            grupos: {
-                "Grupo Geral (Legado)": oldData
-            }
-        };
-    }
-
-    if (!stats[todayStr]) {
-        stats[todayStr] = {
-            Version2: true,
-            grupos: {}
-        };
-    }
-
     let groupName = "Desconhecido";
+    let pollName = "Enquete do dia";
     try {
         if (vote.parentMessage) {
             const chat = await vote.parentMessage.getChat();
             if (chat && chat.name) groupName = chat.name;
+            pollName = vote.parentMessage.body;
         }
     } catch (e) {
-        // Ignora caso falhe ao pegar o nome do grupo e mantém como "Desconhecido"
-    }
-
-    if (!stats[todayStr].grupos[groupName]) {
-        stats[todayStr].grupos[groupName] = {
-            pollName: vote.parentMessage ? vote.parentMessage.body : 'Enquete do dia',
-            votes: {}
-        };
+        // Ignora caso falhe ao pegar o nome do grupo
     }
 
     const voterId = vote.voter;
 
-    // If the user deselected options, selectedOptions will be empty
     if (vote.selectedOptions && vote.selectedOptions.length > 0) {
         const selectedOption = vote.selectedOptions[0].name;
-        stats[todayStr].grupos[groupName].votes[voterId] = selectedOption;
+        // Upsert no Supabase
+        await supabase.from('votes').upsert({
+            voter_id: voterId,
+            group_name: groupName,
+            vote_date: todayStr,
+            option: selectedOption,
+            poll_name: pollName
+        }, { onConflict: 'voter_id,group_name,vote_date' });
     } else {
-        if (stats[todayStr].grupos[groupName].votes[voterId]) {
-            delete stats[todayStr].grupos[groupName].votes[voterId];
-        }
+        // Deletar voto (desmarcado)
+        await supabase.from('votes')
+            .delete()
+            .match({ voter_id: voterId, group_name: groupName, vote_date: todayStr });
     }
 
-    saveStats(stats);
-    updateTerminalOccupancy(stats);
-
-    // After saving, generate HTML
+    // Recarregar stats para atualizar terminal e dashboard
+    const stats = await readStats();
+    await updateTerminalOccupancy(stats);
     generateHtmlDashboard(stats);
 };
 
@@ -573,9 +586,12 @@ const generateHtmlDashboard = (stats) => {
             
             let statusColor = "#94a3b8";
             let statusText = (cap - count) + " vagas";
-            if (count >= cap) {
+            if (count > cap) {
                 statusColor = "#f44336";
-                statusText = "Lotado! \u26A0\uFE0F";
+                statusText = "Excesso: " + (count - cap);
+            } else if (count === cap) {
+                statusColor = "#f44336";
+                statusText = "Lotado!";
             } else if (percentage > 85) {
                 statusColor = "#ff9800";
                 statusText = "Quase lotado.";

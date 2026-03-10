@@ -118,8 +118,6 @@ const scheduleJob = (sock) => {
     const time = config.pollTime || "06:00"; // Default "06:00"
     const [hour, minute] = time.split(':');
 
-    dashboard.addLog(`Agendamento configurado para ${time} (Horário de Brasília)`);
-
     // Run every minute and check if it matches the scheduled time
     cron.schedule('* * * * *', () => {
         const now = moment().tz('America/Sao_Paulo');

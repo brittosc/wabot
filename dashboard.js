@@ -82,7 +82,7 @@ class Dashboard {
                     if (percentage > 85) color = chalk.yellow;
                     if (group.count >= group.cap) color = chalk.red;
 
-                    return `${chalk.white(group.name.padEnd(25))} ${color(group.count.toString().padStart(2) + '/' + group.cap)}`;
+                    return `${chalk.white(group.name.padEnd(25))} ${color(group.status.padStart(7))}`;
                 })
             ].join('\n') + '\n\n';
         }

@@ -1,3 +1,4 @@
+process.env.NODE_NO_WARNINGS = '1';
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 const dashboard = require('./dashboard');
@@ -33,7 +34,7 @@ async function startBot() {
         dashboard.addLog('Novo QR Code gerado.');
     });
 
-    client.on('ready', () => {
+    client.on('ready', async () => {
         dashboard.setStatus('Conectado ✅');
         dashboard.addLog('Bot conectado com sucesso!');
         dashboard.setQrCode(''); // Limpa QR
@@ -42,8 +43,8 @@ async function startBot() {
         cronJob.scheduleJob(client);
 
         // Atualiza ocupação inicial no terminal e gera HTML inicial
-        const currentStats = statistics.readStats();
-        statistics.updateTerminalOccupancy(currentStats);
+        const currentStats = await statistics.readStats();
+        await statistics.updateTerminalOccupancy(currentStats);
         statistics.generateHtmlDashboard(currentStats);
 
         if (process.argv.includes('--now')) {

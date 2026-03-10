@@ -140,7 +140,7 @@ const startServer = () => {
         console.error(`Falha ao obter IP Público: ${e.message}`);
     });
 
-    const server = http.createServer((req, res) => {
+    const server = http.createServer(async (req, res) => {
 
         // Rota API de Monitoramento da Máquina (SysInfo)
         if (req.url === '/api/sysinfo') {
@@ -186,7 +186,7 @@ const startServer = () => {
         // Rota API de rawDB para o Auto-Refresh do frontend das Estatísticas
         if (req.url === '/api/stats') {
             try {
-                const data = readStats();
+                const data = await readStats();
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify(data));
             } catch (err) {
@@ -466,7 +466,6 @@ const startServer = () => {
     });
 
     server.listen(port, '0.0.0.0', () => {
-        dashboard.addLog(`Servidor Web iniciado na porta ${port}`);
         dashboard.setServerUrl(`http://0.0.0.0:${port}`);
     });
 };
