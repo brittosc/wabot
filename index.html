@@ -559,8 +559,9 @@
 
                     const pluginsList = data.plugins && data.plugins.length > 0 
                         ? data.plugins.map(p => {
-                            if (typeof p === 'string') return p;
-                            return p.name || 'Plugin';
+                            let name = (typeof p === 'string') ? p : (p.name || 'Plugin');
+                            // Remove a versão (geralmente tudo após o primeiro espaço ou padrões como v1.0)
+                            return name.split(' ')[0].replace(/v\d+\..*/, '').trim();
                         }).join(', ') 
                         : '--';
                     
