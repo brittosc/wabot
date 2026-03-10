@@ -76,7 +76,7 @@ let previousNetInfo = { rx: 0, tx: 0, time: Date.now() };
 let currentNetUsage = { rxSpeed: 0, txSpeed: 0 }; // Bytes per second
 
 const startServer = () => {
-    const port = process.env.PORT || 80;
+    const port = process.env.PORT || 3000;
 
     // Iniciar poller de rede (a cada 2 segundos)
     setInterval(() => {
