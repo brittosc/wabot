@@ -451,7 +451,7 @@ const generateHtmlDashboard = (stats) => {
         </div>
     </div>
 
-    <div class="footer">
+    <div class="footer" style="margin-bottom: 40px;">
         Atualizado pela última vez em: <span id="lblLastUpdate">${lastUpdateFormated}</span>
     </div>
 
