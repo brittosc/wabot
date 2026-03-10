@@ -29,7 +29,7 @@
             background-attachment: fixed;
             color: var(--text-color);
             margin: 0;
-            padding: 30px 20px;
+            padding: 15px 20px;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -75,7 +75,7 @@
 
         .header h1 {
             margin: 0;
-            font-size: 2.2rem;
+            font-size: 1.4rem;
             color: #fff;
             display: flex;
             align-items: center;
@@ -87,9 +87,9 @@
         .dashboard-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 25px;
+            gap: 20px;
             width: 100%;
-            max-width: 1400px;
+            max-width: 1100px;
             animation: slideUp 0.8s ease-out;
         }
 
@@ -97,8 +97,8 @@
             background: var(--card-bg);
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
-            border-radius: 16px;
-            padding: 25px;
+            border-radius: 12px;
+            padding: 18px;
             border: 1px solid var(--border-color);
             box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
             display: flex;
@@ -136,14 +136,14 @@
 
         .card h2 {
             margin-top: 0;
-            font-size: 1.3rem;
+            font-size: 0.95rem;
             color: #fff;
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
             border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-            padding-bottom: 15px;
-            margin-bottom: 25px;
+            padding-bottom: 12px;
+            margin-bottom: 18px;
             font-weight: 600;
         }
 
@@ -156,13 +156,13 @@
 
         .metric-title {
             color: #94a3b8;
-            font-size: 0.95rem;
+            font-size: 0.8rem;
             font-weight: 500;
         }
 
         .metric-value {
             font-weight: 700;
-            font-size: 1.15rem;
+            font-size: 1rem;
             color: #f8fafc;
         }
 
@@ -244,7 +244,7 @@
         }
 
         .net-name {
-            font-size: 0.85rem;
+            font-size: 0.75rem;
             color: #94a3b8;
             text-transform: uppercase;
             font-weight: bold;
@@ -252,7 +252,7 @@
 
         .net-ip {
             font-family: monospace;
-            font-size: 1rem;
+            font-size: 0.85rem;
             color: #f8fafc;
         }
 
@@ -301,7 +301,7 @@
         }
 
         .updated-timestamp {
-            font-size: 0.85rem;
+            font-size: 0.75rem;
             color: #64748b;
             text-align: right;
             margin-top: auto;
@@ -344,7 +344,7 @@
 
     <div class="header" style="max-width: 1400px;">
         <h1><span class="status-dot" id="serverStatus"></span> Dashboard <span
-                style="font-size: 1rem; color: #64748b; font-weight: 400; margin-left: auto; display: inline-block;">Painel
+                style="font-size: 0.8rem; color: #64748b; font-weight: 400; margin-left: auto; display: inline-block;">Painel
                 Unificado</span></h1>
     </div>
 
@@ -358,7 +358,7 @@
                 <span class="metric-title">Memória RAM</span>
                 <span class="metric-value" id="ramText">-- / -- GB</span>
             </div>
-            <div class="progress-bar" style="margin-bottom: 25px;">
+            <div class="progress-bar" style="margin-bottom: 12px;">
                 <div class="progress-fill" id="ramBar" style="width: 0%;"></div>
             </div>
 
@@ -366,7 +366,7 @@
                 <span class="metric-title">CPU Status (<span id="cpuCores">-</span> cores)</span>
                 <span class="metric-value" id="cpuText">--%</span>
             </div>
-            <div class="progress-bar" style="margin-bottom: 30px;">
+            <div class="progress-bar" style="margin-bottom: 15px;">
                 <div class="progress-fill" id="cpuBar" style="width: 0%;"></div>
             </div>
 
@@ -377,7 +377,7 @@
             <div id="networkContainer" class="network-list" style="margin-top: 0;">
                 <div class="network-badge"
                     style="border-left-color: var(--accent); flex-direction: row; justify-content: space-between; align-items: center;">
-                    <span class="net-name" style="font-size: 1rem; color: #f8fafc; font-weight: normal;">
+                    <span class="net-name" style="font-size: 0.8rem; color: #f8fafc; font-weight: normal;">
                         <span style="display:inline-block; margin-right: 8px; transform: rotate(-45deg);">➤</span>
                         Enviando
                     </span>
@@ -385,7 +385,7 @@
                 </div>
                 <div class="network-badge"
                     style="border-left-color: var(--success-color); flex-direction: row; justify-content: space-between; align-items: center;">
-                    <span class="net-name" style="font-size: 1rem; color: #f8fafc; font-weight: normal;">
+                    <span class="net-name" style="font-size: 0.8rem; color: #f8fafc; font-weight: normal;">
                         <span
                             style="display:inline-block; margin-right: 8px; transform: rotate(135deg); color: var(--success-color);">➤</span>
                         Recebendo
@@ -394,19 +394,7 @@
                 </div>
             </div>
 
-            <div style="margin-top: 35px;">
-                <span class="metric-title">IP Público (GW)</span>
-                <div class="ip-container">
-                    <div class="ip-box" id="ipAddress">Aguardando...</div>
-                    <button class="copy-btn" onclick="copyIp()" title="Copiar IP">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                        </svg>
-                    </button>
-                </div>
-            </div>
+            <!-- IP Público removido a pedido do usuário -->
 
             <div class="updated-timestamp" id="lastUpdate">Obtendo dados...</div>
         </div>
@@ -423,7 +411,7 @@
             <div class="metric" style="margin-top: 15px;">
                 <span class="metric-title">Motd</span>
                 <span class="metric-value" id="mcMotdText"
-                    style="font-size: 0.95rem; font-weight: normal; color: #94a3b8; max-width: 250px; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">--</span>
+                    style="font-size: 0.85rem; font-weight: normal; color: #94a3b8; max-width: 250px; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">--</span>
             </div>
 
             <div class="metric" style="margin-top: 15px;">
@@ -441,20 +429,18 @@
             <!-- Bloco de Informações Compactas -->
             <div class="compact-info-group" style="margin-top: 15px; display: flex; flex-direction: column; gap: 1px;">
                 <div class="metric">
-                    <span class="metric-title" style="font-size: 0.85rem;">Servidor / Mundo</span>
-                    <span class="metric-value" id="mcMapText" style="font-size: 0.85rem;">--</span>
+                    <span class="metric-title" style="font-size: 0.75rem;">Servidor / Mundo</span>
+                    <span class="metric-value" id="mcMapText" style="font-size: 0.75rem;">--</span>
                 </div>
 
                 <div class="metric" style="flex-direction: column; align-items: flex-start;">
-                    <span class="metric-title" style="font-size: 0.85rem;">Plugins (<span id="mcPluginsCount"
-                            style="font-size: 0.85rem;">0</span>)</span>
-                    <span class="metric-value" id="mcPluginsText"
-                        style="font-size: 0.85rem; font-weight: normal; color: #64748b; line-height: 1.4;">--</span>
+                    <span class="metric-title" style="font-size: 0.75rem;">Plugins (<span id="mcPluginsCount" style="font-size: 0.75rem;">0</span>)</span>
+                    <span class="metric-value" id="mcPluginsText" style="font-size: 0.7rem; font-weight: normal; color: #64748b; line-height: 1.3; text-align: left; word-break: break-all;">--</span>
                 </div>
 
                 <div class="metric">
-                    <span class="metric-title" style="font-size: 0.85rem;">Versão</span>
-                    <span class="metric-value" id="mcVersionText" style="font-size: 0.85rem;">--</span>
+                    <span class="metric-title" style="font-size: 0.75rem;">Versão</span>
+                    <span class="metric-value" id="mcVersionText" style="font-size: 0.75rem;">--</span>
                 </div>
             </div>
 
@@ -463,14 +449,14 @@
                 style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(255, 255, 255, 0.05);">
                 <div class="metric" style="flex-direction: column; align-items: flex-start; gap: 4px;">
                     <span class="metric-title"
-                        style="font-size: 0.80rem; text-transform: uppercase; letter-spacing: 0.5px;">Estado do
+                        style="font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px;">Estado do
                         Mundo</span>
-                    <span class="metric-value" id="mcWorldTime" style="font-size: 0.75rem;">--</span>
+                    <span class="metric-value" id="mcWorldTime" style="font-size: 0.7rem;">--</span>
                 </div>
                 <div class="metric" style="flex-direction: column; align-items: flex-end; gap: 4px;">
                     <span class="metric-title"
-                        style="font-size: 0.80rem; text-transform: uppercase; letter-spacing: 0.5px;">Uptime</span>
-                    <span class="metric-value" id="mcUptime" style="font-size: 0.75rem;">--</span>
+                        style="font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px;">Uptime</span>
+                    <span class="metric-value" id="mcUptime" style="font-size: 0.7rem;">--</span>
                 </div>
             </div>
 
@@ -484,21 +470,21 @@
 
                 <div style="flex-grow: 1; display: flex; flex-direction: column; justify-content: center; gap: 20px;">
                     <div class="metric" style="flex-direction: column; text-align: center; gap: 10px;">
-                        <span class="metric-value" style="font-size: 1.15rem;">Transporte Universitário</span>
-                        <span class="metric-title" style="line-height: 1.5; font-size: 0.9rem; color: #94a3b8;">
+                        <span class="metric-value" style="font-size: 1rem;">Transporte Universitário</span>
+                        <span class="metric-title" style="line-height: 1.5; font-size: 0.8rem; color: #94a3b8;">
                             Análise em tempo real e previsão de lotação baseada nas enquetes dos grupos.
                         </span>
                     </div>
 
                     <div
                         style="background: rgba(59, 130, 246, 0.05); border: 1px dashed rgba(59, 130, 246, 0.2); border-radius: 12px; padding: 20px; text-align: center;">
-                        <span style="font-size: 0.85rem; color: var(--accent); font-weight: 500;">Relatórios diários e
+                        <span style="font-size: 0.75rem; color: var(--accent); font-weight: 500;">Relatórios diários e
                             histórico semanal</span>
                     </div>
                 </div>
 
                 <div
-                    style="margin-top: auto; padding-top: 15px; border-top: 1px solid rgba(255, 255, 255, 0.05); text-align: center; color: var(--accent); font-weight: bold; letter-spacing: 1px; font-size: 0.9rem;">
+                    style="margin-top: auto; padding-top: 10px; border-top: 1px solid rgba(255, 255, 255, 0.05); text-align: center; color: var(--accent); font-weight: bold; letter-spacing: 1px; font-size: 0.75rem;">
                     ACESSAR PAINEL ➔
                 </div>
             </div>
@@ -510,22 +496,19 @@
         const formatUptime = (ms) => {
             if (!ms) return '0m';
             const totalSeconds = Math.floor(ms / 1000);
-            const hours = Math.floor(totalSeconds / 3600);
+            const days = Math.floor(totalSeconds / 86400);
+            const hours = Math.floor((totalSeconds % 86400) / 3600);
             const minutes = Math.floor((totalSeconds % 3600) / 60);
-            if (hours > 0) return `${hours}h ${minutes}m`;
-            return `${minutes}m`;
+
+            let parts = [];
+            if (days > 0) parts.push(`${days}d`);
+            if (hours > 0) parts.push(`${hours}h`);
+            if (minutes > 0 || parts.length === 0) parts.push(`${minutes}m`);
+            
+            return parts.join(' ');
         };
 
-        const copyIp = () => {
-            const ip = document.getElementById('ipAddress').innerText;
-            if (ip && ip !== 'Aguardando...') {
-                navigator.clipboard.writeText(ip).then(() => {
-                    alert('IP copiado para a área de transferência!');
-                }).catch(err => {
-                    console.error('Erro ao copiar IP:', err);
-                });
-            }
-        };
+        // Função copyIp removida (IP removido do dashboard)
 
         const formatColor = (bar, percentage) => {
             if (percentage < 60) bar.style.backgroundColor = 'var(--success-color)';
@@ -574,8 +557,15 @@
                     mapText.innerText = data.map || 'world';
                     motdText.innerText = data.motd || '--';
 
-                    pluginsText.innerText = data.plugins && data.plugins.length > 0 ? data.plugins.map(p => p.name).join(', ') : '--';
-                    pluginsCount.innerText = data.plugins ? data.plugins.length : '0';
+                    const pluginsList = data.plugins && data.plugins.length > 0 
+                        ? data.plugins.map(p => {
+                            if (typeof p === 'string') return p;
+                            return p.name || 'Plugin';
+                        }).join(', ') 
+                        : '--';
+                    
+                    document.getElementById('mcPluginsText').innerText = pluginsList;
+                    document.getElementById('mcPluginsCount').innerText = data.plugins ? data.plugins.length : '0';
 
                     // Uptime e World
                     document.getElementById('mcUptime').innerText = formatUptime(data.uptime);
@@ -621,10 +611,7 @@
 
                 const data = await res.json();
 
-                // IP Público Gateway
-                if (data.publicIp) {
-                    document.getElementById('ipAddress').innerText = data.publicIp;
-                }
+                // IP Público removido da UI
 
                 // RAM Refresh
                 document.getElementById('ramText').innerText =

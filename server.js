@@ -8,8 +8,7 @@ const { Rcon } = require('rcon-client');
 const dashboard = require('./dashboard');
 const { readStats } = require('./statistics');
 
-// Variável em memória para cachear o IP público da VPS, evitando travar a API fazendo request toda hora
-let publicIpCache = "Desconhecido";
+// Variável publicIpCache removida (IP removido do dashboard)
 
 // Minecraft Uptime Tracking (Persistent via Windows Process)
 let mcUptimeStart = null;
@@ -129,16 +128,7 @@ const startServer = () => {
         previousNetInfo = { rx, tx, time: now };
     };
 
-    // Buscar IP Público assincronamente logo quando o server inicia
-    https.get('https://api.ipify.org', (res) => {
-        let rawData = '';
-        res.on('data', (chunk) => rawData += chunk);
-        res.on('end', () => {
-            publicIpCache = rawData.trim();
-        });
-    }).on('error', (e) => {
-        console.error(`Falha ao obter IP Público: ${e.message}`);
-    });
+    // Busca de IP Público removida a pedido do usuário (campo removido do dashboard)
 
     const server = http.createServer(async (req, res) => {
 
@@ -165,7 +155,6 @@ const startServer = () => {
             cpuPercentage = cpuPercentage.toFixed(1);
 
             const sysInfo = {
-                publicIp: publicIpCache,
                 ram: {
                     usedGB: usedMemGB,
                     totalGB: totalMemGB,
