@@ -550,10 +550,10 @@ const generateHtmlDashboard = (stats) => {
             let statusText = (cap - count) + " vagas";
             if (count >= cap) {
                 statusColor = "#f44336";
-                statusText = "LOTADO! \u26A0\uFE0F";
+                statusText = "Lotado! \u26A0\uFE0F";
             } else if (percentage > 85) {
                 statusColor = "#ff9800";
-                statusText = "Quase lotado";
+                statusText = "Quase lotado.";
             }
 
             const barHtml = \`
