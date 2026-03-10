@@ -212,35 +212,83 @@ const generateHtmlDashboard = (stats) => {
         .highlight-card {
             background-color: var(--card-bg);
             border-radius: 12px;
-            padding: 15px;
+            padding: 0;
             border: 1px solid var(--border-color);
             display: flex;
             flex-direction: column;
-            align-items: center;
-            text-align: center;
+            overflow: hidden;
             box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            position: relative;
+            min-height: 120px;
         }
-        .highlight-card i {
-            font-size: 1.5rem;
-            margin-bottom: 10px;
+        .highlight-card .card-title {
+            position: absolute;
+            top: 10px;
+            left: 0;
+            right: 0;
+            z-index: 10;
+            pointer-events: none;
+            text-align: center;
         }
         .highlight-card h3 {
-            font-size: 0.9rem;
-            color: #7f8c8d;
-            margin: 0 0 5px 0;
-            font-weight: normal;
-        }
-        .highlight-card .value {
-            font-size: 1.5rem;
-            font-weight: bold;
-            color: var(--title-color);
-            margin: 0;
-        }
-        .highlight-card .date {
             font-size: 0.8rem;
+            color: #ffffff;
+            margin: 0;
+            font-weight: 600;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+            background: rgba(0,0,0,0.3);
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+        .split-container {
+            display: flex;
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            background: linear-gradient(135deg, rgba(76, 175, 80, 0.15) 0%, rgba(76, 175, 80, 0.05) 49.9%, rgba(244, 67, 54, 0.05) 50.1%, rgba(244, 67, 54, 0.15) 100%);
+        }
+        .split-half {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 35px 15px 15px 15px;
+            position: relative;
+            z-index: 1;
+        }
+        .split-peak {
+            align-items: flex-start;
+            text-align: left;
+        }
+        .split-valley {
+            align-items: flex-end;
+            text-align: right;
+        }
+        .split-half .label {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 4px;
+            font-weight: 800;
+        }
+        .split-peak .label { color: #4caf50; }
+        .split-valley .label { color: #f44336; }
+
+        .split-half .value {
+            font-size: 1.8rem;
+            font-weight: 800;
+            color: var(--title-color);
+            line-height: 1;
+        }
+        .split-half .date {
+            font-size: 0.7rem;
             color: var(--accent);
-            margin-top: 5px;
+            margin-top: 4px;
             font-weight: bold;
+            opacity: 0.9;
         }
         @media (min-width: 768px) {
             .dashboard {
@@ -294,32 +342,7 @@ const generateHtmlDashboard = (stats) => {
         </select>
     </div>
 
-    <div class="highlights">
-        <div class="highlight-card">
-            <i>🔥</i>
-            <h3>Pico de Lotação (Ida/Volta)</h3>
-            <p class="value" id="hlLotacaoVal">-</p>
-            <p class="date" id="hlLotacaoDate">-</p>
-        </div>
-        <div class="highlight-card">
-            <i>🏖️</i>
-            <h3>Maior Ausência</h3>
-            <p class="value" id="hlAusenciaVal">-</p>
-            <p class="date" id="hlAusenciaDate">-</p>
-        </div>
-        <div class="highlight-card">
-            <i>🚌</i>
-            <h3>Demanda (Só Ida)</h3>
-            <p class="value" id="hlSoIdaVal">-</p>
-            <p class="date" id="hlSoIdaDate">-</p>
-        </div>
-        <div class="highlight-card">
-            <i>🏠</i>
-            <h3>Demanda (Só Volta)</h3>
-            <p class="value" id="hlSoVoltaVal">-</p>
-            <p class="date" id="hlSoVoltaDate">-</p>
-        </div>
-    </div>
+    <!-- Destaques removidos daqui para serem movidos para baixo da proporção -->
 
     <!-- Barra de Lotação do Dia -->
     <div id="capacitySection" style="display: none; width: 100%; max-width: 1000px; margin-bottom: 20px;">
@@ -349,6 +372,70 @@ const generateHtmlDashboard = (stats) => {
             <h2>Proporção Diária</h2>
             <div class="chart-container">
                 <canvas id="stackedBarChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Cards de Picos e Vales agora abaixo da Proporção Diária -->
+        <div class="highlights" style="grid-column: 1 / -1;">
+            <div class="highlight-card">
+                <div class="card-title"><h3>Lotação (Ida/Volta)</h3></div>
+                <div class="split-container">
+                    <div class="split-half split-peak">
+                        <span class="label">Pico</span>
+                        <span class="value" id="hlLotacaoVal">-</span>
+                        <span class="date" id="hlLotacaoDate">-</span>
+                    </div>
+                    <div class="split-half split-valley">
+                        <span class="label">Vale</span>
+                        <span class="value" id="hlLotacaoMinVal">-</span>
+                        <span class="date" id="hlLotacaoMinDate">-</span>
+                    </div>
+                </div>
+            </div>
+            <div class="highlight-card">
+                <div class="card-title"><h3>Ausência</h3></div>
+                <div class="split-container">
+                    <div class="split-half split-peak">
+                        <span class="label">Pico</span>
+                        <span class="value" id="hlAusenciaVal">-</span>
+                        <span class="date" id="hlAusenciaDate">-</span>
+                    </div>
+                    <div class="split-half split-valley">
+                        <span class="label">Vale</span>
+                        <span class="value" id="hlAusenciaMinVal">-</span>
+                        <span class="date" id="hlAusenciaMinDate">-</span>
+                    </div>
+                </div>
+            </div>
+            <div class="highlight-card">
+                <div class="card-title"><h3>Demanda (Só Ida)</h3></div>
+                <div class="split-container">
+                    <div class="split-half split-peak">
+                        <span class="label">Pico</span>
+                        <span class="value" id="hlSoIdaVal">-</span>
+                        <span class="date" id="hlSoIdaDate">-</span>
+                    </div>
+                    <div class="split-half split-valley">
+                        <span class="label">Vale</span>
+                        <span class="value" id="hlSoIdaMinVal">-</span>
+                        <span class="date" id="hlSoIdaMinDate">-</span>
+                    </div>
+                </div>
+            </div>
+            <div class="highlight-card">
+                <div class="card-title"><h3>Demanda (Só Volta)</h3></div>
+                <div class="split-container">
+                    <div class="split-half split-peak">
+                        <span class="label">Pico</span>
+                        <span class="value" id="hlSoVoltaVal">-</span>
+                        <span class="date" id="hlSoVoltaDate">-</span>
+                    </div>
+                    <div class="split-half split-valley">
+                        <span class="label">Vale</span>
+                        <span class="value" id="hlSoVoltaMinVal">-</span>
+                        <span class="date" id="hlSoVoltaMinDate">-</span>
+                    </div>
+                </div>
             </div>
         </div>
         
@@ -434,11 +521,18 @@ const generateHtmlDashboard = (stats) => {
 
             let accumTotalVotes = 0;
 
-            // Trackers for highlights
+            // Trackers for highlights (Peaks and Valleys)
             let peakLotacao = { val: -1, date: "" };
+            let valleyLotacao = { val: Infinity, date: "" };
+            
             let peakAusencia = { val: -1, date: "" };
+            let valleyAusencia = { val: Infinity, date: "" };
+            
             let peakSoIda = { val: -1, date: "" };
+            let valleySoIda = { val: Infinity, date: "" };
+            
             let peakSoVolta = { val: -1, date: "" };
+            let valleySoVolta = { val: Infinity, date: "" };
 
             for (let i = targetDays - 1; i >= 0; i--) {
                 const day = todayMoment.clone().subtract(i, 'days');
@@ -488,22 +582,45 @@ const generateHtmlDashboard = (stats) => {
                     });
                 }
 
-                // Check Peaks
+                // Check Peaks & Valleys
+                // Lotação
                 if (dayCounts["Irei, ida e volta."] > peakLotacao.val) {
                     peakLotacao.val = dayCounts["Irei, ida e volta."];
                     peakLotacao.date = displayDate;
                 }
+                if (dayCounts["Irei, ida e volta."] < valleyLotacao.val && dayTotal > 0) {
+                    valleyLotacao.val = dayCounts["Irei, ida e volta."];
+                    valleyLotacao.date = displayDate;
+                }
+
+                // Ausência
                 if (dayCounts["Não irei à faculdade hoje."] > peakAusencia.val) {
                     peakAusencia.val = dayCounts["Não irei à faculdade hoje."];
                     peakAusencia.date = displayDate;
                 }
+                if (dayCounts["Não irei à faculdade hoje."] < valleyAusencia.val && dayTotal > 0) {
+                    valleyAusencia.val = dayCounts["Não irei à faculdade hoje."];
+                    valleyAusencia.date = displayDate;
+                }
+
+                // Só Ida
                 if (dayCounts["Irei, mas não retornarei."] > peakSoIda.val) {
                     peakSoIda.val = dayCounts["Irei, mas não retornarei."];
                     peakSoIda.date = displayDate;
                 }
+                if (dayCounts["Irei, mas não retornarei."] < valleySoIda.val && dayTotal > 0) {
+                    valleySoIda.val = dayCounts["Irei, mas não retornarei."];
+                    valleySoIda.date = displayDate;
+                }
+
+                // Só Volta
                 if (dayCounts["Não irei, apenas retornarei."] > peakSoVolta.val) {
                     peakSoVolta.val = dayCounts["Não irei, apenas retornarei."];
                     peakSoVolta.date = displayDate;
+                }
+                if (dayCounts["Não irei, apenas retornarei."] < valleySoVolta.val && dayTotal > 0) {
+                    valleySoVolta.val = dayCounts["Não irei, apenas retornarei."];
+                    valleySoVolta.date = displayDate;
                 }
 
                 stackedData["Irei, ida e volta."].push(dayCounts["Irei, ida e volta."]);
@@ -521,19 +638,28 @@ const generateHtmlDashboard = (stats) => {
             
             // Update Highlights
             const setHighlight = (valId, dateId, peakObj) => {
-                if(peakObj.val > 0) {
-                    document.getElementById(valId).innerText = peakObj.val.toLocaleString('pt-BR');
-                    document.getElementById(dateId).innerText = "(" + peakObj.date + ")";
+                const valEl = document.getElementById(valId);
+                const dateEl = document.getElementById(dateId);
+                if(peakObj.val !== -1 && peakObj.val !== Infinity) {
+                    valEl.innerText = peakObj.val.toLocaleString('pt-BR');
+                    dateEl.innerText = peakObj.date;
                 } else {
-                    document.getElementById(valId).innerText = "0";
-                    document.getElementById(dateId).innerText = "Sem dados";
+                    valEl.innerText = "0";
+                    dateEl.innerText = "Sem dados";
                 }
             };
 
             setHighlight("hlLotacaoVal", "hlLotacaoDate", peakLotacao);
+            setHighlight("hlLotacaoMinVal", "hlLotacaoMinDate", valleyLotacao);
+
             setHighlight("hlAusenciaVal", "hlAusenciaDate", peakAusencia);
+            setHighlight("hlAusenciaMinVal", "hlAusenciaMinDate", valleyAusencia);
+
             setHighlight("hlSoIdaVal", "hlSoIdaDate", peakSoIda);
+            setHighlight("hlSoIdaMinVal", "hlSoIdaMinDate", valleySoIda);
+
             setHighlight("hlSoVoltaVal", "hlSoVoltaDate", peakSoVolta);
+            setHighlight("hlSoVoltaMinVal", "hlSoVoltaMinDate", valleySoVolta);
             
             const numActiveDays = targetDays; // Always use target days since we show all days now
             document.getElementById("lblAverage").innerText = (accumTotalVotes / numActiveDays).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
@@ -720,9 +846,20 @@ const generateHtmlDashboard = (stats) => {
             processData(grp, per);
         };
 
-        // Boot
+        // Boot instantâneo
         initSelects();
-        updateDash();
+        
+        // Pequeno delay apenas para garantir que o DOM e Charts estejam prontos
+        window.addEventListener('load', () => {
+            updateDash();
+            fetchStats(); // Forçar busca imediata para garantir dados frescos
+        });
+        
+        // Execução imediata caso o load já tenha passado
+        if (document.readyState === 'complete') {
+            updateDash();
+            fetchStats();
+        }
 
         // Auto-refresh via JS fetch para não piscar a tela
         const fetchStats = async () => {
