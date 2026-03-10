@@ -50,6 +50,7 @@ const updateTerminalOccupancy = async (stats) => {
 
         const config = JSON.parse(fs.readFileSync('./config/config.json', 'utf8'));
         const capacities = config.groupCapacities || {};
+        const aliases = config.groupAliases || {};
 
         const occupancySummary = [];
         Object.keys(capacities).forEach(gName => {
@@ -64,11 +65,10 @@ const updateTerminalOccupancy = async (stats) => {
                 });
             }
 
+            const displayName = aliases[gName] || gName;
             let status = `${count}/${cap}`;
-            if (count > cap) status += " (EXCEDENTE)";
-            else if (count === cap) status += " (LOTADO)";
-
-            occupancySummary.push({ name: gName, count, cap, status });
+            
+            occupancySummary.push({ name: displayName, count, cap, status });
         });
 
         dashboard.setOccupancy(occupancySummary);

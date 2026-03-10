@@ -1,15 +1,15 @@
 {
     "targetGroups": [
         "Ônibus unesc 01 2026",
-        "Linha 02 - UNESC"
+        "Ônibus unesc 02"
     ],
     "groupCapacities": {
         "Ônibus unesc 01 2026": 51,
-        "Linha 02 - UNESC": 47
+        "Ônibus unesc 02": 47
     },
     "groupAliases": {
         "Ônibus unesc 01 2026": "Linha 01 - UNESC",
-        "Linha 02 - UNESC": "Linha 02 - UNESC"
+        "Ônibus unesc 02": "Linha 02 - UNESC"
     },
     "pollTime": "05:30",
     "timezone": "America/Sao_Paulo",

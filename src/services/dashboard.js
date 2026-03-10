@@ -54,6 +54,13 @@ class Dashboard {
     }
 
     render() {
+        // Helper para garantir que a linha limpe o rastro do render anterior
+        const padLine = (str, width = 70) => {
+            const plain = str.replace(/\u001b\[\d+m/g, ''); // Remove cores para contar tamanho real
+            const padding = Math.max(0, width - plain.length);
+            return str + ' '.repeat(padding);
+        };
+
         const header = chalk.bgBlue.white.bold(' 🤖 WhatsApp Bot Enquetes - Painel de Controle ');
 
         let statusColor = chalk.yellow;
@@ -61,38 +68,44 @@ class Dashboard {
         if (this.status.includes('Desconectado')) statusColor = chalk.red;
 
         const infoSection = [
-            `Status: ${statusColor(this.status)}`,
-            `Próxima Enquete: ${chalk.cyan(this.nextPollTime)}`,
-            `Total de Enquetes Enviadas: ${chalk.magenta(this.totalSent)}`,
-            this.serverUrl ? `Painel Web: ${chalk.cyan.underline(this.serverUrl)}` : ''
+            padLine(`Status: ${statusColor(this.status)}`),
+            padLine(`Próxima Enquete: ${chalk.cyan(this.nextPollTime)}`),
+            padLine(`Total de Enquetes Enviadas: ${chalk.magenta(this.totalSent)}`),
+            this.serverUrl ? padLine(`Painel Web: ${chalk.cyan.underline(this.serverUrl)}`) : ''
         ].filter(Boolean).join('\n');
 
         const logsSection = [
-            chalk.bold.underline('Últimos Eventos:'),
-            this.logs.length > 0 ? this.logs.map(l => chalk.gray(l)).join('\n') : chalk.gray('Sem logs recentes.')
+            padLine(chalk.bold.underline('Últimos Eventos:')),
+            this.logs.length > 0 
+                ? this.logs.map(l => padLine(chalk.gray(l))).join('\n') 
+                : padLine(chalk.gray('Sem logs recentes.'))
         ].join('\n');
 
         let occupancySection = "";
         if (this.occupancyData && this.occupancyData.length > 0) {
             occupancySection = [
-                chalk.bold.underline('Ocupação de Hoje (Ida):'),
+                padLine(chalk.bold.underline('Ocupação de Hoje (Ida):')),
                 ...this.occupancyData.map(group => {
                     const percentage = (group.count / group.cap) * 100;
                     let color = chalk.green;
                     if (percentage > 85) color = chalk.yellow;
                     if (group.count >= group.cap) color = chalk.red;
 
-                    return `${chalk.white(group.name.padEnd(25))} ${color(group.status.padStart(7))}`;
+                    const namePart = group.name.substring(0, 24).padEnd(25);
+                    const statusPart = group.status.padStart(7);
+                    return padLine(`${chalk.white(namePart)} ${color(statusPart)}`); 
                 })
-            ].join('\n') + '\n\n';
+            ].join('\n');
         }
 
-        let output = `\n${header}\n\n${infoSection}\n\n${occupancySection}${logsSection}\n`;
+        // Construção final com ordem estável e espaçamentos fixos
+        let output = '\n' + padLine(header) + '\n\n' + 
+                     infoSection + '\n\n' + 
+                     logsSection + '\n\n' + 
+                     (occupancySection ? occupancySection + '\n' : '');
 
         if (this.qrCodeStr) {
-            output += `\n${chalk.bold('Por favor, escaneie o QR Code abaixo:')}\n${this.qrCodeStr}\n`;
-        } else {
-            // output += `\n${chalk.green('✅ Bot pronto para uso.')}\n`;
+            output += '\n' + padLine(chalk.bold('Por favor, escaneie o QR Code abaixo:')) + '\n' + this.qrCodeStr + '\n';
         }
 
         logUpdate(output);
