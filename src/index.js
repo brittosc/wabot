@@ -1,9 +1,9 @@
 process.removeAllListeners('warning');
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
-const dashboard = require('./dashboard');
-const cronJob = require('./cron-job');
-const statistics = require('./statistics');
+const dashboard = require('./services/dashboard');
+const cronJob = require('./services/cron-job');
+const statistics = require('./services/statistics');
 const { startServer } = require('./server');
 
 async function startBot() {

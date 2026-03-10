@@ -1,4 +1,145 @@
+const fs = require('fs');
+const moment = require('moment-timezone');
+const dashboard = require('./dashboard');
+const supabase = require('../database/supabaseClient');
 
+const htmlFile = './public/estatisticas.html';
+
+const readStats = async () => {
+    try {
+        // Buscamos os últimos 10.000 votos (suficiente para vários meses)
+        // Mais para frente, podemos otimizar filtrando apenas o período necessário
+        const { data: rows, error } = await supabase
+            .from('votes')
+            .select('*')
+            .order('vote_date', { ascending: false })
+            .limit(10000);
+
+        if (error) throw error;
+
+        const stats = {};
+        rows.forEach(row => {
+            const date = row.vote_date; // 'YYYY-MM-DD'
+            if (!stats[date]) {
+                stats[date] = { Version2: true, grupos: {} };
+            }
+            if (!stats[date].grupos[row.group_name]) {
+                stats[date].grupos[row.group_name] = {
+                    pollName: row.poll_name || 'Enquete do dia',
+                    votes: {}
+                };
+            }
+            stats[date].grupos[row.group_name].votes[row.voter_id] = row.option;
+        });
+        return stats;
+    } catch (e) {
+        console.error("Erro ao ler stats do Supabase:", e.message);
+        return {};
+    }
+};
+
+const updateTerminalOccupancy = async (stats) => {
+    try {
+        if (!stats) stats = await readStats();
+        const todayStr = moment().tz('America/Sao_Paulo').format('YYYY-MM-DD');
+        const dayEntry = stats[todayStr];
+        if (!dayEntry || !dayEntry.grupos) {
+            dashboard.setOccupancy([]);
+            return;
+        }
+
+        const config = JSON.parse(fs.readFileSync('./config/config.json', 'utf8'));
+        const capacities = config.groupCapacities || {};
+
+        const occupancySummary = [];
+        Object.keys(capacities).forEach(gName => {
+            let count = 0;
+            const cap = capacities[gName];
+            const groupData = dayEntry.grupos[gName];
+            if (groupData && groupData.votes) {
+                Object.values(groupData.votes).forEach(opt => {
+                    if (opt === "Irei, ida e volta." || opt === "Irei, mas não retornarei." || opt === "Não irei, apenas retornarei.") {
+                        count++;
+                    }
+                });
+            }
+
+            let status = `${count}/${cap}`;
+            if (count > cap) status += " (EXCEDENTE)";
+            else if (count === cap) status += " (LOTADO)";
+
+            occupancySummary.push({ name: gName, count, cap, status });
+        });
+
+        dashboard.setOccupancy(occupancySummary);
+    } catch (e) {
+        // Ignora erros de atualização do terminal
+    }
+};
+
+const saveStats = async (data) => {
+    // Esta função era usada para salvar o JSON inteiro. 
+    // Agora o salvamento é feito de forma atômica no registerVote via Supabase.
+    // Mantida apenas para evitar erros de referência se esquecida em algum lugar, mas sem efeito.
+};
+
+const registerVote = async (vote) => {
+    const now = moment().tz('America/Sao_Paulo');
+    const todayStr = now.format('YYYY-MM-DD');
+
+    let groupName = "Desconhecido";
+    let pollName = "Enquete do dia";
+    try {
+        if (vote.parentMessage) {
+            const chat = await vote.parentMessage.getChat();
+            if (chat && chat.name) groupName = chat.name;
+            pollName = vote.parentMessage.body;
+        }
+    } catch (e) {
+        // Ignora caso falhe ao pegar o nome do grupo
+    }
+
+    const voterId = vote.voter;
+
+    if (vote.selectedOptions && vote.selectedOptions.length > 0) {
+        const selectedOption = vote.selectedOptions[0].name;
+        // Upsert no Supabase
+        await supabase.from('votes').upsert({
+            voter_id: voterId,
+            group_name: groupName,
+            vote_date: todayStr,
+            option: selectedOption,
+            poll_name: pollName
+        }, { onConflict: 'voter_id,group_name,vote_date' });
+    } else {
+        // Deletar voto (desmarcado)
+        await supabase.from('votes')
+            .delete()
+            .match({ voter_id: voterId, group_name: groupName, vote_date: todayStr });
+    }
+
+    // Recarregar stats para atualizar terminal e dashboard
+    const stats = await readStats();
+    await updateTerminalOccupancy(stats);
+    generateHtmlDashboard(stats);
+};
+
+const generateHtmlDashboard = (stats) => {
+    // Inject the raw JS object directly into HTML for dynamic reading
+    const statsJSONStr = JSON.stringify(stats);
+    const lastUpdateFormated = moment().tz('America/Sao_Paulo').format('DD/MM/YYYY HH:mm:ss');
+
+    // Carregar capacidades do config.json
+    let capacities = {};
+    try {
+        const config = JSON.parse(fs.readFileSync('./config/config.json', 'utf8'));
+        capacities = config.groupCapacities || {};
+    } catch (e) {
+        console.error("Erro ao ler capacidades do config.json:", e.message);
+    }
+    const capacitiesJSONStr = JSON.stringify(capacities);
+
+    const htmlContent = `
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -358,12 +499,12 @@
     </div>
 
     <div class="footer" style="margin-bottom: 40px;">
-        Atualizado pela última vez em: <span id="lblLastUpdate">10/03/2026 13:10:37</span>
+        Atualizado pela última vez em: <span id="lblLastUpdate">${lastUpdateFormated}</span>
     </div>
 
     <script>
-        let rawDB = {"2026-03-10":{"Version2":true,"grupos":{"Ônibus unesc 01 2026":{"pollName":"Bom dia. Você irá hoje, terça-feira, 10/03?","votes":{"129252829724739@lid":"Irei, ida e volta.","138727829536853@lid":"Irei, ida e volta.","61938360971301@lid":"Irei, ida e volta.","265210086592530@lid":"Irei, ida e volta.","111385749004360@lid":"Irei, ida e volta.","170454484562057@lid":"Não irei à faculdade hoje.","27427812176068@lid":"Não irei à faculdade hoje.","220787088875734@lid":"Irei, ida e volta.","131284399595765@lid":"Não irei à faculdade hoje.","193398585692254@lid":"Não irei, apenas retornarei.","183244997804057@lid":"Irei, ida e volta.","78065644339288@lid":"Irei, ida e volta.","194437598728354@lid":"Não irei à faculdade hoje.","132727575695361@lid":"Irei, ida e volta.","27676987420804@lid":"Irei, ida e volta.","124287948169446@lid":"Irei, ida e volta.","15526474547403@lid":"Irei, ida e volta.","161998214025440@lid":"Irei, ida e volta.","209646296006859@lid":"Irei, ida e volta.","70536348598294@lid":"Não irei, apenas retornarei.","260086190596351@lid":"Irei, ida e volta.","88467887415542@lid":"Irei, ida e volta.","13950188056647@lid":"Irei, ida e volta.","161018525261893@lid":"Irei, ida e volta.","229514546299045@lid":"Irei, ida e volta.","270785021259968@lid":"Irei, ida e volta.","69763623559211@lid":"Não irei à faculdade hoje.","211432750739655@lid":"Irei, ida e volta.","135575055147050@lid":"Irei, ida e volta.","186998765666438@lid":"Irei, ida e volta.","238005629530169@lid":"Irei, ida e volta.","202606626488435@lid":"Irei, ida e volta.","186221225578715@lid":"Irei, ida e volta.","214924525604941@lid":"Irei, ida e volta.","252269266210976@lid":"Não irei à faculdade hoje.","225889543577744@lid":"Não irei à faculdade hoje.","3152640249885@lid":"Irei, ida e volta.","217162169991213@lid":"Irei, ida e volta.","243919933706463@lid":"Não irei à faculdade hoje.","136863696343144@lid":"Irei, ida e volta.","20332559773911@lid":"Irei, ida e volta.","105076458844319@lid":"Irei, ida e volta.","86359041691857@lid":"Irei, ida e volta.","212248828092459@lid":"Irei, ida e volta.","248184752365577@lid":"Irei, ida e volta.","158347089195059@lid":"Irei, ida e volta.","104019863294048@lid":"Não irei à faculdade hoje.","159519514579027@lid":"Não irei à faculdade hoje.","150190778511373@lid":"Não irei à faculdade hoje.","210530992148635@lid":"Irei, ida e volta.","150676193693918@lid":"Irei, ida e volta.","123291532562563@lid":"Não irei à faculdade hoje.","155726924222702@lid":"Não irei à faculdade hoje.","120294064812189@lid":"Irei, ida e volta.","212777025183761@lid":"Irei, ida e volta.","230979146887275@lid":"Irei, ida e volta."}}}},"2026-03-09":{"Version2":true,"grupos":{"Ônibus unesc 01 2026":{"pollName":"Bom dia. Você irá hoje, segunda-feira, 09/03?","votes":{"135575055147050@lid":"Irei, ida e volta.","49748740432041@lid":"Irei, ida e volta.","200978749984917@lid":"Não irei à faculdade hoje.","61938360971301@lid":"Irei, ida e volta.","260086190596351@lid":"Irei, ida e volta.","27676987420804@lid":"Irei, ida e volta.","131284399595765@lid":"Não irei à faculdade hoje.","150190778511373@lid":"Não irei à faculdade hoje.","265210086592530@lid":"Irei, ida e volta.","225889543577744@lid":"Irei, ida e volta.","20332559773911@lid":"Irei, ida e volta.","111385749004360@lid":"Irei, ida e volta.","183244997804057@lid":"Irei, ida e volta.","77376548914@lid":"Irei, ida e volta.","129252829724739@lid":"Irei, ida e volta.","69763623559211@lid":"Irei, ida e volta.","132727575695361@lid":"Não irei à faculdade hoje.","209646296006859@lid":"Irei, ida e volta.","124287948169446@lid":"Irei, ida e volta.","78065644339288@lid":"Irei, ida e volta.","202606626488435@lid":"Irei, ida e volta.","159519514579027@lid":"Irei, ida e volta.","161018525261893@lid":"Irei, ida e volta.","88467887415542@lid":"Irei, ida e volta.","13950188056647@lid":"Irei, ida e volta.","172202519433364@lid":"Não irei à faculdade hoje.","132718834770159@lid":"Irei, ida e volta.","186998765666438@lid":"Irei, ida e volta.","238005629530169@lid":"Irei, ida e volta.","161998214025440@lid":"Não irei à faculdade hoje.","220787088875734@lid":"Irei, ida e volta.","211432750739655@lid":"Irei, ida e volta.","229514546299045@lid":"Irei, ida e volta.","243919933706463@lid":"Não irei à faculdade hoje.","123291532562563@lid":"Não irei à faculdade hoje.","138727829536853@lid":"Irei, ida e volta.","194437598728354@lid":"Irei, ida e volta.","27427812176068@lid":"Não irei à faculdade hoje.","150676193693918@lid":"Não irei à faculdade hoje.","214924525604941@lid":"Não irei à faculdade hoje.","248184752365577@lid":"Irei, ida e volta.","70536348598294@lid":"Irei, ida e volta.","86359041691857@lid":"Irei, ida e volta.","186221225578715@lid":"Irei, ida e volta.","104019863294048@lid":"Não irei à faculdade hoje.","210530992148635@lid":"Irei, ida e volta.","155726924222702@lid":"Irei, ida e volta.","136863696343144@lid":"Irei, ida e volta.","170454484562057@lid":"Não irei à faculdade hoje.","105076458844319@lid":"Irei, ida e volta.","5450414182521@lid":"Não irei à faculdade hoje.","252269266210976@lid":"Não irei à faculdade hoje.","158347089195059@lid":"Não irei à faculdade hoje.","270785021259968@lid":"Não irei à faculdade hoje.","217162169991213@lid":"Irei, ida e volta.","230979146887275@lid":"Irei, ida e volta.","3152640249885@lid":"Irei, ida e volta."}}}}};
-        let capacities = {"Ônibus unesc 01 2026":51,"Ônibus unesc 02 2026":47};
+        let rawDB = ${statsJSONStr};
+        let capacities = ${capacitiesJSONStr};
         const optionColors = {
             "Irei, ida e volta.": "#4caf50",
             "Irei, mas não retornarei.": "#2196f3",
@@ -629,20 +770,20 @@
                 statusText = "Quase lotado!";
             }
 
-            const barHtml = `
+            const barHtml = \`
                 <div style="margin-bottom: 12px;">
                     <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 6px;">
-                        <span style="font-size: 0.9rem; font-weight: 600; color: var(--title-color);">${name}</span>
+                        <span style="font-size: 0.9rem; font-weight: 600; color: var(--title-color);">\${name}</span>
                         <div style="text-align: right;">
-                            <span style="font-size: 0.8rem; color: ${statusColor}; font-weight: 500; margin-right: 8px;">${statusText}</span>
-                            <span style="font-size: 1rem; font-weight: bold; color: var(--accent);">${count}/${cap}</span>
+                            <span style="font-size: 0.8rem; color: \${statusColor}; font-weight: 500; margin-right: 8px;">\${statusText}</span>
+                            <span style="font-size: 1rem; font-weight: bold; color: var(--accent);">\${count}/\${cap}</span>
                         </div>
                     </div>
                     <div style="width: 100%; height: 10px; background: #2c2c2c; border-radius: 5px; overflow: hidden; border: 1px solid var(--border-color);">
-                        <div style="width: ${percentage}%; height: 100%; background: linear-gradient(90deg, #2196f3, #4caf50); transition: width 0.8s ease;"></div>
+                        <div style="width: \${percentage}%; height: 100%; background: linear-gradient(90deg, #2196f3, #4caf50); transition: width 0.8s ease;"></div>
                     </div>
                 </div>
-            `;
+            \`;
             capacityList.innerHTML += barHtml;
         };
 
@@ -815,4 +956,9 @@
     </script>
 </body>
 </html>
-    
+    `;
+
+    fs.writeFileSync(htmlFile, htmlContent, 'utf8');
+};
+
+module.exports = { registerVote, readStats, generateHtmlDashboard, updateTerminalOccupancy };

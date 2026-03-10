@@ -5,8 +5,8 @@ const https = require('https');
 const { exec } = require('child_process');
 const util = require('minecraft-server-util');
 const { Rcon } = require('rcon-client');
-const dashboard = require('./dashboard');
-const { readStats } = require('./statistics');
+const dashboard = require('./services/dashboard');
+const { readStats } = require('./services/statistics');
 
 // Variável publicIpCache removida (IP removido do dashboard)
 
@@ -187,7 +187,7 @@ const startServer = () => {
 
         // Rota API de Status do Minecraft (GameSpy4 Query)
         if (req.url === '/api/mcstatus') {
-            const config = JSON.parse(fs.readFileSync('./config.json', 'utf8'));
+            const config = JSON.parse(fs.readFileSync('./config/config.json', 'utf8'));
 
             util.queryFull('0.0.0.0', 25565, { timeout: 5000 })
                 .then(async (result) => {
@@ -311,10 +311,10 @@ const startServer = () => {
 
         // Rota Raiz (Dashboard Root da VPS)
         if (req.url === '/') {
-            fs.readFile('./index.html', 'utf8', (err, data) => {
+            fs.readFile('./public/index.html', 'utf8', (err, data) => {
                 if (err) {
                     res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' });
-                    res.end('Erro: Arquivo index.html (Dashboard da VPS) não encontrado na pasta raiz.');
+                    res.end('Erro: Arquivo index.html (Dashboard da VPS) não encontrado na pasta "public".');
                     return;
                 }
                 res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
@@ -325,7 +325,7 @@ const startServer = () => {
 
         // Rota Estatísticas do WhatsApp
         if (req.url === '/estatisticas' || req.url === '/estatisticas.html') {
-            fs.readFile('./estatisticas.html', 'utf8', (err, data) => {
+            fs.readFile('./public/estatisticas.html', 'utf8', (err, data) => {
                 if (err) {
                     if (err.code === 'ENOENT') {
                         // Arquivo não existe ainda

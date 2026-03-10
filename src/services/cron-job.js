@@ -3,8 +3,8 @@ const moment = require('moment-timezone');
 const fs = require('fs');
 const dashboard = require('./dashboard');
 
-const historyFile = './history.json';
-const configFile = './config.json';
+const historyFile = './config/history.json';
+const configFile = './config/config.json';
 
 const getDaysOfWeekDesc = (dayNumber) => {
     const days = [

@@ -1,147 +1,6 @@
-const fs = require('fs');
-const moment = require('moment-timezone');
-const dashboard = require('./dashboard');
-const supabase = require('./supabaseClient');
-
-const htmlFile = './estatisticas.html';
-
-const readStats = async () => {
-    try {
-        // Buscamos os últimos 10.000 votos (suficiente para vários meses)
-        // Mais para frente, podemos otimizar filtrando apenas o período necessário
-        const { data: rows, error } = await supabase
-            .from('votes')
-            .select('*')
-            .order('vote_date', { ascending: false })
-            .limit(10000);
-
-        if (error) throw error;
-
-        const stats = {};
-        rows.forEach(row => {
-            const date = row.vote_date; // 'YYYY-MM-DD'
-            if (!stats[date]) {
-                stats[date] = { Version2: true, grupos: {} };
-            }
-            if (!stats[date].grupos[row.group_name]) {
-                stats[date].grupos[row.group_name] = {
-                    pollName: row.poll_name || 'Enquete do dia',
-                    votes: {}
-                };
-            }
-            stats[date].grupos[row.group_name].votes[row.voter_id] = row.option;
-        });
-        return stats;
-    } catch (e) {
-        console.error("Erro ao ler stats do Supabase:", e.message);
-        return {};
-    }
-};
-
-const updateTerminalOccupancy = async (stats) => {
-    try {
-        if (!stats) stats = await readStats();
-        const todayStr = moment().tz('America/Sao_Paulo').format('YYYY-MM-DD');
-        const dayEntry = stats[todayStr];
-        if (!dayEntry || !dayEntry.grupos) {
-            dashboard.setOccupancy([]);
-            return;
-        }
-
-        const config = JSON.parse(fs.readFileSync('./config.json', 'utf8'));
-        const capacities = config.groupCapacities || {};
-
-        const occupancySummary = [];
-        Object.keys(capacities).forEach(gName => {
-            let count = 0;
-            const cap = capacities[gName];
-            const groupData = dayEntry.grupos[gName];
-            if (groupData && groupData.votes) {
-                Object.values(groupData.votes).forEach(opt => {
-                    if (opt === "Irei, ida e volta." || opt === "Irei, mas não retornarei." || opt === "Não irei, apenas retornarei.") {
-                        count++;
-                    }
-                });
-            }
-
-            let status = `${count}/${cap}`;
-            if (count > cap) status += " (EXCEDENTE)";
-            else if (count === cap) status += " (LOTADO)";
-
-            occupancySummary.push({ name: gName, count, cap, status });
-        });
-
-        dashboard.setOccupancy(occupancySummary);
-    } catch (e) {
-        // Ignora erros de atualização do terminal
-    }
-};
-
-const saveStats = async (data) => {
-    // Esta função era usada para salvar o JSON inteiro. 
-    // Agora o salvamento é feito de forma atômica no registerVote via Supabase.
-    // Mantida apenas para evitar erros de referência se esquecida em algum lugar, mas sem efeito.
-};
-
-const registerVote = async (vote) => {
-    const now = moment().tz('America/Sao_Paulo');
-    const todayStr = now.format('YYYY-MM-DD');
-
-    let groupName = "Desconhecido";
-    let pollName = "Enquete do dia";
-    try {
-        if (vote.parentMessage) {
-            const chat = await vote.parentMessage.getChat();
-            if (chat && chat.name) groupName = chat.name;
-            pollName = vote.parentMessage.body;
-        }
-    } catch (e) {
-        // Ignora caso falhe ao pegar o nome do grupo
-    }
-
-    const voterId = vote.voter;
-
-    if (vote.selectedOptions && vote.selectedOptions.length > 0) {
-        const selectedOption = vote.selectedOptions[0].name;
-        // Upsert no Supabase
-        await supabase.from('votes').upsert({
-            voter_id: voterId,
-            group_name: groupName,
-            vote_date: todayStr,
-            option: selectedOption,
-            poll_name: pollName
-        }, { onConflict: 'voter_id,group_name,vote_date' });
-    } else {
-        // Deletar voto (desmarcado)
-        await supabase.from('votes')
-            .delete()
-            .match({ voter_id: voterId, group_name: groupName, vote_date: todayStr });
-    }
-
-    // Recarregar stats para atualizar terminal e dashboard
-    const stats = await readStats();
-    await updateTerminalOccupancy(stats);
-    generateHtmlDashboard(stats);
-};
-
-const generateHtmlDashboard = (stats) => {
-    // Inject the raw JS object directly into HTML for dynamic reading
-    const statsJSONStr = JSON.stringify(stats);
-    const lastUpdateFormated = moment().tz('America/Sao_Paulo').format('DD/MM/YYYY HH:mm:ss');
-
-    // Carregar capacidades do config.json
-    let capacities = {};
-    try {
-        const config = JSON.parse(fs.readFileSync('./config.json', 'utf8'));
-        capacities = config.groupCapacities || {};
-    } catch (e) {
-        console.error("Erro ao ler capacidades do config.json:", e.message);
-    }
-    const capacitiesJSONStr = JSON.stringify(capacities);
-
-    const htmlContent = `
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -149,6 +8,7 @@ const generateHtmlDashboard = (stats) => {
     <link rel="icon" href="https://dayz.com/favicon.ico">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         :root {
             --bg-color: #121212;
@@ -158,13 +18,17 @@ const generateHtmlDashboard = (stats) => {
             --accent: #2196f3;
             --border-color: #333;
         }
-        html, body {
+
+        html,
+        body {
             max-width: 100%;
             overflow-x: hidden;
         }
+
         * {
             box-sizing: border-box;
         }
+
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: var(--bg-color);
@@ -175,15 +39,20 @@ const generateHtmlDashboard = (stats) => {
             flex-direction: column;
             align-items: center;
         }
-        h1, h2, h3 {
+
+        h1,
+        h2,
+        h3 {
             word-wrap: break-word;
             max-width: 100%;
         }
+
         h1 {
             color: var(--title-color);
             margin-bottom: 20px;
             text-align: center;
         }
+
         .controls {
             display: flex;
             gap: 15px;
@@ -191,6 +60,7 @@ const generateHtmlDashboard = (stats) => {
             flex-wrap: wrap;
             justify-content: center;
         }
+
         select {
             padding: 10px 15px;
             border-radius: 8px;
@@ -200,11 +70,43 @@ const generateHtmlDashboard = (stats) => {
             cursor: pointer;
             background-color: #2c2c2c;
             color: var(--title-color);
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
         }
+
         select:focus {
             border-color: var(--accent);
         }
+
+        .btn-export {
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: none;
+            background: linear-gradient(135deg, #2196f3 0%, #1565c0 100%);
+            color: white;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-export:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(33, 150, 243, 0.3);
+            filter: brightness(1.1);
+        }
+
+        .btn-export:active {
+            transform: translateY(0);
+        }
+
+        .btn-export i {
+            font-size: 1.2rem;
+        }
+
         .dashboard {
             display: grid;
             grid-template-columns: 1fr;
@@ -212,6 +114,7 @@ const generateHtmlDashboard = (stats) => {
             max-width: 1000px;
             width: 100%;
         }
+
         .highlights {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -220,11 +123,13 @@ const generateHtmlDashboard = (stats) => {
             max-width: 1000px;
             margin-bottom: 20px;
         }
+
         @media (max-width: 600px) {
             .highlights {
                 grid-template-columns: 1fr;
             }
         }
+
         .highlight-card {
             background-color: var(--card-bg);
             border-radius: 12px;
@@ -233,10 +138,11 @@ const generateHtmlDashboard = (stats) => {
             display: flex;
             flex-direction: column;
             overflow: hidden;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
             position: relative;
             min-height: 120px;
         }
+
         .highlight-card .card-title {
             position: absolute;
             top: 10px;
@@ -246,17 +152,19 @@ const generateHtmlDashboard = (stats) => {
             pointer-events: none;
             text-align: center;
         }
+
         .highlight-card h3 {
             font-size: 0.8rem;
             color: #ffffff;
             margin: 0;
             font-weight: 600;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
-            background: rgba(0,0,0,0.3);
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+            background: rgba(0, 0, 0, 0.3);
             display: inline-block;
             padding: 2px 8px;
             border-radius: 4px;
         }
+
         .split-container {
             display: flex;
             width: 100%;
@@ -266,6 +174,7 @@ const generateHtmlDashboard = (stats) => {
             left: 0;
             background: linear-gradient(135deg, rgba(76, 175, 80, 0.15) 0%, rgba(76, 175, 80, 0.05) 49.9%, rgba(244, 67, 54, 0.05) 50.1%, rgba(244, 67, 54, 0.15) 100%);
         }
+
         .split-half {
             flex: 1;
             display: flex;
@@ -275,14 +184,17 @@ const generateHtmlDashboard = (stats) => {
             position: relative;
             z-index: 1;
         }
+
         .split-peak {
             align-items: flex-start;
             text-align: left;
         }
+
         .split-valley {
             align-items: flex-end;
             text-align: right;
         }
+
         .split-half .label {
             font-size: 0.65rem;
             text-transform: uppercase;
@@ -290,8 +202,14 @@ const generateHtmlDashboard = (stats) => {
             margin-bottom: 4px;
             font-weight: 800;
         }
-        .split-peak .label { color: #4caf50; }
-        .split-valley .label { color: #f44336; }
+
+        .split-peak .label {
+            color: #4caf50;
+        }
+
+        .split-valley .label {
+            color: #f44336;
+        }
 
         .split-half .value {
             font-size: 1.8rem;
@@ -299,6 +217,7 @@ const generateHtmlDashboard = (stats) => {
             color: var(--title-color);
             line-height: 1;
         }
+
         .split-half .date {
             font-size: 0.7rem;
             color: var(--accent);
@@ -306,45 +225,54 @@ const generateHtmlDashboard = (stats) => {
             font-weight: bold;
             opacity: 0.9;
         }
+
         @media (min-width: 768px) {
             .dashboard {
                 grid-template-columns: 1fr 1fr;
             }
         }
+
         @media (max-width: 600px) {
             .controls {
                 flex-direction: column;
                 width: 100%;
             }
+
             select {
                 width: 100%;
             }
+
             .summary-card {
                 flex-direction: column !important;
                 gap: 20px;
                 padding: 20px !important;
             }
+
             .highlight-card {
                 min-height: 100px;
             }
+
             .split-half .value {
                 font-size: 1.4rem;
             }
+
             .card h2 {
                 font-size: 1rem;
                 text-align: center;
             }
         }
+
         .summary-card {
             display: flex;
             flex-direction: row;
             justify-content: space-around;
             padding: 30px;
         }
+
         .card {
             background-color: var(--card-bg);
             border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
             padding: 20px;
             display: flex;
             flex-direction: column;
@@ -352,16 +280,19 @@ const generateHtmlDashboard = (stats) => {
             border: 1px solid var(--border-color);
             max-width: 100%;
         }
+
         .card h2 {
             font-size: 1.2rem;
             margin-bottom: 20px;
             color: var(--title-color);
         }
+
         .chart-container {
             position: relative;
             width: 100%;
             height: 300px;
         }
+
         .footer {
             margin-top: 40px;
             font-size: 0.9rem;
@@ -369,6 +300,7 @@ const generateHtmlDashboard = (stats) => {
         }
     </style>
 </head>
+
 <body>
 
     <h1>Estatísticas das Enquetes</h1>
@@ -387,6 +319,10 @@ const generateHtmlDashboard = (stats) => {
             <option value="180">Últimos 6 meses</option>
             <option value="365">Últimos 12 meses</option>
         </select>
+
+        <!-- <button id="exportBtn" class="btn-export" onclick="exportToPDF()">
+            <span>📄</span> Exportar
+        </button> -->
     </div>
 
     <!-- Destaques removidos daqui para serem movidos para baixo da proporção -->
@@ -414,7 +350,7 @@ const generateHtmlDashboard = (stats) => {
                 <canvas id="barChart"></canvas>
             </div>
         </div>
-        
+
         <div class="card" style="grid-column: 1 / -1;">
             <h2>Proporção Diária</h2>
             <div class="chart-container">
@@ -425,7 +361,9 @@ const generateHtmlDashboard = (stats) => {
         <!-- Cards de Picos e Vales agora abaixo da Proporção Diária -->
         <div class="highlights" style="grid-column: 1 / -1;">
             <div class="highlight-card">
-                <div class="card-title"><h3>Lotação (Ida/Volta)</h3></div>
+                <div class="card-title">
+                    <h3>Lotação (Ida/Volta)</h3>
+                </div>
                 <div class="split-container">
                     <div class="split-half split-peak">
                         <span class="label">Pico</span>
@@ -440,7 +378,9 @@ const generateHtmlDashboard = (stats) => {
                 </div>
             </div>
             <div class="highlight-card">
-                <div class="card-title"><h3>Ausência</h3></div>
+                <div class="card-title">
+                    <h3>Ausência</h3>
+                </div>
                 <div class="split-container">
                     <div class="split-half split-peak">
                         <span class="label">Pico</span>
@@ -455,7 +395,9 @@ const generateHtmlDashboard = (stats) => {
                 </div>
             </div>
             <div class="highlight-card">
-                <div class="card-title"><h3>Demanda (Só Ida)</h3></div>
+                <div class="card-title">
+                    <h3>Demanda (Só Ida)</h3>
+                </div>
                 <div class="split-container">
                     <div class="split-half split-peak">
                         <span class="label">Pico</span>
@@ -470,7 +412,9 @@ const generateHtmlDashboard = (stats) => {
                 </div>
             </div>
             <div class="highlight-card">
-                <div class="card-title"><h3>Demanda (Só Volta)</h3></div>
+                <div class="card-title">
+                    <h3>Demanda (Só Volta)</h3>
+                </div>
                 <div class="split-container">
                     <div class="split-half split-peak">
                         <span class="label">Pico</span>
@@ -485,26 +429,29 @@ const generateHtmlDashboard = (stats) => {
                 </div>
             </div>
         </div>
-        
+
         <div class="card summary-card" style="grid-column: 1 / -1;">
             <div style="text-align: center;">
-                <h3 style="margin: 0; color: #7f8c8d; font-size: 1rem;">Total Votos (<span id="txtPeriod">7</span> dias)</h3>
-                <p id="lblTotalVotes" style="margin: 10px 0 0 0; font-size: 2.5rem; font-weight: bold; color: var(--title-color);">0</p>
+                <h3 style="margin: 0; color: #7f8c8d; font-size: 1rem;">Total Votos (<span id="txtPeriod">7</span> dias)
+                </h3>
+                <p id="lblTotalVotes"
+                    style="margin: 10px 0 0 0; font-size: 2.5rem; font-weight: bold; color: var(--title-color);">0</p>
             </div>
             <div style="text-align: center;">
                 <h3 style="margin: 0; color: #7f8c8d; font-size: 1rem;">Média Diária</h3>
-                <p id="lblAverage" style="margin: 10px 0 0 0; font-size: 2.5rem; font-weight: bold; color: var(--title-color);">0</p>
+                <p id="lblAverage"
+                    style="margin: 10px 0 0 0; font-size: 2.5rem; font-weight: bold; color: var(--title-color);">0</p>
             </div>
         </div>
     </div>
 
     <div class="footer" style="margin-bottom: 40px;">
-        Atualizado pela última vez em: <span id="lblLastUpdate">${lastUpdateFormated}</span>
+        Atualizado pela última vez em: <span id="lblLastUpdate">10/03/2026 14:54:11</span>
     </div>
 
     <script>
-        let rawDB = ${statsJSONStr};
-        let capacities = ${capacitiesJSONStr};
+        let rawDB = { "2026-03-10": { "Version2": true, "grupos": { "Ônibus unesc 01 2026": { "pollName": "Bom dia. Você irá hoje, terça-feira, 10/03?", "votes": { "129252829724739@lid": "Irei, ida e volta.", "138727829536853@lid": "Irei, ida e volta.", "61938360971301@lid": "Irei, ida e volta.", "265210086592530@lid": "Irei, ida e volta.", "111385749004360@lid": "Irei, ida e volta.", "170454484562057@lid": "Não irei à faculdade hoje.", "27427812176068@lid": "Não irei à faculdade hoje.", "220787088875734@lid": "Irei, ida e volta.", "131284399595765@lid": "Não irei à faculdade hoje.", "193398585692254@lid": "Não irei, apenas retornarei.", "183244997804057@lid": "Irei, ida e volta.", "78065644339288@lid": "Irei, ida e volta.", "194437598728354@lid": "Não irei à faculdade hoje.", "132727575695361@lid": "Irei, ida e volta.", "27676987420804@lid": "Irei, ida e volta.", "124287948169446@lid": "Irei, ida e volta.", "15526474547403@lid": "Irei, ida e volta.", "161998214025440@lid": "Irei, ida e volta.", "209646296006859@lid": "Irei, ida e volta.", "70536348598294@lid": "Não irei, apenas retornarei.", "260086190596351@lid": "Irei, ida e volta.", "88467887415542@lid": "Irei, ida e volta.", "13950188056647@lid": "Irei, ida e volta.", "161018525261893@lid": "Irei, ida e volta.", "229514546299045@lid": "Irei, ida e volta.", "270785021259968@lid": "Irei, ida e volta.", "69763623559211@lid": "Não irei à faculdade hoje.", "211432750739655@lid": "Irei, ida e volta.", "135575055147050@lid": "Irei, ida e volta.", "186998765666438@lid": "Irei, ida e volta.", "238005629530169@lid": "Irei, ida e volta.", "202606626488435@lid": "Irei, ida e volta.", "186221225578715@lid": "Irei, ida e volta.", "214924525604941@lid": "Irei, ida e volta.", "252269266210976@lid": "Não irei à faculdade hoje.", "225889543577744@lid": "Não irei à faculdade hoje.", "3152640249885@lid": "Irei, ida e volta.", "217162169991213@lid": "Irei, ida e volta.", "243919933706463@lid": "Não irei à faculdade hoje.", "136863696343144@lid": "Irei, ida e volta.", "20332559773911@lid": "Irei, ida e volta.", "105076458844319@lid": "Irei, ida e volta.", "212248828092459@lid": "Irei, ida e volta.", "248184752365577@lid": "Irei, ida e volta.", "158347089195059@lid": "Irei, ida e volta.", "104019863294048@lid": "Não irei à faculdade hoje.", "159519514579027@lid": "Não irei à faculdade hoje.", "150190778511373@lid": "Não irei à faculdade hoje.", "210530992148635@lid": "Irei, ida e volta.", "150676193693918@lid": "Irei, ida e volta.", "123291532562563@lid": "Não irei à faculdade hoje.", "155726924222702@lid": "Não irei à faculdade hoje.", "120294064812189@lid": "Irei, ida e volta.", "212777025183761@lid": "Irei, ida e volta.", "230979146887275@lid": "Irei, ida e volta." } } } }, "2026-03-09": { "Version2": true, "grupos": { "Ônibus unesc 01 2026": { "pollName": "Bom dia. Você irá hoje, segunda-feira, 09/03?", "votes": { "3152640249885@lid": "Irei, ida e volta.", "135575055147050@lid": "Irei, ida e volta.", "49748740432041@lid": "Irei, ida e volta.", "200978749984917@lid": "Não irei à faculdade hoje.", "61938360971301@lid": "Irei, ida e volta.", "260086190596351@lid": "Irei, ida e volta.", "27676987420804@lid": "Irei, ida e volta.", "131284399595765@lid": "Não irei à faculdade hoje.", "150190778511373@lid": "Não irei à faculdade hoje.", "265210086592530@lid": "Irei, ida e volta.", "225889543577744@lid": "Irei, ida e volta.", "20332559773911@lid": "Irei, ida e volta.", "111385749004360@lid": "Irei, ida e volta.", "183244997804057@lid": "Irei, ida e volta.", "77376548914@lid": "Irei, ida e volta.", "129252829724739@lid": "Irei, ida e volta.", "69763623559211@lid": "Irei, ida e volta.", "132727575695361@lid": "Não irei à faculdade hoje.", "209646296006859@lid": "Irei, ida e volta.", "124287948169446@lid": "Irei, ida e volta.", "78065644339288@lid": "Irei, ida e volta.", "202606626488435@lid": "Irei, ida e volta.", "159519514579027@lid": "Irei, ida e volta.", "161018525261893@lid": "Irei, ida e volta.", "88467887415542@lid": "Irei, ida e volta.", "13950188056647@lid": "Irei, ida e volta.", "172202519433364@lid": "Não irei à faculdade hoje.", "132718834770159@lid": "Irei, ida e volta.", "186998765666438@lid": "Irei, ida e volta.", "238005629530169@lid": "Irei, ida e volta.", "161998214025440@lid": "Não irei à faculdade hoje.", "220787088875734@lid": "Irei, ida e volta.", "211432750739655@lid": "Irei, ida e volta.", "229514546299045@lid": "Irei, ida e volta.", "243919933706463@lid": "Não irei à faculdade hoje.", "123291532562563@lid": "Não irei à faculdade hoje.", "138727829536853@lid": "Irei, ida e volta.", "194437598728354@lid": "Irei, ida e volta.", "27427812176068@lid": "Não irei à faculdade hoje.", "150676193693918@lid": "Não irei à faculdade hoje.", "214924525604941@lid": "Não irei à faculdade hoje.", "248184752365577@lid": "Irei, ida e volta.", "70536348598294@lid": "Irei, ida e volta.", "86359041691857@lid": "Irei, ida e volta.", "186221225578715@lid": "Irei, ida e volta.", "104019863294048@lid": "Não irei à faculdade hoje.", "210530992148635@lid": "Irei, ida e volta.", "155726924222702@lid": "Irei, ida e volta.", "136863696343144@lid": "Irei, ida e volta.", "170454484562057@lid": "Não irei à faculdade hoje.", "105076458844319@lid": "Irei, ida e volta.", "5450414182521@lid": "Não irei à faculdade hoje.", "252269266210976@lid": "Não irei à faculdade hoje.", "158347089195059@lid": "Não irei à faculdade hoje.", "270785021259968@lid": "Não irei à faculdade hoje.", "217162169991213@lid": "Irei, ida e volta.", "230979146887275@lid": "Irei, ida e volta." } } } } };
+        let capacities = { "Ônibus unesc 01 2026": 51, "Ônibus unesc 02 2026": 47 };
         const optionColors = {
             "Irei, ida e volta.": "#4caf50",
             "Irei, mas não retornarei.": "#2196f3",
@@ -519,7 +466,7 @@ const generateHtmlDashboard = (stats) => {
         const extractGroups = () => {
             const groups = new Set();
             Object.values(rawDB).forEach(dayData => {
-                if(dayData.Version2 && dayData.grupos) {
+                if (dayData.Version2 && dayData.grupos) {
                     Object.keys(dayData.grupos).forEach(g => groups.add(g));
                 } else {
                     // Legacy fallback
@@ -544,13 +491,13 @@ const generateHtmlDashboard = (stats) => {
 
         const processData = (targetGroup, targetDaysStr) => {
             const targetDays = parseInt(targetDaysStr, 10);
-            
+
             // Get all days from DB that are within the targetDays range (comparing string dates vs today)
             const todayMoment = moment().startOf('day');
-            
+
             let barLabels = [];
             let barData = [];
-            
+
             // Arrays for stacked chart
             let stackedData = {
                 "Irei, ida e volta.": [],
@@ -558,7 +505,7 @@ const generateHtmlDashboard = (stats) => {
                 "Não irei, apenas retornarei.": [],
                 "Não irei à faculdade hoje.": []
             };
-            
+
             let globalOptionCounts = {
                 "Irei, ida e volta.": 0,
                 "Irei, mas não retornarei.": 0,
@@ -571,13 +518,13 @@ const generateHtmlDashboard = (stats) => {
             // Trackers for highlights (Peaks and Valleys)
             let peakLotacao = { val: -1, date: "" };
             let valleyLotacao = { val: Infinity, date: "" };
-            
+
             let peakAusencia = { val: -1, date: "" };
             let valleyAusencia = { val: Infinity, date: "" };
-            
+
             let peakSoIda = { val: -1, date: "" };
             let valleySoIda = { val: Infinity, date: "" };
-            
+
             let peakSoVolta = { val: -1, date: "" };
             let valleySoVolta = { val: Infinity, date: "" };
 
@@ -586,36 +533,36 @@ const generateHtmlDashboard = (stats) => {
                 const dateStr = day.format('YYYY-MM-DD');
                 const displayDate = day.format('DD/MM');
                 barLabels.push(displayDate);
-                
+
                 let dayTotal = 0;
-                
+
                 let dayCounts = {
                     "Irei, ida e volta.": 0,
                     "Irei, mas não retornarei.": 0,
                     "Não irei, apenas retornarei.": 0,
                     "Não irei à faculdade hoje.": 0
                 };
-                
+
                 if (rawDB[dateStr]) {
                     const dayEntry = rawDB[dateStr];
 
                     // Determine if legacy or V2
                     let groupsToProcess = [];
-                    if(dayEntry.Version2 && dayEntry.grupos) {
+                    if (dayEntry.Version2 && dayEntry.grupos) {
                         if (targetGroup === "Todos") {
                             groupsToProcess = Object.values(dayEntry.grupos);
                         } else if (dayEntry.grupos[targetGroup]) {
-                            groupsToProcess = [ dayEntry.grupos[targetGroup] ];
+                            groupsToProcess = [dayEntry.grupos[targetGroup]];
                         }
                     } else if (!dayEntry.Version2) {
                         // Legacy data exists for this day
                         if (targetGroup === "Todos" || targetGroup === "Grupo Geral (Legado)") {
-                            groupsToProcess = [ dayEntry ]; // DayEntry itself is the poll in legacy
+                            groupsToProcess = [dayEntry]; // DayEntry itself is the poll in legacy
                         }
                     }
 
                     groupsToProcess.forEach(groupPayload => {
-                        if(!groupPayload.votes) return;
+                        if (!groupPayload.votes) return;
                         const voters = Object.keys(groupPayload.votes);
                         dayTotal += voters.length;
 
@@ -682,12 +629,12 @@ const generateHtmlDashboard = (stats) => {
             // Update Labels
             document.getElementById("txtPeriod").innerText = targetDaysStr;
             document.getElementById("lblTotalVotes").innerText = accumTotalVotes.toLocaleString('pt-BR');
-            
+
             // Update Highlights
             const setHighlight = (valId, dateId, peakObj) => {
                 const valEl = document.getElementById(valId);
                 const dateEl = document.getElementById(dateId);
-                if(peakObj.val !== -1 && peakObj.val !== Infinity) {
+                if (peakObj.val !== -1 && peakObj.val !== Infinity) {
                     valEl.innerText = peakObj.val.toLocaleString('pt-BR');
                     dateEl.innerText = peakObj.date;
                 } else {
@@ -707,7 +654,7 @@ const generateHtmlDashboard = (stats) => {
 
             setHighlight("hlSoVoltaVal", "hlSoVoltaDate", peakSoVolta);
             setHighlight("hlSoVoltaMinVal", "hlSoVoltaMinDate", valleySoVolta);
-            
+
             const numActiveDays = targetDays; // Always use target days since we show all days now
             document.getElementById("lblAverage").innerText = (accumTotalVotes / numActiveDays).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
@@ -722,10 +669,10 @@ const generateHtmlDashboard = (stats) => {
             const capacitySection = document.getElementById("capacitySection");
             const capacityList = document.getElementById("capacityList");
             capacityList.innerHTML = "";
-            
+
             let hasAnyCapacity = false;
             const dayEntry = rawDB[todayStr] || { Version2: true, grupos: {} };
-            
+
             let groupsToShow = [];
             if (targetGroup === "Todos") {
                 // Mostrar todos os grupos que possuem capacidade configurada
@@ -745,7 +692,7 @@ const generateHtmlDashboard = (stats) => {
                         }
                     });
                 }
-                
+
                 renderCompactBar(gName, confirmations, capacities[gName]);
                 hasAnyCapacity = true;
             });
@@ -756,7 +703,7 @@ const generateHtmlDashboard = (stats) => {
         const renderCompactBar = (name, count, cap) => {
             const capacityList = document.getElementById("capacityList");
             const percentage = Math.min(100, (count / cap) * 100);
-            
+
             let statusColor = "#94a3b8";
             let statusText = (cap - count) + " vagas";
             if (count > cap) {
@@ -770,20 +717,20 @@ const generateHtmlDashboard = (stats) => {
                 statusText = "Quase lotado!";
             }
 
-            const barHtml = \`
+            const barHtml = `
                 <div style="margin-bottom: 12px;">
                     <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 6px;">
-                        <span style="font-size: 0.9rem; font-weight: 600; color: var(--title-color);">\${name}</span>
+                        <span style="font-size: 0.9rem; font-weight: 600; color: var(--title-color);">${name}</span>
                         <div style="text-align: right;">
-                            <span style="font-size: 0.8rem; color: \${statusColor}; font-weight: 500; margin-right: 8px;">\${statusText}</span>
-                            <span style="font-size: 1rem; font-weight: bold; color: var(--accent);">\${count}/\${cap}</span>
+                            <span style="font-size: 0.8rem; color: ${statusColor}; font-weight: 500; margin-right: 8px;">${statusText}</span>
+                            <span style="font-size: 1rem; font-weight: bold; color: var(--accent);">${count}/${cap}</span>
                         </div>
                     </div>
                     <div style="width: 100%; height: 10px; background: #2c2c2c; border-radius: 5px; overflow: hidden; border: 1px solid var(--border-color);">
-                        <div style="width: \${percentage}%; height: 100%; background: linear-gradient(90deg, #2196f3, #4caf50); transition: width 0.8s ease;"></div>
+                        <div style="width: ${percentage}%; height: 100%; background: linear-gradient(90deg, #2196f3, #4caf50); transition: width 0.8s ease;"></div>
                     </div>
                 </div>
-            \`;
+            `;
             capacityList.innerHTML += barHtml;
         };
 
@@ -797,7 +744,7 @@ const generateHtmlDashboard = (stats) => {
             Chart.defaults.color = '#e0e0e0';
             Chart.defaults.borderColor = '#333';
 
-            if(pieChartIns) pieChartIns.destroy();
+            if (pieChartIns) pieChartIns.destroy();
             const pieCtx = document.getElementById('pieChart').getContext('2d');
             pieChartIns = new Chart(pieCtx, {
                 type: 'doughnut',
@@ -812,8 +759,8 @@ const generateHtmlDashboard = (stats) => {
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: { 
-                        legend: { 
+                    plugins: {
+                        legend: {
                             position: 'bottom',
                             labels: {
                                 boxWidth: 10,
@@ -822,12 +769,12 @@ const generateHtmlDashboard = (stats) => {
                                     size: window.innerWidth < 400 ? 8 : (window.innerWidth < 600 ? 10 : 12)
                                 }
                             }
-                        } 
+                        }
                     }
                 }
             });
 
-            if(barChartIns) barChartIns.destroy();
+            if (barChartIns) barChartIns.destroy();
             const barCtx = document.getElementById('barChart').getContext('2d');
             barChartIns = new Chart(barCtx, {
                 type: 'line',
@@ -847,17 +794,17 @@ const generateHtmlDashboard = (stats) => {
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    scales: { 
-                        y: { 
-                            beginAtZero: true, 
-                            ticks: { stepSize: 1 } 
-                        } 
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { stepSize: 1 }
+                        }
                     },
                     plugins: { legend: { display: false } }
                 }
             });
 
-            if(stackedChartIns) stackedChartIns.destroy();
+            if (stackedChartIns) stackedChartIns.destroy();
             const stackedCtx = document.getElementById('stackedBarChart').getContext('2d');
             stackedChartIns = new Chart(stackedCtx, {
                 type: 'bar',
@@ -893,8 +840,8 @@ const generateHtmlDashboard = (stats) => {
                         x: { stacked: true },
                         y: { stacked: true, beginAtZero: true, ticks: { stepSize: 1 } }
                     },
-                    plugins: { 
-                        legend: { 
+                    plugins: {
+                        legend: {
                             position: 'bottom',
                             labels: {
                                 boxWidth: 10,
@@ -903,7 +850,7 @@ const generateHtmlDashboard = (stats) => {
                                     size: window.innerWidth < 400 ? 8 : (window.innerWidth < 600 ? 9 : 12)
                                 }
                             }
-                        } 
+                        }
                     }
                 }
             });
@@ -917,13 +864,13 @@ const generateHtmlDashboard = (stats) => {
 
         // Boot instantâneo
         initSelects();
-        
+
         // Pequeno delay apenas para garantir que o DOM e Charts estejam prontos
         window.addEventListener('load', () => {
             updateDash();
             fetchStats(); // Forçar busca imediata para garantir dados frescos
         });
-        
+
         // Execução imediata caso o load já tenha passado
         if (document.readyState === 'complete') {
             updateDash();
@@ -936,12 +883,12 @@ const generateHtmlDashboard = (stats) => {
                 const res = await fetch('/api/stats');
                 if (res.ok) {
                     const data = await res.json();
-                    
+
                     // Compara as chaves para verificar levemente as mudanças, caso contrário o dashboard recarrega
                     if (JSON.stringify(rawDB) !== JSON.stringify(data)) {
                         rawDB = data;
                         updateDash(); // Re-render dos gráficos
-                        
+
                         const now = new Date();
                         document.getElementById('lblLastUpdate').innerText = now.toLocaleDateString('pt-BR') + ' ' + now.toLocaleTimeString('pt-BR');
                     }
@@ -953,12 +900,114 @@ const generateHtmlDashboard = (stats) => {
 
         // Poll de 10 em 10 segundos
         setInterval(fetchStats, 10000);
+
+        const exportToPDF = () => {
+            const btn = document.getElementById('exportBtn');
+            const controls = document.querySelector('.controls');
+
+            // Ocultar elementos que não devem aparecer no PDF
+            btn.style.display = 'none';
+            controls.style.display = 'none';
+
+            // Criar um container temporário invisível para montar o PDF perfeitamente
+            const exportContainer = document.createElement('div');
+            exportContainer.style.position = 'fixed';
+            exportContainer.style.left = '-9999px';
+            exportContainer.style.top = '0';
+            exportContainer.style.width = '800px'; // Largura fixa ideal para A4 sem distorção
+            exportContainer.style.backgroundColor = '#121212';
+            exportContainer.style.color = '#e0e0e0';
+            exportContainer.style.padding = '30px';
+            exportContainer.style.display = 'flex';
+            exportContainer.style.flexDirection = 'column';
+            exportContainer.style.alignItems = 'center';
+            exportContainer.style.fontFamily = 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif';
+
+            const header = `
+                <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #2196f3; padding-bottom: 20px; width: 100%;">
+                    <h1 style="color: #ffffff; margin: 0; font-size: 28pt;">Relatório de Estatísticas</h1>
+                    <p style="color: #2196f3; margin: 5px 0 0 0; font-weight: bold; font-size: 16pt;">Gerado pelo WABot</p>
+                    <p style="color: #7f8c8d; font-size: 11pt; margin-top: 10px;">Data de Emissão: ${moment().format('DD/MM/YYYY HH:mm:ss')}</p>
+                </div>
+            `;
+            exportContainer.innerHTML = header;
+
+            // Adicionar barra de lotação se estiver visível
+            if (document.getElementById('capacitySection').style.display !== 'none') {
+                const capClone = document.getElementById('capacitySection').cloneNode(true);
+                capClone.style.display = 'block';
+                capClone.style.maxWidth = '100%';
+                capClone.style.marginBottom = '30px';
+                exportContainer.appendChild(capClone);
+            }
+
+            // Selecionar os cards principais e clonar
+            const dashboardClone = document.querySelector('.dashboard').cloneNode(true);
+            dashboardClone.style.display = 'grid';
+            dashboardClone.style.gridTemplateColumns = '1fr 1fr'; // Garantir 2 colunas no PDF
+            dashboardClone.style.gap = '20px';
+            dashboardClone.style.width = '100%';
+            dashboardClone.style.maxWidth = '100%';
+
+            // Os gráficos no clone não virão com o conteúdo do Canvas. 
+            // Precisamos lidar com isso Capturando as imagens dos canvas originais e injetando nos clones.
+            const originalCanvases = document.querySelectorAll('canvas');
+            const clonedCanvases = dashboardClone.querySelectorAll('canvas');
+
+            originalCanvases.forEach((orig, idx) => {
+                if (clonedCanvases[idx]) {
+                    const img = document.createElement('img');
+                    img.src = orig.toDataURL('image/png');
+                    img.style.width = '100%';
+                    img.style.height = 'auto';
+                    clonedCanvases[idx].replaceWith(img);
+                }
+            });
+
+            exportContainer.appendChild(dashboardClone);
+
+            // Adicionar highlights
+            const highlightsClone = document.querySelector('.highlights').cloneNode(true);
+            highlightsClone.style.display = 'grid';
+            highlightsClone.style.gridTemplateColumns = '1fr 1fr';
+            highlightsClone.style.width = '100%';
+            highlightsClone.style.marginTop = '20px';
+            exportContainer.appendChild(highlightsClone);
+
+            // Adicionar footer
+            const pdfFooter = document.createElement('div');
+            pdfFooter.style.textAlign = 'center';
+            pdfFooter.style.marginTop = '50px';
+            pdfFooter.style.color = '#7f8c8d';
+            pdfFooter.style.fontSize = '10pt';
+            pdfFooter.innerHTML = '<p>© 2026 WABot - Todos os direitos reservados</p>';
+            exportContainer.appendChild(pdfFooter);
+
+            document.body.appendChild(exportContainer);
+
+            const opt = {
+                margin: [5, 5, 5, 5],
+                filename: `estatisticas_${moment().format('DD_MM_YYYY')}.pdf`,
+                image: { type: 'jpeg', quality: 1.0 },
+                html2canvas: {
+                    scale: 2,
+                    useCORS: true,
+                    backgroundColor: '#121212',
+                    logging: false,
+                    width: 800
+                },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            // Gerar PDF do container temporário
+            html2pdf().set(opt).from(exportContainer).save().then(() => {
+                // Restaurar e limpar
+                btn.style.display = 'flex';
+                controls.style.display = 'flex';
+                document.body.removeChild(exportContainer);
+            });
+        };
     </script>
 </body>
+
 </html>
-    `;
-
-    fs.writeFileSync(htmlFile, htmlContent, 'utf8');
-};
-
-module.exports = { registerVote, readStats, generateHtmlDashboard, updateTerminalOccupancy };
