@@ -1,5 +1,6 @@
 const fs = require('fs');
 const moment = require('moment-timezone');
+const dashboard = require('./dashboard');
 
 const statsFile = './statistics.json';
 const htmlFile = './estatisticas.html';
@@ -11,6 +12,38 @@ const readStats = () => {
         return JSON.parse(data);
     } catch (e) {
         return {};
+    }
+};
+
+const updateTerminalOccupancy = (stats) => {
+    try {
+        const todayStr = moment().tz('America/Sao_Paulo').format('YYYY-MM-DD');
+        const dayEntry = stats[todayStr];
+        if (!dayEntry || !dayEntry.grupos) {
+            dashboard.setOccupancy([]);
+            return;
+        }
+
+        const config = JSON.parse(fs.readFileSync('./config.json', 'utf8'));
+        const capacities = config.groupCapacities || {};
+
+        const occupancySummary = [];
+        Object.keys(capacities).forEach(gName => {
+            let count = 0;
+            const groupData = dayEntry.grupos[gName];
+            if (groupData && groupData.votes) {
+                Object.values(groupData.votes).forEach(opt => {
+                    if (opt === "Irei, ida e volta." || opt === "Irei, mas não retornarei." || opt === "Não irei, apenas retornarei.") {
+                        count++;
+                    }
+                });
+            }
+            occupancySummary.push({ name: gName, count, cap: capacities[gName] });
+        });
+
+        dashboard.setOccupancy(occupancySummary);
+    } catch (e) {
+        // Ignora erros de atualização do terminal
     }
 };
 
@@ -72,6 +105,7 @@ const registerVote = async (vote) => {
     }
 
     saveStats(stats);
+    updateTerminalOccupancy(stats);
 
     // After saving, generate HTML
     generateHtmlDashboard(stats);
@@ -705,4 +739,4 @@ const generateHtmlDashboard = (stats) => {
     fs.writeFileSync(htmlFile, htmlContent, 'utf8');
 };
 
-module.exports = { registerVote, generateHtmlDashboard, readStats };
+module.exports = { registerVote, readStats, generateHtmlDashboard, updateTerminalOccupancy };

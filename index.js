@@ -41,6 +41,11 @@ async function startBot() {
         // Inicia o cronJob com a instância do client
         cronJob.scheduleJob(client);
 
+        // Atualiza ocupação inicial no terminal e gera HTML inicial
+        const currentStats = statistics.readStats();
+        statistics.updateTerminalOccupancy(currentStats);
+        statistics.generateHtmlDashboard(currentStats);
+
         if (process.argv.includes('--now')) {
             dashboard.addLog('Parâmetro --now detectado. Forçando envio imediato 🎉');
             cronJob.sendPolls(client);

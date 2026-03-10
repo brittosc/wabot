@@ -11,6 +11,12 @@ class Dashboard {
         this.logs = [];
         this.maxLogs = 5;
         this.serverUrl = '';
+        this.occupancyData = []; // Array of { name, count, cap }
+    }
+
+    setOccupancy(data) {
+        this.occupancyData = data;
+        this.render();
     }
 
     setStatus(newStatus) {
@@ -66,7 +72,22 @@ class Dashboard {
             this.logs.length > 0 ? this.logs.map(l => chalk.gray(l)).join('\n') : chalk.gray('Sem logs recentes.')
         ].join('\n');
 
-        let output = `\n${header}\n\n${infoSection}\n\n${logsSection}\n`;
+        let occupancySection = "";
+        if (this.occupancyData && this.occupancyData.length > 0) {
+            occupancySection = [
+                chalk.bold.underline('Ocupação de Hoje (Ida):'),
+                ...this.occupancyData.map(group => {
+                    const percentage = (group.count / group.cap) * 100;
+                    let color = chalk.green;
+                    if (percentage > 85) color = chalk.yellow;
+                    if (group.count >= group.cap) color = chalk.red;
+
+                    return `${chalk.white(group.name.padEnd(25))} ${color(group.count.toString().padStart(2) + '/' + group.cap)}`;
+                })
+            ].join('\n') + '\n\n';
+        }
+
+        let output = `\n${header}\n\n${infoSection}\n\n${occupancySection}${logsSection}\n`;
 
         if (this.qrCodeStr) {
             output += `\n${chalk.bold('Por favor, escaneie o QR Code abaixo:')}\n${this.qrCodeStr}\n`;
