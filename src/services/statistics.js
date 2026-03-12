@@ -431,7 +431,7 @@ const generateHtmlDashboard = (stats) => {
                 <div class="card-title"><h3>Lotação (Ida/Volta)</h3></div>
                 <div class="split-container">
                     <div class="split-half split-peak">
-                        <span class="label">MAX</span>
+                        <span class="label">MAXIMO</span>
                         <span class="value" id="hlLotacaoVal">-</span>
                         <span class="date" id="hlLotacaoDate">-</span>
                     </div>
@@ -446,7 +446,7 @@ const generateHtmlDashboard = (stats) => {
                 <div class="card-title"><h3>Ausência</h3></div>
                 <div class="split-container">
                     <div class="split-half split-peak">
-                        <span class="label">MAX</span>
+                        <span class="label">MAXIMO</span>
                         <span class="value" id="hlAusenciaVal">-</span>
                         <span class="date" id="hlAusenciaDate">-</span>
                     </div>
@@ -461,7 +461,7 @@ const generateHtmlDashboard = (stats) => {
                 <div class="card-title"><h3>Demanda (Só Ida)</h3></div>
                 <div class="split-container">
                     <div class="split-half split-peak">
-                        <span class="label">MAX</span>
+                        <span class="label">MAXIMO</span>
                         <span class="value" id="hlSoIdaVal">-</span>
                         <span class="date" id="hlSoIdaDate">-</span>
                     </div>
@@ -476,7 +476,7 @@ const generateHtmlDashboard = (stats) => {
                 <div class="card-title"><h3>Demanda (Só Volta)</h3></div>
                 <div class="split-container">
                     <div class="split-half split-peak">
-                        <span class="label">MAX</span>
+                        <span class="label">MAXIMO</span>
                         <span class="value" id="hlSoVoltaVal">-</span>
                         <span class="date" id="hlSoVoltaDate">-</span>
                     </div>
