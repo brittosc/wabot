@@ -436,7 +436,7 @@ const generateHtmlDashboard = (stats) => {
                         <span class="date" id="hlLotacaoDate">-</span>
                     </div>
                     <div class="split-half split-valley">
-                        <span class="label">MININ.</span>
+                        <span class="label">MININO</span>
                         <span class="value" id="hlLotacaoMinVal">-</span>
                         <span class="date" id="hlLotacaoMinDate">-</span>
                     </div>
@@ -451,7 +451,7 @@ const generateHtmlDashboard = (stats) => {
                         <span class="date" id="hlAusenciaDate">-</span>
                     </div>
                     <div class="split-half split-valley">
-                        <span class="label">MININ.</span>
+                        <span class="label">MININO</span>
                         <span class="value" id="hlAusenciaMinVal">-</span>
                         <span class="date" id="hlAusenciaMinDate">-</span>
                     </div>
@@ -466,7 +466,7 @@ const generateHtmlDashboard = (stats) => {
                         <span class="date" id="hlSoIdaDate">-</span>
                     </div>
                     <div class="split-half split-valley">
-                        <span class="label">MININ.</span>
+                        <span class="label">MININO</span>
                         <span class="value" id="hlSoIdaMinVal">-</span>
                         <span class="date" id="hlSoIdaMinDate">-</span>
                     </div>
@@ -481,7 +481,7 @@ const generateHtmlDashboard = (stats) => {
                         <span class="date" id="hlSoVoltaDate">-</span>
                     </div>
                     <div class="split-half split-valley">
-                        <span class="label">MININ.</span>
+                        <span class="label">MININO</span>
                         <span class="value" id="hlSoVoltaMinVal">-</span>
                         <span class="date" id="hlSoVoltaMinDate">-</span>
                     </div>
@@ -689,13 +689,13 @@ const generateHtmlDashboard = (stats) => {
             
             // Update Highlights
             const setHighlight = (valId, dateId, peakObj) => {
-                const MININ.l = document.getElementById(valId);
+                const valEl = document.getElementById(valId);
                 const dateEl = document.getElementById(dateId);
                 if(peakObj.val !== -1 && peakObj.val !== Infinity) {
-                    MININ.l.innerText = peakObj.val.toLocaleString('pt-BR');
+                    valEl.innerText = peakObj.val.toLocaleString('pt-BR');
                     dateEl.innerText = peakObj.date;
                 } else {
-                    MININ.l.innerText = "0";
+                    valEl.innerText = "0";
                     dateEl.innerText = "Sem dados";
                 }
             };
