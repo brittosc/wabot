@@ -67,7 +67,7 @@ const updateTerminalOccupancy = async (stats) => {
 
             const displayName = aliases[gName] || gName;
             let status = `${count}/${cap}`;
-            
+
             occupancySummary.push({ name: displayName, count, cap, status });
         });
 
@@ -405,7 +405,7 @@ const generateHtmlDashboard = (stats) => {
 
     <div class="dashboard">
         <div class="card">
-            <h2>Média / Total Geral (Opções)</h2>
+            <h2>Total Geral</h2>
             <div class="chart-container">
                 <canvas id="pieChart"></canvas>
             </div>
@@ -425,18 +425,18 @@ const generateHtmlDashboard = (stats) => {
             </div>
         </div>
 
-        <!-- Cards de Picos e Vales agora abaixo da Proporção Diária -->
+        <!-- Cards de MAXs e MININ.s agora abaixo da Proporção Diária -->
         <div class="highlights" style="grid-column: 1 / -1;">
             <div class="highlight-card">
                 <div class="card-title"><h3>Lotação (Ida/Volta)</h3></div>
                 <div class="split-container">
                     <div class="split-half split-peak">
-                        <span class="label">Pico</span>
+                        <span class="label">MAX</span>
                         <span class="value" id="hlLotacaoVal">-</span>
                         <span class="date" id="hlLotacaoDate">-</span>
                     </div>
                     <div class="split-half split-valley">
-                        <span class="label">Vale</span>
+                        <span class="label">MININ.</span>
                         <span class="value" id="hlLotacaoMinVal">-</span>
                         <span class="date" id="hlLotacaoMinDate">-</span>
                     </div>
@@ -446,12 +446,12 @@ const generateHtmlDashboard = (stats) => {
                 <div class="card-title"><h3>Ausência</h3></div>
                 <div class="split-container">
                     <div class="split-half split-peak">
-                        <span class="label">Pico</span>
+                        <span class="label">MAX</span>
                         <span class="value" id="hlAusenciaVal">-</span>
                         <span class="date" id="hlAusenciaDate">-</span>
                     </div>
                     <div class="split-half split-valley">
-                        <span class="label">Vale</span>
+                        <span class="label">MININ.</span>
                         <span class="value" id="hlAusenciaMinVal">-</span>
                         <span class="date" id="hlAusenciaMinDate">-</span>
                     </div>
@@ -461,12 +461,12 @@ const generateHtmlDashboard = (stats) => {
                 <div class="card-title"><h3>Demanda (Só Ida)</h3></div>
                 <div class="split-container">
                     <div class="split-half split-peak">
-                        <span class="label">Pico</span>
+                        <span class="label">MAX</span>
                         <span class="value" id="hlSoIdaVal">-</span>
                         <span class="date" id="hlSoIdaDate">-</span>
                     </div>
                     <div class="split-half split-valley">
-                        <span class="label">Vale</span>
+                        <span class="label">MININ.</span>
                         <span class="value" id="hlSoIdaMinVal">-</span>
                         <span class="date" id="hlSoIdaMinDate">-</span>
                     </div>
@@ -476,12 +476,12 @@ const generateHtmlDashboard = (stats) => {
                 <div class="card-title"><h3>Demanda (Só Volta)</h3></div>
                 <div class="split-container">
                     <div class="split-half split-peak">
-                        <span class="label">Pico</span>
+                        <span class="label">MAX</span>
                         <span class="value" id="hlSoVoltaVal">-</span>
                         <span class="date" id="hlSoVoltaDate">-</span>
                     </div>
                     <div class="split-half split-valley">
-                        <span class="label">Vale</span>
+                        <span class="label">MININ.</span>
                         <span class="value" id="hlSoVoltaMinVal">-</span>
                         <span class="date" id="hlSoVoltaMinDate">-</span>
                     </div>
@@ -689,13 +689,13 @@ const generateHtmlDashboard = (stats) => {
             
             // Update Highlights
             const setHighlight = (valId, dateId, peakObj) => {
-                const valEl = document.getElementById(valId);
+                const MININ.l = document.getElementById(valId);
                 const dateEl = document.getElementById(dateId);
                 if(peakObj.val !== -1 && peakObj.val !== Infinity) {
-                    valEl.innerText = peakObj.val.toLocaleString('pt-BR');
+                    MININ.l.innerText = peakObj.val.toLocaleString('pt-BR');
                     dateEl.innerText = peakObj.date;
                 } else {
-                    valEl.innerText = "0";
+                    MININ.l.innerText = "0";
                     dateEl.innerText = "Sem dados";
                 }
             };
