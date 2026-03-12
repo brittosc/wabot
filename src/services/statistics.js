@@ -854,8 +854,8 @@ const generateHtmlDashboard = (stats) => {
                     maintainAspectRatio: false,
                     scales: { 
                         y: { 
-                            beginAtZero: true, 
-                            ticks: { stepSize: 1 } 
+                            beginAtZero: true,
+                            grace: '10%'
                         } 
                     },
                     plugins: { legend: { display: false } }
@@ -896,7 +896,7 @@ const generateHtmlDashboard = (stats) => {
                     maintainAspectRatio: false,
                     scales: {
                         x: { stacked: true },
-                        y: { stacked: true, beginAtZero: true, ticks: { stepSize: 1 } }
+                        y: { stacked: true, beginAtZero: true, grace: '10%' }
                     },
                     plugins: { 
                         legend: { 

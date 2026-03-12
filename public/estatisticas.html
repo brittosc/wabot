@@ -764,7 +764,7 @@
                     scales: {
                         y: {
                             beginAtZero: true,
-                            ticks: { stepSize: 1 }
+                            grace: '10%'
                         }
                     },
                     plugins: { legend: { display: false } }
@@ -805,7 +805,7 @@
                     maintainAspectRatio: false,
                     scales: {
                         x: { stacked: true },
-                        y: { stacked: true, beginAtZero: true, ticks: { stepSize: 1 } }
+                        y: { stacked: true, beginAtZero: true, grace: '10%' }
                     },
                     plugins: {
                         legend: {
