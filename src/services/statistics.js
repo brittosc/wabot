@@ -428,7 +428,7 @@ const generateHtmlDashboard = (stats) => {
         <!-- Cards de MAXs e MININ.s agora abaixo da Proporção Diária -->
         <div class="highlights" style="grid-column: 1 / -1;">
             <div class="highlight-card">
-                <div class="card-title"><h3>Lotação (Ida/Volta)</h3></div>
+                <div class="card-title"><h3>Ida/Volta</h3></div>
                 <div class="split-container">
                     <div class="split-half split-peak">
                         <span class="label">MAXIMO</span>
@@ -458,7 +458,7 @@ const generateHtmlDashboard = (stats) => {
                 </div>
             </div>
             <div class="highlight-card">
-                <div class="card-title"><h3>Demanda (Só Ida)</h3></div>
+                <div class="card-title"><h3>Só Ida</h3></div>
                 <div class="split-container">
                     <div class="split-half split-peak">
                         <span class="label">MAXIMO</span>
@@ -473,7 +473,7 @@ const generateHtmlDashboard = (stats) => {
                 </div>
             </div>
             <div class="highlight-card">
-                <div class="card-title"><h3>Demanda (Só Volta)</h3></div>
+                <div class="card-title"><h3>Só Volta</h3></div>
                 <div class="split-container">
                     <div class="split-half split-peak">
                         <span class="label">MAXIMO</span>
