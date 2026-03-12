@@ -1,15 +1,21 @@
 {
     "targetGroups": [
         "Ônibus unesc 01 2026",
-        "Ônibus unesc 02"
+        "Ônibus unesc 02",
+        "Ônibus unesc 03",
+        "Ônibus esucri 04"
     ],
     "groupCapacities": {
         "Ônibus unesc 01 2026": 51,
-        "Ônibus unesc 02": 47
+        "Ônibus unesc 02": 47,
+        "Ônibus unesc 03": 30,
+        "Ônibus esucri 04": 30
     },
     "groupAliases": {
         "Ônibus unesc 01 2026": "Linha 01 - UNESC",
-        "Ônibus unesc 02": "Linha 02 - UNESC"
+        "Ônibus unesc 02": "Linha 02 - UNESC",
+        "Ônibus unesc 03": "Linha 03 - UNESC",
+        "Ônibus esucri 01": "Linha 04 - ESUCRI"
     },
     "pollTime": "05:30",
     "timezone": "America/Sao_Paulo",
