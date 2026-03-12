@@ -2,6 +2,7 @@ const cron = require('node-cron');
 const moment = require('moment-timezone');
 const fs = require('fs');
 const dashboard = require('./dashboard');
+const configService = require('./configService');
 
 const historyFile = './config/history.json';
 const configFile = './config/config.json';
@@ -35,7 +36,7 @@ const saveJson = (file, data) => {
 
 const sendPolls = async (sock) => {
     try {
-        const config = readJson(configFile);
+        const config = configService.getConfig();
         const history = readJson(historyFile);
 
         const now = moment().tz('America/Sao_Paulo');
@@ -47,8 +48,8 @@ const sendPolls = async (sock) => {
         const forceNow = process.argv.includes('--now');
         const skipDates = config.skipDates || [];
 
-        if (skipDates.includes(todayBR) && !forceNow) {
-            dashboard.addLog(`Data ignorada via config (${todayBR}). Nenhuma enquete programada.`);
+        if (skipDates[todayBR] && !forceNow) {
+            dashboard.addLog(`Data ignorada via config (${todayBR}): ${skipDates[todayBR]}. Nenhuma enquete programada.`);
             return;
         }
 
@@ -114,7 +115,7 @@ const sendPolls = async (sock) => {
 };
 
 const scheduleJob = (sock) => {
-    const config = readJson(configFile);
+    const config = configService.getConfig();
     const time = config.pollTime || "06:00"; // Default "06:00"
     const [hour, minute] = time.split(':');
 
@@ -136,7 +137,7 @@ const scheduleJob = (sock) => {
 };
 
 const updateNextPollDisplay = (targetHour, targetMinute) => {
-    const config = readJson(configFile);
+    const config = configService.getConfig();
     const skipDates = config.skipDates || [];
 
     const now = moment().tz('America/Sao_Paulo');
@@ -153,7 +154,7 @@ const updateNextPollDisplay = (targetHour, targetMinute) => {
     let isDayValid = false;
     while (!isDayValid) {
         let isWeekend = !ignoreWeekend && (nextDate.day() === 0 || nextDate.day() === 6);
-        let isSkipDate = skipDates.includes(nextDate.format('DD/MM/YYYY'));
+        let isSkipDate = !!skipDates[nextDate.format('DD/MM/YYYY')];
 
         if (isWeekend || isSkipDate) {
             nextDate.add(1, 'days');

@@ -7,6 +7,7 @@ const util = require('minecraft-server-util');
 const { Rcon } = require('rcon-client');
 const dashboard = require('./services/dashboard');
 const { readStats } = require('./services/statistics');
+const configService = require('./services/configService');
 
 // Variável publicIpCache removida (IP removido do dashboard)
 
@@ -176,7 +177,7 @@ const startServer = () => {
         if (req.url === '/api/stats') {
             try {
                 const votes = await readStats();
-                const config = JSON.parse(fs.readFileSync('./config/config.json', 'utf8'));
+                const config = configService.getConfig();
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({
                     votes,
@@ -192,7 +193,7 @@ const startServer = () => {
 
         // Rota API de Status do Minecraft (GameSpy4 Query)
         if (req.url === '/api/mcstatus') {
-            const config = JSON.parse(fs.readFileSync('./config/config.json', 'utf8'));
+    const config = configService.getConfig();
 
             util.queryFull('0.0.0.0', 25565, { timeout: 5000 })
                 .then(async (result) => {
@@ -449,6 +450,34 @@ const startServer = () => {
                     return;
                 }
                 res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+                res.end(data);
+            });
+            return;
+        }
+
+        // Rota Manifest PWA
+        if (req.url === '/manifest.json') {
+            fs.readFile('./public/manifest.json', (err, data) => {
+                if (err) {
+                    res.writeHead(404);
+                    res.end();
+                    return;
+                }
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(data);
+            });
+            return;
+        }
+
+        // Rota Service Worker
+        if (req.url === '/sw.js') {
+            fs.readFile('./public/sw.js', (err, data) => {
+                if (err) {
+                    res.writeHead(404);
+                    res.end();
+                    return;
+                }
+                res.writeHead(200, { 'Content-Type': 'application/javascript' });
                 res.end(data);
             });
             return;

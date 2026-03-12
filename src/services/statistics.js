@@ -1,4 +1,5 @@
 const fs = require('fs');
+const configService = require('./configService');
 const moment = require('moment-timezone');
 const dashboard = require('./dashboard');
 const supabase = require('../database/supabaseClient');
@@ -48,7 +49,7 @@ const updateTerminalOccupancy = async (stats) => {
             return;
         }
 
-        const config = JSON.parse(fs.readFileSync('./config/config.json', 'utf8'));
+        const config = configService.getConfig();
         const capacities = config.groupCapacities || {};
         const aliases = config.groupAliases || {};
 
@@ -129,18 +130,15 @@ const generateHtmlDashboard = (stats) => {
     const statsJSONStr = JSON.stringify(stats);
     const lastUpdateFormated = moment().tz('America/Sao_Paulo').format('DD/MM/YYYY HH:mm:ss');
 
-    // Carregar capacidades e apelidos do config.json
     let capacities = {};
     let aliases = {};
-    try {
-        const config = JSON.parse(fs.readFileSync('./config/config.json', 'utf8'));
-        capacities = config.groupCapacities || {};
-        aliases = config.groupAliases || {};
-    } catch (e) {
-        console.error("Erro ao ler config.json:", e.message);
-    }
+    const config = configService.getConfig();
+    capacities = config.groupCapacities || {};
+    aliases = config.groupAliases || {};
     const capacitiesJSONStr = JSON.stringify(capacities);
     const aliasesJSONStr = JSON.stringify(aliases);
+    const skipDatesJSONStr = JSON.stringify(config.skipDates || {});
+    const pollTimeStr = config.pollTime || "06:00";
 
     const htmlContent = `
 <!DOCTYPE html>
@@ -148,8 +146,25 @@ const generateHtmlDashboard = (stats) => {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Painel Avançado</title>
+    <title>Painel Avançado de Estatísticas</title>
+    
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="Acompanhe em tempo real a ocupação dos ônibus e estatísticas detalhadas de presença da faculdade.">
+    <meta name="keywords" content="ônibus, universitário, estatísticas, enquetes, lotação, faculdade">
+    <meta name="author" content="Mauricio de Britto">
+    <meta name="theme-color" content="#2196f3">
+    
+    <!-- Open Graph / Social Media -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Painel de Estatísticas">
+    <meta property="og:description" content="Dashboard interativo para monitoramento de transporte universitário.">
+    <meta property="og:image" content="https://cdn-icons-png.flaticon.com/512/2850/2850383.png">
+    
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.json">
     <link rel="icon" href="https://dayz.com/favicon.ico">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2850/2850383.png">
+
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
     <style>
@@ -382,14 +397,15 @@ const generateHtmlDashboard = (stats) => {
             <!-- Preenchido via JS -->
         </select>
 
-        <select id="periodSelect">
+        <select id="periodSelect" style="padding: 10px 15px; border-radius: 8px; border: 1px solid var(--border-color); font-size: 1rem; outline: none; cursor: pointer; background-color: #2c2c2c; color: var(--title-color); box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
             <option value="7">Últimos 7 dias</option>
-            <option value="15">Últimos 15 dias</option>
+            <option value="15" selected>Últimos 15 dias</option>
             <option value="30">Últimos 30 dias</option>
+            <option value="60">Últimos 2 meses</option>
             <option value="90">Últimos 3 meses</option>
-            <option value="180">Últimos 6 meses</option>
             <option value="365">Últimos 12 meses</option>
         </select>
+
     </div>
 
     <!-- Destaques removidos daqui para serem movidos para baixo da proporção -->
@@ -405,21 +421,21 @@ const generateHtmlDashboard = (stats) => {
 
     <div class="dashboard">
         <div class="card">
-            <h2>Total Geral</h2>
+            <h2 id="titlePieChart">Consolidado Geral</h2>
             <div class="chart-container">
                 <canvas id="pieChart"></canvas>
             </div>
         </div>
 
         <div class="card">
-            <h2>Votos por Dia</h2>
+            <h2 id="titleBarChart">Votos por Dia</h2>
             <div class="chart-container">
                 <canvas id="barChart"></canvas>
             </div>
         </div>
         
         <div class="card" style="grid-column: 1 / -1;">
-            <h2>Proporção Diária</h2>
+            <h2 id="titleStackedBarChart">Proporção Diária</h2>
             <div class="chart-container">
                 <canvas id="stackedBarChart"></canvas>
             </div>
@@ -488,6 +504,16 @@ const generateHtmlDashboard = (stats) => {
                 </div>
             </div>
         </div>
+
+        <!-- Calendário de Próximas Enquetes (Item 9) -->
+        <div id="calendarSection" style="grid-column: 1 / -1; width: 100%;">
+            <div class="card" style="width: 100%; align-items: stretch;">
+                <h2 style="margin-bottom: 15px;">📅 Próximas Enquetes</h2>
+                <div id="nextPollsList" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px;">
+                    <!-- Preenchido via JS -->
+                </div>
+            </div>
+        </div>
         
         <div class="card summary-card" style="grid-column: 1 / -1;">
             <div style="text-align: center;">
@@ -509,6 +535,11 @@ const generateHtmlDashboard = (stats) => {
         let rawDB = ${statsJSONStr};
         let capacities = ${capacitiesJSONStr};
         let groupAliases = ${aliasesJSONStr};
+        let skipDates = ${skipDatesJSONStr};
+        let pollTime = "${pollTimeStr}";
+        
+        let lastNotifiedCount = {}; // Para o item 4
+        let notificationEnabled = false;
         const optionColors = {
             "Irei, ida e volta.": "#4caf50",
             "Irei, mas não retornarei.": "#2196f3",
@@ -683,10 +714,18 @@ const generateHtmlDashboard = (stats) => {
                 accumTotalVotes += dayTotal;
             }
 
-            // Update Labels
             document.getElementById("txtPeriod").innerText = targetDaysStr;
             document.getElementById("lblTotalVotes").innerText = accumTotalVotes.toLocaleString('pt-BR');
             
+            // Item 2 & 3: Títulos dinâmicos
+            const pieTitle = document.getElementById("titlePieChart");
+            const barTitle = document.getElementById("titleBarChart");
+            const stackTitle = document.getElementById("titleStackedBarChart");
+            
+            if(pieTitle) pieTitle.innerText = "Consolidado Geral (" + targetDaysStr + " dias)";
+            if(barTitle) barTitle.innerText = "Votos por Dia (" + targetDaysStr + " dias)";
+            if(stackTitle) stackTitle.innerText = "Proporção Diária (" + targetDaysStr + " dias)";
+
             // Update Highlights
             const setHighlight = (valId, dateId, peakObj) => {
                 const valEl = document.getElementById(valId);
@@ -717,6 +756,9 @@ const generateHtmlDashboard = (stats) => {
 
             // Atualizar Lotação do Dia (Hoje)
             updateCapacityCard(targetGroup);
+
+            // Item 9: Próximas Enquetes
+            updateNextPollsCalendar();
 
             renderCharts(barLabels, barData, globalOptionCounts, stackedData);
         };
@@ -762,6 +804,18 @@ const generateHtmlDashboard = (stats) => {
             const percentage = Math.min(100, (count / cap) * 100);
             const displayName = groupAliases[name] || name;
             
+            // Item 8: Cores diferentes para cada ônibus
+            const busColors = [
+                'linear-gradient(90deg, #2196f3, #4caf50)',
+                'linear-gradient(90deg, #9c27b0, #00bcd4)',
+                'linear-gradient(90deg, #ff9800, #ffc107)',
+                'linear-gradient(90deg, #f44336, #e91e63)',
+                'linear-gradient(90deg, #3f51b5, #2196f3)'
+            ];
+            // Usa o index do nome na lista de capacidades para decidir a cor
+            const colorIdx = Object.keys(capacities).indexOf(name) % busColors.length;
+            const barGradient = busColors[colorIdx];
+
             let statusColor = "#94a3b8";
             let statusText = (cap - count) + " vagas";
             if (count > cap) {
@@ -775,21 +829,55 @@ const generateHtmlDashboard = (stats) => {
                 statusText = "Quase lotado!";
             }
 
-            const barHtml = \`
-                <div style="margin-bottom: 12px;">
-                    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 6px;">
-                        <span style="font-size: 0.9rem; font-weight: 600; color: var(--title-color);">\${displayName}</span>
-                        <div style="text-align: right;">
-                            <span style="font-size: 0.8rem; color: \${statusColor}; font-weight: 500; margin-right: 8px;">\${statusText}</span>
-                            <span style="font-size: 1rem; font-weight: bold; color: var(--accent);">\${count}/\${cap}</span>
-                        </div>
-                    </div>
-                    <div style="width: 100%; height: 10px; background: #2c2c2c; border-radius: 5px; overflow: hidden; border: 1px solid var(--border-color);">
-                        <div style="width: \${percentage}%; height: 100%; background: linear-gradient(90deg, #2196f3, #4caf50); transition: width 0.8s ease;"></div>
-                    </div>
-                </div>
-            \`;
-            capacityList.innerHTML += barHtml;
+            // Item 4: Verificação de Notificação
+            if (notificationEnabled && (count === cap || (count > 0 && count % 5 === 0))) {
+                if (lastNotifiedCount[name] !== count) {
+                    new Notification("WABOT - Alerta de Lotação", {
+                        body: "O ônibus " + displayName + " atingiu " + count + "/" + cap + " passageiros!",
+                        icon: "https://cdn-icons-png.flaticon.com/512/2850/2850383.png"
+                    });
+                    lastNotifiedCount[name] = count;
+                }
+            }
+
+            const container = document.createElement("div");
+            container.style.marginBottom = "12px";
+
+            const header = document.createElement("div");
+            header.style.cssText = "display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 6px;";
+
+            const nameSpan = document.createElement("span");
+            nameSpan.style.cssText = "font-size: 0.9rem; font-weight: 600; color: var(--title-color);";
+            nameSpan.innerText = displayName;
+
+            const infoDiv = document.createElement("div");
+            infoDiv.style.textAlign = "right";
+
+            const sSpan = document.createElement("span");
+            sSpan.style.cssText = "font-size: 0.8rem; color: " + statusColor + "; font-weight: 500; margin-right: 8px;";
+            sSpan.innerText = statusText;
+
+            const cSpan = document.createElement("span");
+            cSpan.style.cssText = "font-size: 1rem; font-weight: bold; color: var(--accent);";
+            cSpan.innerText = count + "/" + cap;
+
+            infoDiv.appendChild(sSpan);
+            infoDiv.appendChild(cSpan);
+            header.appendChild(nameSpan);
+            header.appendChild(infoDiv);
+
+            const progressContainer = document.createElement("div");
+            progressContainer.style.cssText = "width: 100%; height: 10px; background: #2c2c2c; border-radius: 5px; overflow: hidden; border: 1px solid var(--border-color);";
+
+            const progressBar = document.createElement("div");
+            progressBar.style.cssText = "height: 100%; background: " + barGradient + "; transition: width 0.8s ease;";
+            progressBar.style.width = percentage + "%";
+
+            progressContainer.appendChild(progressBar);
+            container.appendChild(header);
+            container.appendChild(progressContainer);
+            
+            capacityList.appendChild(container);
         };
 
         let stackedChartIns = null;
@@ -918,10 +1006,112 @@ const generateHtmlDashboard = (stats) => {
             const grp = document.getElementById("groupSelect").value;
             const per = document.getElementById("periodSelect").value;
             processData(grp, per);
+            updateNextPollsCalendar();
+        };
+
+        // Item 4: Notificações Automatizadas
+        const initNotification = () => {
+            if (!("Notification" in window)) return;
+            
+            if (Notification.permission === "default") {
+                Notification.requestPermission().then(permission => {
+                    if (permission === "granted") {
+                        notificationEnabled = true;
+                        new Notification("WABOT", { body: "Notificações ativadas com sucesso!" });
+                    }
+                });
+            } else if (Notification.permission === "granted") {
+                notificationEnabled = true;
+            }
+        };
+
+        // Item 9: Calendário de Próximas Enquetes
+        const updateNextPollsCalendar = () => {
+            const list = document.getElementById("nextPollsList");
+            list.innerHTML = "";
+            
+            let current = moment();
+            const timeParts = pollTime.split(':');
+            current.set({ hour: parseInt(timeParts[0]), minute: parseInt(timeParts[1]), second: 0 });
+            
+            if (current.isBefore(moment())) {
+                current.add(1, 'days');
+            }
+            
+            let found = 0;
+            let safetyLimit = 30; // Evitar loop infinito
+            
+            while (found < 5 && safetyLimit > 0) {
+                const dayOfWeek = current.day();
+                const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
+                const brDate = current.format('DD/MM/YYYY');
+                const skipReason = skipDates[brDate];
+                
+                let reason = "";
+                if (isWeekend) reason = "Fim de Semana";
+                else if (skipReason) reason = skipReason;
+                
+                const card = document.createElement("div");
+                card.style.cssText = "background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; align-items: center; text-align: center;";
+                
+                if (reason) {
+                    const dSpan = document.createElement("span");
+                    dSpan.style.cssText = "font-size: 0.75rem; color: #7f8c8d; font-weight: bold; margin-bottom: 4px;";
+                    dSpan.innerText = current.format('DD/MM');
+
+                    const sSpan = document.createElement("span");
+                    sSpan.style.cssText = "font-size: 0.8rem; color: #f44336; font-weight: bold;";
+                    sSpan.innerText = "SEM ENQUETE";
+
+                    const rSpan = document.createElement("span");
+                    rSpan.style.cssText = "font-size: 0.65rem; color: #7f8c8d; margin-top: 4px;";
+                    rSpan.innerText = reason;
+
+                    card.appendChild(dSpan);
+                    card.appendChild(sSpan);
+                    card.appendChild(rSpan);
+                    card.style.opacity = "0.6";
+                } else {
+                    const dSpan = document.createElement("span");
+                    dSpan.style.cssText = "font-size: 0.75rem; color: var(--accent); font-weight: bold; margin-bottom: 4px;";
+                    dSpan.innerText = current.format('DD/MM');
+
+                    const sSpan = document.createElement("span");
+                    sSpan.style.cssText = "font-size: 0.8rem; color: #4caf50; font-weight: bold;";
+                    sSpan.innerText = "AGENDADA";
+
+                    const tSpan = document.createElement("span");
+                    tSpan.style.cssText = "font-size: 0.9rem; color: var(--title-color); margin-top: 4px; font-weight: 800;";
+                    tSpan.innerText = pollTime;
+
+                    card.appendChild(dSpan);
+                    card.appendChild(sSpan);
+                    card.appendChild(tSpan);
+                    found++;
+                }
+                
+                list.appendChild(card);
+                current.add(1, 'days');
+                safetyLimit--;
+            }
+        };
+
+        // Item 7: Reset automático à meia-noite
+        let lastDay = moment().format('YYYY-MM-DD');
+        const checkMidnightReset = () => {
+            const currentDay = moment().format('YYYY-MM-DD');
+            if (currentDay !== lastDay) {
+                console.log("Meia-noite detectada! Resetando dados...");
+                lastDay = currentDay;
+                // Força o re-fetch e limpa notificações da mudança de dia
+                lastNotifiedCount = {};
+                fetchStats();
+            }
         };
 
         // Boot instantâneo
         initSelects();
+        initNotification();
         
         // Pequeno delay apenas para garantir que o DOM e Charts estejam prontos
         window.addEventListener('load', () => {
@@ -937,12 +1127,13 @@ const generateHtmlDashboard = (stats) => {
 
         // Auto-refresh via JS fetch para não piscar a tela
         const fetchStats = async () => {
+            checkMidnightReset();
             try {
                 const res = await fetch('/api/stats');
                 if (res.ok) {
                     const data = await res.json();
                     
-                    // Compara as chaves para verificar levemente as mudanças, caso contrário o dashboard recarrega
+                    // Se houver mudança nos dados ou a data de hoje não existir no cache local mas existir no novo, atualiza
                     if (JSON.stringify(rawDB) !== JSON.stringify(data.votes)) {
                         rawDB = data.votes || {};
                         capacities = data.capacities || {};
