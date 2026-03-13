@@ -441,7 +441,7 @@ const generateHtmlDashboard = (stats) => {
                 <div class="card-title"><h3>Ida/Volta</h3></div>
                 <div class="split-container">
                     <div class="split-half split-peak">
-                        <span class="label">MAXIMO</span>
+                        <span class="label">MÁXIMO</span>
                         <span class="value" id="hlLotacaoVal">-</span>
                         <span class="date" id="hlLotacaoDate">-</span>
                     </div>
@@ -456,7 +456,7 @@ const generateHtmlDashboard = (stats) => {
                 <div class="card-title"><h3>Ausência</h3></div>
                 <div class="split-container">
                     <div class="split-half split-peak">
-                        <span class="label">MAXIMO</span>
+                        <span class="label">MÁXIMO</span>
                         <span class="value" id="hlAusenciaVal">-</span>
                         <span class="date" id="hlAusenciaDate">-</span>
                     </div>
@@ -471,7 +471,7 @@ const generateHtmlDashboard = (stats) => {
                 <div class="card-title"><h3>Só Ida</h3></div>
                 <div class="split-container">
                     <div class="split-half split-peak">
-                        <span class="label">MAXIMO</span>
+                        <span class="label">MÁXIMO</span>
                         <span class="value" id="hlSoIdaVal">-</span>
                         <span class="date" id="hlSoIdaDate">-</span>
                     </div>
@@ -486,7 +486,7 @@ const generateHtmlDashboard = (stats) => {
                 <div class="card-title"><h3>Só Volta</h3></div>
                 <div class="split-container">
                     <div class="split-half split-peak">
-                        <span class="label">MAXIMO</span>
+                        <span class="label">MÁXIMO</span>
                         <span class="value" id="hlSoVoltaVal">-</span>
                         <span class="date" id="hlSoVoltaDate">-</span>
                     </div>
@@ -503,8 +503,8 @@ const generateHtmlDashboard = (stats) => {
         <div id="calendarSection" style="grid-column: 1 / -1; width: 100%;">
             <div class="card" style="width: 100%; align-items: stretch;">
                 <h2 style="margin-bottom: 15px;">📅 Próximas Enquetes</h2>
-                <div id="nextPollsList" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px;">
-                    <!-- Preenchido via JS -->
+                <div id="nextPollsList" style="display: flex; flex-direction: column; gap: 8px;">
+                    <!-- Preenchido via JS com layout de lista premium -->
                 </div>
             </div>
         </div>
@@ -1019,23 +1019,26 @@ const generateHtmlDashboard = (stats) => {
             }
         };
 
-        // Item 9: Calendário de Próximas Enquetes
+        // Item 9: Calendário de Próximas Enquetes (Lista Premium v2)
         const updateNextPollsCalendar = () => {
             const list = document.getElementById("nextPollsList");
+            if (!list) return;
             list.innerHTML = "";
             
+            const daysOfWeekBR = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
+            const now = moment();
             let current = moment();
             const timeParts = pollTime.split(':');
             current.set({ hour: parseInt(timeParts[0]), minute: parseInt(timeParts[1]), second: 0 });
             
-            if (current.isBefore(moment())) {
+            if (current.isBefore(now)) {
                 current.add(1, 'days');
             }
             
             let found = 0;
-            let safetyLimit = 30; // Evitar loop infinito
+            let safetyLimit = 40; 
             
-            while (found < 6 && safetyLimit > 0) {
+            while (found < 5 && safetyLimit > 0) {
                 const dayOfWeek = current.day();
                 const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
                 const brDate = current.format('DD/MM/YYYY');
@@ -1045,46 +1048,47 @@ const generateHtmlDashboard = (stats) => {
                 if (isWeekend) reason = "Fim de Semana";
                 else if (skipReason) reason = skipReason;
                 
-                const card = document.createElement("div");
-                card.style.cssText = "background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; align-items: center; text-align: center;";
+                const row = document.createElement("div");
+                row.style.cssText = 'display: flex; align-items: center; padding: 10px 16px; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 10px; transition: all 0.2s ease; gap: 15px;';
                 
+                row.onmouseover = () => { row.style.background = "rgba(255, 255, 255, 0.06)"; row.style.borderColor = "rgba(21, 101, 192, 0.3)"; };
+                row.onmouseout = () => { row.style.background = "rgba(255, 255, 255, 0.03)"; row.style.borderColor = "rgba(255, 255, 255, 0.05)"; };
+
                 if (reason) {
-                    const dSpan = document.createElement("span");
-                    dSpan.style.cssText = "font-size: 0.75rem; color: #7f8c8d; font-weight: bold; margin-bottom: 4px;";
-                    dSpan.innerText = current.format('DD/MM');
-
-                    const sSpan = document.createElement("span");
-                    sSpan.style.cssText = "font-size: 0.8rem; color: #f44336; font-weight: bold;";
-                    sSpan.innerText = "SEM ENQUETE";
-
-                    const rSpan = document.createElement("span");
-                    rSpan.style.cssText = "font-size: 0.65rem; color: #7f8c8d; margin-top: 4px;";
-                    rSpan.innerText = reason;
-
-                    card.appendChild(dSpan);
-                    card.appendChild(sSpan);
-                    card.appendChild(rSpan);
-                    card.style.opacity = "0.6";
+                    row.style.opacity = "0.5";
+                    row.innerHTML = ' \
+                        <div style="font-size: 1.2rem; min-width: 30px; text-align: center;">🚫</div> \
+                        <div style="display: flex; flex-direction: column; flex: 1;"> \
+                            <span style="font-size: 0.85rem; font-weight: bold; color: #7f8c8d;">' + current.format('DD/MM') + ' <small>(' + daysOfWeekBR[dayOfWeek] + ')</small></span> \
+                            <span style="font-size: 0.75rem; color: #f44336; font-weight: 500;">SEM ENQUETE</span> \
+                        </div> \
+                        <div style="font-size: 0.75rem; color: #555; font-style: italic;">' + reason + '</div> \
+                    ';
                 } else {
-                    const dSpan = document.createElement("span");
-                    dSpan.style.cssText = "font-size: 0.75rem; color: var(--accent); font-weight: bold; margin-bottom: 4px;";
-                    dSpan.innerText = current.format('DD/MM');
+                    const duration = moment.duration(current.diff(now));
+                    const d = Math.floor(duration.asDays());
+                    const h = duration.hours();
+                    const m = duration.minutes();
+                    
+                    let timeRemaining = "";
+                    if (d > 0) timeRemaining = "Em " + d + "d " + h + "h";
+                    else if (h > 0) timeRemaining = "Em " + h + "h " + m + "m";
+                    else timeRemaining = "Em " + m + "m";
 
-                    const sSpan = document.createElement("span");
-                    sSpan.style.cssText = "font-size: 0.8rem; color: #4caf50; font-weight: bold;";
-                    sSpan.innerText = "AGENDADA";
-
-                    const tSpan = document.createElement("span");
-                    tSpan.style.cssText = "font-size: 0.9rem; color: var(--title-color); margin-top: 4px; font-weight: 800;";
-                    tSpan.innerText = pollTime;
-
-                    card.appendChild(dSpan);
-                    card.appendChild(sSpan);
-                    card.appendChild(tSpan);
+                    row.innerHTML = ' \
+                        <div style="font-size: 1.2rem; min-width: 30px; text-align: center;">📅</div> \
+                        <div style="display: flex; flex-direction: column; flex: 1;"> \
+                            <span style="font-size: 0.85rem; font-weight: bold; color: var(--title-color);">' + current.format('DD/MM') + ' <small>(' + daysOfWeekBR[dayOfWeek] + ')</small></span> \
+                            <span style="font-size: 0.75rem; color: #4caf50; font-weight: 600;">AGENDADA - ' + pollTime + '</span> \
+                        </div> \
+                        <div style="text-align: right;"> \
+                            <span style="font-size: 0.75rem; background: rgba(33, 150, 243, 0.15); color: var(--accent); padding: 3px 8px; border-radius: 20px; font-weight: bold; white-space: nowrap;">' + timeRemaining + '</span> \
+                        </div> \
+                    ';
                     found++;
                 }
                 
-                list.appendChild(card);
+                list.appendChild(row);
                 current.add(1, 'days');
                 safetyLimit--;
             }
