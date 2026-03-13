@@ -86,4 +86,7 @@ async function manage() {
     console.log('\n✨ Script finalizado.');
 }
 
-manage();
+manage().then(() => process.exit(0)).catch((e) => {
+    console.error('❌ Erro inesperado:', e.message);
+    process.exit(1);
+});

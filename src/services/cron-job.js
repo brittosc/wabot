@@ -1,11 +1,9 @@
 const cron = require('node-cron');
 const moment = require('moment-timezone');
-const fs = require('fs');
+const { Poll } = require('whatsapp-web.js');
 const dashboard = require('./dashboard');
 const configService = require('./configService');
-
-const historyFile = './config/history.json';
-const configFile = './config/config.json';
+const supabase = require('../database/supabaseClient');
 
 const getDaysOfWeekDesc = (dayNumber) => {
     const days = [
@@ -20,24 +18,37 @@ const getDaysOfWeekDesc = (dayNumber) => {
     return days[dayNumber];
 };
 
-const readJson = (file) => {
-    try {
-        if (!fs.existsSync(file)) return {};
-        const data = fs.readFileSync(file, 'utf8');
-        return JSON.parse(data);
-    } catch (e) {
-        return {};
-    }
+/**
+ * Verifica no Supabase se as enquetes já foram enviadas na data informada.
+ * @param {string} dateStr - Data no formato YYYY-MM-DD
+ * @returns {Promise<boolean>}
+ */
+const hasSentToday = async (dateStr) => {
+    const { data, error } = await supabase
+        .from('poll_history')
+        .select('poll_date')
+        .eq('poll_date', dateStr)
+        .maybeSingle();
+
+    if (error) throw error;
+    return data !== null;
 };
 
-const saveJson = (file, data) => {
-    fs.writeFileSync(file, JSON.stringify(data, null, 2));
+/**
+ * Registra no Supabase que as enquetes foram enviadas na data informada.
+ * @param {string} dateStr - Data no formato YYYY-MM-DD
+ */
+const markAsSent = async (dateStr) => {
+    const { error } = await supabase
+        .from('poll_history')
+        .upsert({ poll_date: dateStr }, { onConflict: 'poll_date' });
+
+    if (error) throw error;
 };
 
 const sendPolls = async (sock) => {
     try {
         const config = configService.getConfig();
-        const history = readJson(historyFile);
 
         const now = moment().tz('America/Sao_Paulo');
         const todayStr = now.format('YYYY-MM-DD');
@@ -46,26 +57,29 @@ const sendPolls = async (sock) => {
 
         const ignoreWeekend = process.argv.includes('--fim');
         const forceNow = process.argv.includes('--now');
-        const skipDates = config.skipDates || [];
+        const skipDates = config.skipDates || {};
 
+        // Verifica datas ignoradas via config
         if (skipDates[todayBR] && !forceNow) {
             dashboard.addLog(`Data ignorada via config (${todayBR}): ${skipDates[todayBR]}. Nenhuma enquete programada.`);
             return;
         }
 
-        // 1-5 são segunda a sexta
+        // Ignora fins de semana (1-5 = segunda a sexta)
         if ((dayOfWeek === 0 || dayOfWeek === 6) && !ignoreWeekend && !forceNow) {
             dashboard.addLog('Fim de semana. Nenhuma enquete programada para envio.');
             return;
         }
 
-        if (history[todayStr] && !forceNow) {
+        // Verifica no Supabase se já foi enviado hoje
+        const alreadySent = await hasSentToday(todayStr);
+        if (alreadySent && !forceNow) {
             dashboard.addLog(`Enquete já enviada hoje (${todayStr}). Pulando...`);
             return;
         }
+
         dashboard.addLog('Iniciando o envio de enquetes...');
 
-        // Pegar todos os chats
         const chats = await sock.getChats();
         const allGroups = chats.filter(c => c.isGroup);
 
@@ -80,7 +94,6 @@ const sendPolls = async (sock) => {
                 const pollName = `Bom dia. Você irá hoje, ${ptDay}, ${dateStr}?`;
 
                 try {
-                    const { Poll } = require('whatsapp-web.js');
                     const poll = new Poll(pollName, [
                         "Irei, ida e volta.",
                         "Irei, mas não retornarei.",
@@ -102,8 +115,8 @@ const sendPolls = async (sock) => {
         }
 
         if (sentCount > 0) {
-            history[todayStr] = true;
-            saveJson(historyFile, history);
+            // Registra no Supabase que o envio foi realizado hoje
+            await markAsSent(todayStr);
             dashboard.addLog(`Envios do dia ${todayStr} registrados com sucesso!`);
         } else {
             dashboard.addLog('Nenhuma enquete foi enviada (nenhum grupo válido encontrado).');
@@ -116,18 +129,15 @@ const sendPolls = async (sock) => {
 
 const scheduleJob = (sock) => {
     const config = configService.getConfig();
-    const time = config.pollTime || "06:00"; // Default "06:00"
+    const time = config.pollTime || '06:00';
     const [hour, minute] = time.split(':');
 
-    // Run every minute and check if it matches the scheduled time
+    // Executa a cada minuto e verifica se é o horário agendado
     cron.schedule('* * * * *', () => {
         const now = moment().tz('America/Sao_Paulo');
 
-        // Calculate and update time until next poll
-        // Calculate next poll info
         updateNextPollDisplay(hour, minute);
 
-        // Check if it's the exact minute to send
         if (now.hours() === parseInt(hour) && now.minutes() === parseInt(minute)) {
             sendPolls(sock);
         }
@@ -138,23 +148,23 @@ const scheduleJob = (sock) => {
 
 const updateNextPollDisplay = (targetHour, targetMinute) => {
     const config = configService.getConfig();
-    const skipDates = config.skipDates || [];
+    const skipDates = config.skipDates || {};
 
     const now = moment().tz('America/Sao_Paulo');
     let nextDate = moment().tz('America/Sao_Paulo').hours(targetHour).minutes(targetMinute).seconds(0);
 
-    // Se o horário já passou hoje, agenda para o próximo dia útil
+    // Se o horário já passou hoje, avança para o próximo dia
     if (now.isAfter(nextDate) || now.isSame(nextDate)) {
         nextDate.add(1, 'days');
     }
 
     const ignoreWeekend = process.argv.includes('--fim');
 
-    // Busca o próximo dia válido (ignorando fins de semana se necessário e as datas puladas)
+    // Busca o próximo dia válido (ignorando fins de semana e datas puladas)
     let isDayValid = false;
     while (!isDayValid) {
-        let isWeekend = !ignoreWeekend && (nextDate.day() === 0 || nextDate.day() === 6);
-        let isSkipDate = !!skipDates[nextDate.format('DD/MM/YYYY')];
+        const isWeekend = !ignoreWeekend && (nextDate.day() === 0 || nextDate.day() === 6);
+        const isSkipDate = !!skipDates[nextDate.format('DD/MM/YYYY')];
 
         if (isWeekend || isSkipDate) {
             nextDate.add(1, 'days');

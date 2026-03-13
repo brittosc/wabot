@@ -193,7 +193,7 @@ const startServer = () => {
 
         // Rota API de Status do Minecraft (GameSpy4 Query)
         if (req.url === '/api/mcstatus') {
-    const config = configService.getConfig();
+            const config = configService.getConfig();
 
             util.queryFull('0.0.0.0', 25565, { timeout: 5000 })
                 .then(async (result) => {
@@ -469,7 +469,7 @@ const startServer = () => {
             return;
         }
 
-        // Rota Service Worker
+        // Rota Service Worker — Cache-Control obrigatório para garantir atualizações
         if (req.url === '/sw.js') {
             fs.readFile('./public/sw.js', (err, data) => {
                 if (err) {
@@ -477,7 +477,10 @@ const startServer = () => {
                     res.end();
                     return;
                 }
-                res.writeHead(200, { 'Content-Type': 'application/javascript' });
+                res.writeHead(200, {
+                    'Content-Type': 'application/javascript',
+                    'Cache-Control': 'no-cache, no-store, must-revalidate'
+                });
                 res.end(data);
             });
             return;

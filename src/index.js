@@ -1,4 +1,6 @@
+require('dotenv').config(); // Carrega variáveis de ambiente do .env
 process.removeAllListeners('warning');
+
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 const dashboard = require('./services/dashboard');

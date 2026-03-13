@@ -1,17 +1,22 @@
 {
   "name": "wabot",
   "version": "1.0.0",
-  "description": "",
+  "description": "Bot de WhatsApp para gerenciamento de enquetes de ônibus universitário com dashboard de estatísticas.",
   "main": "src/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node src/index.js"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/brittosc/wabot.git"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "whatsapp",
+    "bot",
+    "enquete",
+    "ônibus"
+  ],
+  "author": "brittosc",
   "license": "ISC",
   "type": "commonjs",
   "bugs": {
@@ -22,6 +27,7 @@
     "@supabase/supabase-js": "^2.99.0",
     "chalk": "^4.1.2",
     "cli-ui": "^0.1.0",
+    "dotenv": "^17.3.1",
     "log-update": "^7.2.0",
     "minecraft-server-util": "^5.4.4",
     "moment-timezone": "^0.6.0",

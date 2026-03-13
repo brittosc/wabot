@@ -78,11 +78,6 @@ const updateTerminalOccupancy = async (stats) => {
     }
 };
 
-const saveStats = async (data) => {
-    // Esta função era usada para salvar o JSON inteiro. 
-    // Agora o salvamento é feito de forma atômica no registerVote via Supabase.
-    // Mantida apenas para evitar erros de referência se esquecida em algum lugar, mas sem efeito.
-};
 
 const registerVote = async (vote) => {
     const now = moment().tz('America/Sao_Paulo');
@@ -451,7 +446,7 @@ const generateHtmlDashboard = (stats) => {
                         <span class="date" id="hlLotacaoDate">-</span>
                     </div>
                     <div class="split-half split-valley">
-                        <span class="label">MININO</span>
+                        <span class="label">MÍNIMO</span>
                         <span class="value" id="hlLotacaoMinVal">-</span>
                         <span class="date" id="hlLotacaoMinDate">-</span>
                     </div>
@@ -466,7 +461,7 @@ const generateHtmlDashboard = (stats) => {
                         <span class="date" id="hlAusenciaDate">-</span>
                     </div>
                     <div class="split-half split-valley">
-                        <span class="label">MININO</span>
+                        <span class="label">MÍNIMO</span>
                         <span class="value" id="hlAusenciaMinVal">-</span>
                         <span class="date" id="hlAusenciaMinDate">-</span>
                     </div>
@@ -481,7 +476,7 @@ const generateHtmlDashboard = (stats) => {
                         <span class="date" id="hlSoIdaDate">-</span>
                     </div>
                     <div class="split-half split-valley">
-                        <span class="label">MININO</span>
+                        <span class="label">MÍNIMO</span>
                         <span class="value" id="hlSoIdaMinVal">-</span>
                         <span class="date" id="hlSoIdaMinDate">-</span>
                     </div>
@@ -496,7 +491,7 @@ const generateHtmlDashboard = (stats) => {
                         <span class="date" id="hlSoVoltaDate">-</span>
                     </div>
                     <div class="split-half split-valley">
-                        <span class="label">MININO</span>
+                        <span class="label">MÍNIMO</span>
                         <span class="value" id="hlSoVoltaMinVal">-</span>
                         <span class="date" id="hlSoVoltaMinDate">-</span>
                     </div>

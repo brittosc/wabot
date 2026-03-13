@@ -1,21 +1,20 @@
 {
-  "name": "Dashboard",
-  "short_name": "Dashboard",
+  "name": "WaBot Dashboard",
+  "short_name": "WaBot",
   "description": "Dashboard de Estatísticas das Enquetes de Ônibus",
+  "lang": "pt-BR",
   "start_url": "/estatisticas",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "any",
   "background_color": "#121212",
   "theme_color": "#2196f3",
   "icons": [
     {
-      "src": "https://dayz.com/favicon.ico",
-      "sizes": "64x64",
-      "type": "image/x-icon"
-    },
-    {
-      "src": "https://cdn-icons-png.flaticon.com/512/2850/2850383.png",
+      "src": "https://cdn-icons-png.flaticon.com/512/3448/3448339.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }
