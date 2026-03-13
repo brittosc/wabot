@@ -236,7 +236,6 @@ const generateHtmlDashboard = (stats) => {
             gap: 15px;
             width: 100%;
             max-width: 1000px;
-            margin-bottom: 20px;
         }
         @media (max-width: 600px) {
             .highlights {
@@ -806,11 +805,11 @@ const generateHtmlDashboard = (stats) => {
             
             // Item 8: Cores diferentes para cada ônibus
             const busColors = [
-                'linear-gradient(90deg, #2196f3, #4caf50)',
-                'linear-gradient(90deg, #9c27b0, #00bcd4)',
-                'linear-gradient(90deg, #ff9800, #ffc107)',
-                'linear-gradient(90deg, #f44336, #e91e63)',
-                'linear-gradient(90deg, #3f51b5, #2196f3)'
+                'linear-gradient(90deg, #2196f3, #4caf50)', // Azul para Verde
+                'linear-gradient(90deg, #9c27b0, #00bcd4)', // Roxo para Cyan
+                'linear-gradient(90deg, #fb8c00, #ffeb3b)', // Laranja para Amarelo (mais vibrante)
+                'linear-gradient(90deg, #f44336, #e91e63)', // Vermelho para Rosa
+                'linear-gradient(90deg, #3f51b5, #2196f3)'  // Indigo para Azul
             ];
             // Usa o index do nome na lista de capacidades para decidir a cor
             const colorIdx = Object.keys(capacities).indexOf(name) % busColors.length;
@@ -832,7 +831,7 @@ const generateHtmlDashboard = (stats) => {
             // Item 4: Verificação de Notificação
             if (notificationEnabled && (count === cap || (count > 0 && count % 5 === 0))) {
                 if (lastNotifiedCount[name] !== count) {
-                    new Notification("WABOT - Alerta de Lotação", {
+                    new Notification("Alerta de Lotação", {
                         body: "O ônibus " + displayName + " atingiu " + count + "/" + cap + " passageiros!",
                         icon: "https://cdn-icons-png.flaticon.com/512/2850/2850383.png"
                     });
@@ -1017,7 +1016,7 @@ const generateHtmlDashboard = (stats) => {
                 Notification.requestPermission().then(permission => {
                     if (permission === "granted") {
                         notificationEnabled = true;
-                        new Notification("WABOT", { body: "Notificações ativadas com sucesso!" });
+                        new Notification("Dashboard", { body: "Notificações ativadas com sucesso!" });
                     }
                 });
             } else if (Notification.permission === "granted") {
@@ -1041,7 +1040,7 @@ const generateHtmlDashboard = (stats) => {
             let found = 0;
             let safetyLimit = 30; // Evitar loop infinito
             
-            while (found < 5 && safetyLimit > 0) {
+            while (found < 6 && safetyLimit > 0) {
                 const dayOfWeek = current.day();
                 const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
                 const brDate = current.format('DD/MM/YYYY');
@@ -1103,8 +1102,9 @@ const generateHtmlDashboard = (stats) => {
             if (currentDay !== lastDay) {
                 console.log("Meia-noite detectada! Resetando dados...");
                 lastDay = currentDay;
-                // Força o re-fetch e limpa notificações da mudança de dia
+                // Limpa notificações da mudança de dia e força update visual
                 lastNotifiedCount = {};
+                updateDash(); 
                 fetchStats();
             }
         };

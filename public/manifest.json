@@ -1,6 +1,6 @@
 {
-  "name": "WABOT Dashboard",
-  "short_name": "WABOT",
+  "name": "Dashboard",
+  "short_name": "Dashboard",
   "description": "Dashboard de Estatísticas das Enquetes de Ônibus",
   "start_url": "/estatisticas",
   "display": "standalone",
