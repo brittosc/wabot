@@ -1,141 +1,150 @@
-const fs = require('fs');
-const configService = require('./configService');
-const moment = require('moment-timezone');
-const dashboard = require('./dashboard');
-const supabase = require('../database/supabaseClient');
+const fs = require("fs");
+const configService = require("./configService");
+const moment = require("moment-timezone");
+const dashboard = require("./dashboard");
+const supabase = require("../database/supabaseClient");
 
-const htmlFile = './public/estatisticas.html';
+const htmlFile = "./public/estatisticas.html";
 
 const readStats = async () => {
-    try {
-        // Buscamos os últimos 10.000 votos (suficiente para vários meses)
-        // Mais para frente, podemos otimizar filtrando apenas o período necessário
-        const { data: rows, error } = await supabase
-            .from('votes')
-            .select('*')
-            .order('vote_date', { ascending: false })
-            .limit(10000);
+  try {
+    // Buscamos os últimos 10.000 votos (suficiente para vários meses)
+    // Mais para frente, podemos otimizar filtrando apenas o período necessário
+    const { data: rows, error } = await supabase
+      .from("votes")
+      .select("*")
+      .order("vote_date", { ascending: false })
+      .limit(10000);
 
-        if (error) throw error;
+    if (error) throw error;
 
-        const stats = {};
-        rows.forEach(row => {
-            const date = row.vote_date; // 'YYYY-MM-DD'
-            if (!stats[date]) {
-                stats[date] = { Version2: true, grupos: {} };
-            }
-            if (!stats[date].grupos[row.group_name]) {
-                stats[date].grupos[row.group_name] = {
-                    pollName: row.poll_name || 'Enquete do dia',
-                    votes: {}
-                };
-            }
-            stats[date].grupos[row.group_name].votes[row.voter_id] = row.option;
-        });
-        return stats;
-    } catch (e) {
-        console.error("Erro ao ler stats do Supabase:", e.message);
-        return {};
-    }
+    const stats = {};
+    rows.forEach((row) => {
+      const date = row.vote_date; // 'YYYY-MM-DD'
+      if (!stats[date]) {
+        stats[date] = { Version2: true, grupos: {} };
+      }
+      if (!stats[date].grupos[row.group_name]) {
+        stats[date].grupos[row.group_name] = {
+          pollName: row.poll_name || "Enquete do dia",
+          votes: {},
+        };
+      }
+      stats[date].grupos[row.group_name].votes[row.voter_id] = row.option;
+    });
+    return stats;
+  } catch (e) {
+    console.error("Erro ao ler stats do Supabase:", e.message);
+    return {};
+  }
 };
 
 const updateTerminalOccupancy = async (stats) => {
-    try {
-        if (!stats) stats = await readStats();
-        const todayStr = moment().tz('America/Sao_Paulo').format('YYYY-MM-DD');
-        const dayEntry = stats[todayStr];
-        if (!dayEntry || !dayEntry.grupos) {
-            dashboard.setOccupancy([]);
-            return;
-        }
-
-        const config = configService.getConfig();
-        const capacities = config.groupCapacities || {};
-        const aliases = config.groupAliases || {};
-
-        const occupancySummary = [];
-        Object.keys(capacities).forEach(gName => {
-            let count = 0;
-            const cap = capacities[gName];
-            const groupData = dayEntry.grupos[gName];
-            if (groupData && groupData.votes) {
-                Object.values(groupData.votes).forEach(opt => {
-                    if (opt === "Irei, ida e volta." || opt === "Irei, mas não retornarei." || opt === "Não irei, apenas retornarei.") {
-                        count++;
-                    }
-                });
-            }
-
-            const displayName = aliases[gName] || gName;
-            let status = `${count}/${cap}`;
-
-            occupancySummary.push({ name: displayName, count, cap, status });
-        });
-
-        dashboard.setOccupancy(occupancySummary);
-    } catch (e) {
-        // Ignora erros de atualização do terminal
+  try {
+    if (!stats) stats = await readStats();
+    const todayStr = moment().tz("America/Sao_Paulo").format("YYYY-MM-DD");
+    const dayEntry = stats[todayStr];
+    if (!dayEntry || !dayEntry.grupos) {
+      dashboard.setOccupancy([]);
+      return;
     }
+
+    const config = configService.getConfig();
+    const capacities = config.groupCapacities || {};
+    const aliases = config.groupAliases || {};
+
+    const occupancySummary = [];
+    Object.keys(capacities).forEach((gName) => {
+      let count = 0;
+      const cap = capacities[gName];
+      const groupData = dayEntry.grupos[gName];
+      if (groupData && groupData.votes) {
+        Object.values(groupData.votes).forEach((opt) => {
+          if (
+            opt === "Irei, ida e volta." ||
+            opt === "Irei, mas não retornarei." ||
+            opt === "Não irei, apenas retornarei."
+          ) {
+            count++;
+          }
+        });
+      }
+
+      const displayName = aliases[gName] || gName;
+      let status = `${count}/${cap}`;
+
+      occupancySummary.push({ name: displayName, count, cap, status });
+    });
+
+    dashboard.setOccupancy(occupancySummary);
+  } catch (e) {
+    // Ignora erros de atualização do terminal
+  }
 };
 
-
 const registerVote = async (vote) => {
-    const now = moment().tz('America/Sao_Paulo');
-    const todayStr = now.format('YYYY-MM-DD');
+  const now = moment().tz("America/Sao_Paulo");
+  const todayStr = now.format("YYYY-MM-DD");
 
-    let groupName = "Desconhecido";
-    let pollName = "Enquete do dia";
-    try {
-        if (vote.parentMessage) {
-            const chat = await vote.parentMessage.getChat();
-            if (chat && chat.name) groupName = chat.name;
-            pollName = vote.parentMessage.body;
-        }
-    } catch (e) {
-        // Ignora caso falhe ao pegar o nome do grupo
+  let groupName = "Desconhecido";
+  let pollName = "Enquete do dia";
+  try {
+    if (vote.parentMessage) {
+      const chat = await vote.parentMessage.getChat();
+      if (chat && chat.name) groupName = chat.name;
+      pollName = vote.parentMessage.body;
     }
+  } catch (e) {
+    // Ignora caso falhe ao pegar o nome do grupo
+  }
 
-    const voterId = vote.voter;
+  const voterId = vote.voter;
 
-    if (vote.selectedOptions && vote.selectedOptions.length > 0) {
-        const selectedOption = vote.selectedOptions[0].name;
-        // Upsert no Supabase
-        await supabase.from('votes').upsert({
-            voter_id: voterId,
-            group_name: groupName,
-            vote_date: todayStr,
-            option: selectedOption,
-            poll_name: pollName
-        }, { onConflict: 'voter_id,group_name,vote_date' });
-    } else {
-        // Deletar voto (desmarcado)
-        await supabase.from('votes')
-            .delete()
-            .match({ voter_id: voterId, group_name: groupName, vote_date: todayStr });
-    }
+  if (vote.selectedOptions && vote.selectedOptions.length > 0) {
+    const selectedOption = vote.selectedOptions[0].name;
+    // Upsert no Supabase
+    await supabase.from("votes").upsert(
+      {
+        voter_id: voterId,
+        group_name: groupName,
+        vote_date: todayStr,
+        option: selectedOption,
+        poll_name: pollName,
+      },
+      { onConflict: "voter_id,group_name,vote_date" },
+    );
+  } else {
+    // Deletar voto (desmarcado)
+    await supabase
+      .from("votes")
+      .delete()
+      .match({ voter_id: voterId, group_name: groupName, vote_date: todayStr });
+  }
 
-    // Recarregar stats para atualizar terminal e dashboard
-    const stats = await readStats();
-    await updateTerminalOccupancy(stats);
-    generateHtmlDashboard(stats);
+  // Recarregar stats para atualizar terminal e dashboard
+  const stats = await readStats();
+  await updateTerminalOccupancy(stats);
+  generateHtmlDashboard(stats);
 };
 
 const generateHtmlDashboard = (stats) => {
-    // Inject the raw JS object directly into HTML for dynamic reading
-    const statsJSONStr = JSON.stringify(stats);
-    const lastUpdateFormated = moment().tz('America/Sao_Paulo').format('DD/MM/YYYY HH:mm:ss');
+  // Inject the raw JS object directly into HTML for dynamic reading
+  const statsJSONStr = JSON.stringify(stats);
+  const lastUpdateFormated = moment()
+    .tz("America/Sao_Paulo")
+    .format("DD/MM/YYYY HH:mm:ss");
 
-    let capacities = {};
-    let aliases = {};
-    const config = configService.getConfig();
-    capacities = config.groupCapacities || {};
-    aliases = config.groupAliases || {};
-    const capacitiesJSONStr = JSON.stringify(capacities);
-    const aliasesJSONStr = JSON.stringify(aliases);
-    const skipDatesJSONStr = JSON.stringify(config.skipDates || {});
-    const pollTimeStr = config.pollTime || "06:00";
+  let capacities = {};
+  let aliases = {};
+  const config = configService.getConfig();
+  capacities = config.groupCapacities || {};
+  aliases = config.groupAliases || {};
+  const capacitiesJSONStr = JSON.stringify(capacities);
+  const aliasesJSONStr = JSON.stringify(aliases);
+  const skipDatesJSONStr = JSON.stringify(config.skipDates || {});
+  const pollTimeStr = config.pollTime || "06:00";
 
-    const htmlContent = `
+  const htmlContent = `
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -1155,7 +1164,12 @@ const generateHtmlDashboard = (stats) => {
 </html>
     `;
 
-    fs.writeFileSync(htmlFile, htmlContent, 'utf8');
+  fs.writeFileSync(htmlFile, htmlContent, "utf8");
 };
 
-module.exports = { registerVote, readStats, generateHtmlDashboard, updateTerminalOccupancy };
+module.exports = {
+  registerVote,
+  readStats,
+  generateHtmlDashboard,
+  updateTerminalOccupancy,
+};

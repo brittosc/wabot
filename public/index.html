@@ -1,660 +1,895 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Dashboard</title>
-    <link rel="icon" href="https://dayz.com/favicon.ico">
+    <link rel="icon" href="https://dayz.com/favicon.ico" />
     <style>
-        :root {
-            --bg-color: #0b0d12;
-            --card-bg: rgba(26, 29, 36, 0.7);
-            --card-hover: rgba(35, 39, 48, 0.9);
-            --text-color: #e2e8f0;
-            --accent: #3b82f6;
-            --accent-glow: rgba(59, 130, 246, 0.4);
-            --border-color: rgba(255, 255, 255, 0.08);
-            --success-color: #10b981;
-            --warning-color: #f59e0b;
-            --danger-color: #ef4444;
+      :root {
+        --bg-color: #0b0d12;
+        --card-bg: rgba(26, 29, 36, 0.7);
+        --card-hover: rgba(35, 39, 48, 0.9);
+        --text-color: #e2e8f0;
+        --accent: #3b82f6;
+        --accent-glow: rgba(59, 130, 246, 0.4);
+        --border-color: rgba(255, 255, 255, 0.08);
+        --success-color: #10b981;
+        --warning-color: #f59e0b;
+        --danger-color: #ef4444;
+      }
+
+      body {
+        font-family:
+          "Segoe UI",
+          system-ui,
+          -apple-system,
+          sans-serif;
+        background-color: var(--bg-color);
+        background-image:
+          radial-gradient(
+            at 0% 0%,
+            rgba(59, 130, 246, 0.15) 0px,
+            transparent 50%
+          ),
+          radial-gradient(
+            at 100% 0%,
+            rgba(16, 185, 129, 0.05) 0px,
+            transparent 50%
+          );
+        background-attachment: fixed;
+        color: var(--text-color);
+        margin: 0;
+        padding: 15px 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-height: 100vh;
+        box-sizing: border-box;
+      }
+
+      @keyframes slideUp {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
         }
 
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @keyframes pulseIndicator {
+        0% {
+          box-shadow: 0 0 0 0 var(--success-color);
+        }
+
+        70% {
+          box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
+        }
+
+        100% {
+          box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+        }
+      }
+
+      .header {
+        width: 100%;
+        max-width: 1200px;
+        margin-bottom: 40px;
+        text-align: left;
+        border-bottom: 1px solid var(--border-color);
+        padding-bottom: 20px;
+        animation: slideUp 0.6s ease-out;
+      }
+
+      .header h1 {
+        margin: 0;
+        font-size: 1.4rem;
+        color: #fff;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        font-weight: 700;
+        letter-spacing: -0.5px;
+      }
+
+      .dashboard-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 20px;
+        width: 100%;
+        max-width: 1100px;
+        animation: slideUp 0.8s ease-out;
+      }
+
+      .card {
+        background: var(--card-bg);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border-radius: 12px;
+        padding: 18px;
+        border: 1px solid var(--border-color);
+        box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+        display: flex;
+        flex-direction: column;
+        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        position: relative;
+        overflow: hidden;
+        height: 100%;
+        box-sizing: border-box;
+      }
+
+      .card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          var(--border-color),
+          transparent
+        );
+        opacity: 0.5;
+      }
+
+      .card.interactive:hover {
+        transform: translateY(-8px);
+        background: var(--card-hover);
+        border-color: rgba(59, 130, 246, 0.3);
+        box-shadow:
+          0 20px 40px -10px rgba(0, 0, 0, 0.7),
+          0 0 20px var(--accent-glow);
+        cursor: pointer;
+      }
+
+      .card.interactive:hover::before {
+        background: linear-gradient(
+          90deg,
+          transparent,
+          var(--accent),
+          transparent
+        );
+        opacity: 1;
+      }
+
+      .card h2 {
+        margin-top: 0;
+        font-size: 0.95rem;
+        color: #fff;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        padding-bottom: 12px;
+        margin-bottom: 18px;
+        font-weight: 600;
+      }
+
+      .metric {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+      }
+
+      .metric-title {
+        color: #94a3b8;
+        font-size: 0.8rem;
+        font-weight: 500;
+      }
+
+      .metric-value {
+        font-weight: 700;
+        font-size: 1rem;
+        color: #f8fafc;
+      }
+
+      .progress-bar {
+        width: 100%;
+        height: 10px;
+        background-color: rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        overflow: hidden;
+        margin-bottom: 10px;
+        position: relative;
+        box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+      }
+
+      .progress-fill {
+        height: 100%;
+        background-color: var(--success-color);
+        border-radius: 8px;
+        transition:
+          width 0.8s cubic-bezier(0.22, 1, 0.36, 1),
+          background-color 0.5s ease;
+        position: relative;
+      }
+
+      .ip-container {
+        display: flex;
+        gap: 10px;
+        align-items: stretch;
+        margin-top: 15px;
+      }
+
+      .ip-box {
+        flex-grow: 1;
+        background: rgba(0, 0, 0, 0.4);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 15px;
+        border-radius: 10px;
+        text-align: center;
+        font-family: "JetBrains Mono", "Courier New", Courier, monospace;
+        font-size: 1.4rem;
+        color: var(--accent);
+        letter-spacing: 1.5px;
+        text-shadow: 0 0 10px var(--accent-glow);
+      }
+
+      .copy-btn {
+        background: rgba(59, 130, 246, 0.1);
+        border: 1px solid rgba(59, 130, 246, 0.3);
+        color: var(--accent);
+        border-radius: 10px;
+        padding: 0 20px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .copy-btn:hover {
+        background: var(--accent);
+        color: white;
+        box-shadow: 0 0 10px var(--accent-glow);
+      }
+
+      .network-list {
+        margin-top: 15px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .network-badge {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-left: 3px solid var(--accent);
+        padding: 10px 15px;
+        border-radius: 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      .net-name {
+        font-size: 0.75rem;
+        color: #94a3b8;
+        text-transform: uppercase;
+        font-weight: bold;
+      }
+
+      .net-ip {
+        font-family: monospace;
+        font-size: 0.85rem;
+        color: #f8fafc;
+      }
+
+      .app-link {
+        text-decoration: none;
+        color: inherit;
+        display: block;
+        height: 100%;
+      }
+
+      .feature-icon {
+        font-size: 3.5rem;
+        text-align: center;
+        margin: 25px 0;
+        filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.3));
+        transition: transform 0.3s ease;
+      }
+
+      .card.interactive:hover .feature-icon {
+        transform: scale(1.1);
+      }
+
+      .card.placeholder {
+        opacity: 0.8;
+        background-image: repeating-linear-gradient(
+          45deg,
+          rgba(255, 255, 255, 0.02),
+          rgba(255, 255, 255, 0.02) 10px,
+          transparent 10px,
+          transparent 20px
+        );
+      }
+
+      .card.placeholder:hover {
+        transform: none;
+        box-shadow: none;
+        border-color: var(--border-color);
+      }
+
+      .status-dot {
+        width: 12px;
+        height: 12px;
+        background-color: var(--success-color);
+        border-radius: 50%;
+        display: inline-block;
+        box-shadow: 0 0 10px var(--success-color);
+        animation: pulseIndicator 2s infinite;
+      }
+
+      .updated-timestamp {
+        font-size: 0.75rem;
+        color: #64748b;
+        text-align: right;
+        margin-top: auto;
+        border-top: 1px solid rgba(255, 255, 255, 0.05);
+        padding-top: 10px;
+      }
+
+      /* Mobile specific spacing */
+      @media (max-width: 992px) {
+        .dashboard-grid {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+
+      @media (max-width: 768px) {
         body {
-            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-            background-color: var(--bg-color);
-            background-image:
-                radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.15) 0px, transparent 50%),
-                radial-gradient(at 100% 0%, rgba(16, 185, 129, 0.05) 0px, transparent 50%);
-            background-attachment: fixed;
-            color: var(--text-color);
-            margin: 0;
-            padding: 15px 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            min-height: 100vh;
-            box-sizing: border-box;
-        }
-
-        @keyframes slideUp {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        @keyframes pulseIndicator {
-            0% {
-                box-shadow: 0 0 0 0 var(--success-color);
-            }
-
-            70% {
-                box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
-            }
-
-            100% {
-                box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
-            }
-        }
-
-        .header {
-            width: 100%;
-            max-width: 1200px;
-            margin-bottom: 40px;
-            text-align: left;
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 20px;
-            animation: slideUp 0.6s ease-out;
-        }
-
-        .header h1 {
-            margin: 0;
-            font-size: 1.4rem;
-            color: #fff;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            font-weight: 700;
-            letter-spacing: -0.5px;
+          padding: 15px 10px;
         }
 
         .dashboard-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 20px;
-            width: 100%;
-            max-width: 1100px;
-            animation: slideUp 0.8s ease-out;
+          grid-template-columns: 1fr;
+        }
+
+        .header h1 {
+          font-size: 1.8rem;
         }
 
         .card {
-            background: var(--card-bg);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border-radius: 12px;
-            padding: 18px;
-            border: 1px solid var(--border-color);
-            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
-            display: flex;
-            flex-direction: column;
-            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-            position: relative;
-            overflow: hidden;
-            height: 100%;
-            box-sizing: border-box;
-        }
-
-        .card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: linear-gradient(90deg, transparent, var(--border-color), transparent);
-            opacity: 0.5;
-        }
-
-        .card.interactive:hover {
-            transform: translateY(-8px);
-            background: var(--card-hover);
-            border-color: rgba(59, 130, 246, 0.3);
-            box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.7), 0 0 20px var(--accent-glow);
-            cursor: pointer;
-        }
-
-        .card.interactive:hover::before {
-            background: linear-gradient(90deg, transparent, var(--accent), transparent);
-            opacity: 1;
-        }
-
-        .card h2 {
-            margin-top: 0;
-            font-size: 0.95rem;
-            color: #fff;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-            padding-bottom: 12px;
-            margin-bottom: 18px;
-            font-weight: 600;
-        }
-
-        .metric {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 12px;
-        }
-
-        .metric-title {
-            color: #94a3b8;
-            font-size: 0.8rem;
-            font-weight: 500;
-        }
-
-        .metric-value {
-            font-weight: 700;
-            font-size: 1rem;
-            color: #f8fafc;
-        }
-
-        .progress-bar {
-            width: 100%;
-            height: 10px;
-            background-color: rgba(255, 255, 255, 0.1);
-            border-radius: 8px;
-            overflow: hidden;
-            margin-bottom: 10px;
-            position: relative;
-            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
-        }
-
-        .progress-fill {
-            height: 100%;
-            background-color: var(--success-color);
-            border-radius: 8px;
-            transition: width 0.8s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.5s ease;
-            position: relative;
-        }
-
-        .ip-container {
-            display: flex;
-            gap: 10px;
-            align-items: stretch;
-            margin-top: 15px;
+          padding: 20px;
         }
 
         .ip-box {
-            flex-grow: 1;
-            background: rgba(0, 0, 0, 0.4);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            padding: 15px;
-            border-radius: 10px;
-            text-align: center;
-            font-family: 'JetBrains Mono', 'Courier New', Courier, monospace;
-            font-size: 1.4rem;
-            color: var(--accent);
-            letter-spacing: 1.5px;
-            text-shadow: 0 0 10px var(--accent-glow);
+          font-size: 1.2rem;
         }
-
-        .copy-btn {
-            background: rgba(59, 130, 246, 0.1);
-            border: 1px solid rgba(59, 130, 246, 0.3);
-            color: var(--accent);
-            border-radius: 10px;
-            padding: 0 20px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .copy-btn:hover {
-            background: var(--accent);
-            color: white;
-            box-shadow: 0 0 10px var(--accent-glow);
-        }
-
-        .network-list {
-            margin-top: 15px;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .network-badge {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-left: 3px solid var(--accent);
-            padding: 10px 15px;
-            border-radius: 8px;
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-
-        .net-name {
-            font-size: 0.75rem;
-            color: #94a3b8;
-            text-transform: uppercase;
-            font-weight: bold;
-        }
-
-        .net-ip {
-            font-family: monospace;
-            font-size: 0.85rem;
-            color: #f8fafc;
-        }
-
-        .app-link {
-            text-decoration: none;
-            color: inherit;
-            display: block;
-            height: 100%;
-        }
-
-        .feature-icon {
-            font-size: 3.5rem;
-            text-align: center;
-            margin: 25px 0;
-            filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.3));
-            transition: transform 0.3s ease;
-        }
-
-        .card.interactive:hover .feature-icon {
-            transform: scale(1.1);
-        }
-
-        .card.placeholder {
-            opacity: 0.8;
-            background-image: repeating-linear-gradient(45deg,
-                    rgba(255, 255, 255, 0.02),
-                    rgba(255, 255, 255, 0.02) 10px,
-                    transparent 10px,
-                    transparent 20px);
-        }
-
-        .card.placeholder:hover {
-            transform: none;
-            box-shadow: none;
-            border-color: var(--border-color);
-        }
-
-        .status-dot {
-            width: 12px;
-            height: 12px;
-            background-color: var(--success-color);
-            border-radius: 50%;
-            display: inline-block;
-            box-shadow: 0 0 10px var(--success-color);
-            animation: pulseIndicator 2s infinite;
-        }
-
-        .updated-timestamp {
-            font-size: 0.75rem;
-            color: #64748b;
-            text-align: right;
-            margin-top: auto;
-            border-top: 1px solid rgba(255, 255, 255, 0.05);
-            padding-top: 10px;
-        }
-
-        /* Mobile specific spacing */
-        @media (max-width: 992px) {
-            .dashboard-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
-        }
-
-        @media (max-width: 768px) {
-            body {
-                padding: 15px 10px;
-            }
-
-            .dashboard-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .header h1 {
-                font-size: 1.8rem;
-            }
-
-            .card {
-                padding: 20px;
-            }
-
-            .ip-box {
-                font-size: 1.2rem;
-            }
-        }
+      }
     </style>
-</head>
+  </head>
 
-<body>
-
-    <div class="header" style="max-width: 1400px;">
-        <h1><span class="status-dot" id="serverStatus"></span> Dashboard <span
-                style="font-size: 0.8rem; color: #64748b; font-weight: 400; margin-left: auto; display: inline-block;">Painel
-                Unificado</span></h1>
+  <body>
+    <div class="header" style="max-width: 1400px">
+      <h1>
+        <span class="status-dot" id="serverStatus"></span> Dashboard
+        <span
+          style="
+            font-size: 0.8rem;
+            color: #64748b;
+            font-weight: 400;
+            margin-left: auto;
+            display: inline-block;
+          "
+          >Painel Unificado</span
+        >
+      </h1>
     </div>
 
     <div class="dashboard-grid">
+      <!-- Card 1: Sistema, Desempenho e Rede -->
+      <div class="card">
+        <h2>🖥️ Desempenho da Máquina</h2>
 
-        <!-- Card 1: Sistema, Desempenho e Rede -->
-        <div class="card">
-            <h2>🖥️ Desempenho da Máquina</h2>
-
-            <div class="metric">
-                <span class="metric-title">Memória RAM</span>
-                <span class="metric-value" id="ramText">-- / -- GB</span>
-            </div>
-            <div class="progress-bar" style="margin-bottom: 12px;">
-                <div class="progress-fill" id="ramBar" style="width: 0%;"></div>
-            </div>
-
-            <div class="metric">
-                <span class="metric-title">CPU Status (<span id="cpuCores">-</span> cores)</span>
-                <span class="metric-value" id="cpuText">--%</span>
-            </div>
-            <div class="progress-bar" style="margin-bottom: 15px;">
-                <div class="progress-fill" id="cpuBar" style="width: 0%;"></div>
-            </div>
-
-            <!-- Uso de Rede -->
-            <div class="metric" style="margin-bottom: 15px;">
-                <span class="metric-title">Uso de Rede</span>
-            </div>
-            <div id="networkContainer" class="network-list" style="margin-top: 0;">
-                <div class="network-badge"
-                    style="border-left-color: var(--accent); flex-direction: row; justify-content: space-between; align-items: center;">
-                    <span class="net-name" style="font-size: 0.8rem; color: #f8fafc; font-weight: normal;">
-                        <span style="display:inline-block; margin-right: 8px; transform: rotate(-45deg);">➤</span>
-                        Enviando
-                    </span>
-                    <span class="net-ip" id="txSpeedTxt">0.00 KB/s</span>
-                </div>
-                <div class="network-badge"
-                    style="border-left-color: var(--success-color); flex-direction: row; justify-content: space-between; align-items: center;">
-                    <span class="net-name" style="font-size: 0.8rem; color: #f8fafc; font-weight: normal;">
-                        <span
-                            style="display:inline-block; margin-right: 8px; transform: rotate(135deg); color: var(--success-color);">➤</span>
-                        Recebendo
-                    </span>
-                    <span class="net-ip" style="color: var(--success-color);" id="rxSpeedTxt">0.00 KB/s</span>
-                </div>
-            </div>
-
-            <!-- IP Público removido a pedido do usuário -->
-
-            <div class="updated-timestamp" id="lastUpdate">Obtendo dados...</div>
+        <div class="metric">
+          <span class="metric-title">Memória RAM</span>
+          <span class="metric-value" id="ramText">-- / -- GB</span>
+        </div>
+        <div class="progress-bar" style="margin-bottom: 12px">
+          <div class="progress-fill" id="ramBar" style="width: 0%"></div>
         </div>
 
-        <!-- Card 2: Servidor Minecraft -->
-        <div class="card" id="minecraftCard">
-            <h2>🎮 Servidor Minecraft</h2>
+        <div class="metric">
+          <span class="metric-title"
+            >CPU Status (<span id="cpuCores">-</span> cores)</span
+          >
+          <span class="metric-value" id="cpuText">--%</span>
+        </div>
+        <div class="progress-bar" style="margin-bottom: 15px">
+          <div class="progress-fill" id="cpuBar" style="width: 0%"></div>
+        </div>
 
-            <div class="metric">
-                <span class="metric-title">Status</span>
-                <span class="metric-value" id="mcStatusText">Verificando...</span>
-            </div>
+        <!-- Uso de Rede -->
+        <div class="metric" style="margin-bottom: 15px">
+          <span class="metric-title">Uso de Rede</span>
+        </div>
+        <div id="networkContainer" class="network-list" style="margin-top: 0">
+          <div
+            class="network-badge"
+            style="
+              border-left-color: var(--accent);
+              flex-direction: row;
+              justify-content: space-between;
+              align-items: center;
+            "
+          >
+            <span
+              class="net-name"
+              style="font-size: 0.8rem; color: #f8fafc; font-weight: normal"
+            >
+              <span
+                style="
+                  display: inline-block;
+                  margin-right: 8px;
+                  transform: rotate(-45deg);
+                "
+                >➤</span
+              >
+              Enviando
+            </span>
+            <span class="net-ip" id="txSpeedTxt">0.00 KB/s</span>
+          </div>
+          <div
+            class="network-badge"
+            style="
+              border-left-color: var(--success-color);
+              flex-direction: row;
+              justify-content: space-between;
+              align-items: center;
+            "
+          >
+            <span
+              class="net-name"
+              style="font-size: 0.8rem; color: #f8fafc; font-weight: normal"
+            >
+              <span
+                style="
+                  display: inline-block;
+                  margin-right: 8px;
+                  transform: rotate(135deg);
+                  color: var(--success-color);
+                "
+                >➤</span
+              >
+              Recebendo
+            </span>
+            <span
+              class="net-ip"
+              style="color: var(--success-color)"
+              id="rxSpeedTxt"
+              >0.00 KB/s</span
+            >
+          </div>
+        </div>
 
-            <div class="metric" style="margin-top: 15px;">
-                <span class="metric-title">Motd</span>
-                <span class="metric-value" id="mcMotdText"
-                    style="font-size: 0.85rem; font-weight: normal; color: #94a3b8; max-width: 250px; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">--</span>
-            </div>
+        <!-- IP Público removido a pedido do usuário -->
 
-            <div class="metric" style="margin-top: 15px;">
-                <span class="metric-title">Jogadores Online</span>
-                <span class="metric-value" id="mcPlayersText">-- / --</span>
-            </div>
-            <div class="progress-bar">
-                <div class="progress-fill" id="mcPlayersBar" style="width: 0%; background-color: var(--accent);"></div>
-            </div>
+        <div class="updated-timestamp" id="lastUpdate">Obtendo dados...</div>
+      </div>
 
-            <div class="network-list" id="mcPlayersList" style="margin-top: 15px; display: none;">
-                <!-- Preenchido via JS -->
-            </div>
+      <!-- Card 2: Servidor Minecraft -->
+      <div class="card" id="minecraftCard">
+        <h2>🎮 Servidor Minecraft</h2>
 
-            <!-- Bloco de Informações Compactas -->
-            <div class="compact-info-group" style="margin-top: 15px; display: flex; flex-direction: column; gap: 1px;">
-                <div class="metric">
-                    <span class="metric-title" style="font-size: 0.75rem;">Servidor / Mundo</span>
-                    <span class="metric-value" id="mcMapText" style="font-size: 0.75rem;">--</span>
-                </div>
+        <div class="metric">
+          <span class="metric-title">Status</span>
+          <span class="metric-value" id="mcStatusText">Verificando...</span>
+        </div>
 
-                <div class="metric" style="flex-direction: column; align-items: flex-start;">
-                    <span class="metric-title" style="font-size: 0.75rem;">Plugins (<span id="mcPluginsCount" style="font-size: 0.75rem;">0</span>)</span>
-                    <span class="metric-value" id="mcPluginsText" style="font-size: 0.7rem; font-weight: normal; color: #64748b; line-height: 1.3; text-align: left; word-break: break-all;">--</span>
-                </div>
+        <div class="metric" style="margin-top: 15px">
+          <span class="metric-title">Motd</span>
+          <span
+            class="metric-value"
+            id="mcMotdText"
+            style="
+              font-size: 0.85rem;
+              font-weight: normal;
+              color: #94a3b8;
+              max-width: 250px;
+              text-align: right;
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+            "
+            >--</span
+          >
+        </div>
 
-                <div class="metric">
-                    <span class="metric-title" style="font-size: 0.75rem;">Versão</span>
-                    <span class="metric-value" id="mcVersionText" style="font-size: 0.75rem;">--</span>
-                </div>
-            </div>
+        <div class="metric" style="margin-top: 15px">
+          <span class="metric-title">Jogadores Online</span>
+          <span class="metric-value" id="mcPlayersText">-- / --</span>
+        </div>
+        <div class="progress-bar">
+          <div
+            class="progress-fill"
+            id="mcPlayersBar"
+            style="width: 0%; background-color: var(--accent)"
+          ></div>
+        </div>
 
-            <!-- Adicionais: Tempo e Uptime -->
+        <div
+          class="network-list"
+          id="mcPlayersList"
+          style="margin-top: 15px; display: none"
+        >
+          <!-- Preenchido via JS -->
+        </div>
+
+        <!-- Bloco de Informações Compactas -->
+        <div
+          class="compact-info-group"
+          style="
+            margin-top: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+          "
+        >
+          <div class="metric">
+            <span class="metric-title" style="font-size: 0.75rem"
+              >Servidor / Mundo</span
+            >
+            <span class="metric-value" id="mcMapText" style="font-size: 0.75rem"
+              >--</span
+            >
+          </div>
+
+          <div
+            class="metric"
+            style="flex-direction: column; align-items: flex-start"
+          >
+            <span class="metric-title" style="font-size: 0.75rem"
+              >Plugins (<span id="mcPluginsCount" style="font-size: 0.75rem"
+                >0</span
+              >)</span
+            >
+            <span
+              class="metric-value"
+              id="mcPluginsText"
+              style="
+                font-size: 0.7rem;
+                font-weight: normal;
+                color: #64748b;
+                line-height: 1.3;
+                text-align: left;
+                word-break: break-all;
+              "
+              >--</span
+            >
+          </div>
+
+          <div class="metric">
+            <span class="metric-title" style="font-size: 0.75rem">Versão</span>
+            <span
+              class="metric-value"
+              id="mcVersionText"
+              style="font-size: 0.75rem"
+              >--</span
+            >
+          </div>
+        </div>
+
+        <!-- Adicionais: Tempo e Uptime -->
+        <div
+          style="
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+          "
+        >
+          <div
+            class="metric"
+            style="flex-direction: column; align-items: flex-start; gap: 4px"
+          >
+            <span
+              class="metric-title"
+              style="
+                font-size: 0.7rem;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+              "
+              >Estado do Mundo</span
+            >
+            <span
+              class="metric-value"
+              id="mcWorldTime"
+              style="font-size: 0.7rem"
+              >--</span
+            >
+          </div>
+          <div
+            class="metric"
+            style="flex-direction: column; align-items: flex-end; gap: 4px"
+          >
+            <span
+              class="metric-title"
+              style="
+                font-size: 0.7rem;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+              "
+              >Uptime</span
+            >
+            <span class="metric-value" id="mcUptime" style="font-size: 0.7rem"
+              >--</span
+            >
+          </div>
+        </div>
+
+        <div
+          class="updated-timestamp"
+          id="lastMinecraftUpdate"
+          style="border: none"
+        ></div>
+      </div>
+
+      <!-- Card 3: Aplicação WA -->
+      <a href="/estatisticas" class="app-link">
+        <div class="card interactive" style="padding: 25px">
+          <h2 style="color: var(--accent); margin-bottom: 25px">
+            📊 Estatísticas WhatsApp
+          </h2>
+
+          <div
+            style="
+              flex-grow: 1;
+              display: flex;
+              flex-direction: column;
+              justify-content: center;
+              gap: 20px;
+            "
+          >
             <div
-                style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(255, 255, 255, 0.05);">
-                <div class="metric" style="flex-direction: column; align-items: flex-start; gap: 4px;">
-                    <span class="metric-title"
-                        style="font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px;">Estado do
-                        Mundo</span>
-                    <span class="metric-value" id="mcWorldTime" style="font-size: 0.7rem;">--</span>
-                </div>
-                <div class="metric" style="flex-direction: column; align-items: flex-end; gap: 4px;">
-                    <span class="metric-title"
-                        style="font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px;">Uptime</span>
-                    <span class="metric-value" id="mcUptime" style="font-size: 0.7rem;">--</span>
-                </div>
+              class="metric"
+              style="flex-direction: column; text-align: center; gap: 10px"
+            >
+              <span class="metric-value" style="font-size: 1rem"
+                >Transporte Universitário</span
+              >
+              <span
+                class="metric-title"
+                style="line-height: 1.5; font-size: 0.8rem; color: #94a3b8"
+              >
+                Análise em tempo real e previsão de lotação baseada nas enquetes
+                dos grupos.
+              </span>
             </div>
 
-            <div class="updated-timestamp" id="lastMinecraftUpdate" style="border: none;"></div>
+            <div
+              style="
+                background: rgba(59, 130, 246, 0.05);
+                border: 1px dashed rgba(59, 130, 246, 0.2);
+                border-radius: 12px;
+                padding: 20px;
+                text-align: center;
+              "
+            >
+              <span
+                style="
+                  font-size: 0.75rem;
+                  color: var(--accent);
+                  font-weight: 500;
+                "
+                >Relatórios diários e histórico semanal</span
+              >
+            </div>
+          </div>
+
+          <div
+            style="
+              margin-top: auto;
+              padding-top: 10px;
+              border-top: 1px solid rgba(255, 255, 255, 0.05);
+              text-align: center;
+              color: var(--accent);
+              font-weight: bold;
+              letter-spacing: 1px;
+              font-size: 0.75rem;
+            "
+          >
+            ACESSAR PAINEL ➔
+          </div>
         </div>
-
-        <!-- Card 3: Aplicação WA -->
-        <a href="/estatisticas" class="app-link">
-            <div class="card interactive" style="padding: 25px;">
-                <h2 style="color: var(--accent); margin-bottom: 25px;">📊 Estatísticas WhatsApp</h2>
-
-                <div style="flex-grow: 1; display: flex; flex-direction: column; justify-content: center; gap: 20px;">
-                    <div class="metric" style="flex-direction: column; text-align: center; gap: 10px;">
-                        <span class="metric-value" style="font-size: 1rem;">Transporte Universitário</span>
-                        <span class="metric-title" style="line-height: 1.5; font-size: 0.8rem; color: #94a3b8;">
-                            Análise em tempo real e previsão de lotação baseada nas enquetes dos grupos.
-                        </span>
-                    </div>
-
-                    <div
-                        style="background: rgba(59, 130, 246, 0.05); border: 1px dashed rgba(59, 130, 246, 0.2); border-radius: 12px; padding: 20px; text-align: center;">
-                        <span style="font-size: 0.75rem; color: var(--accent); font-weight: 500;">Relatórios diários e
-                            histórico semanal</span>
-                    </div>
-                </div>
-
-                <div
-                    style="margin-top: auto; padding-top: 10px; border-top: 1px solid rgba(255, 255, 255, 0.05); text-align: center; color: var(--accent); font-weight: bold; letter-spacing: 1px; font-size: 0.75rem;">
-                    ACESSAR PAINEL ➔
-                </div>
-            </div>
-        </a>
-
+      </a>
     </div>
 
     <script>
-        const formatUptime = (ms) => {
-            if (!ms) return '0m';
-            const totalSeconds = Math.floor(ms / 1000);
-            const days = Math.floor(totalSeconds / 86400);
-            const hours = Math.floor((totalSeconds % 86400) / 3600);
-            const minutes = Math.floor((totalSeconds % 3600) / 60);
+      const formatUptime = (ms) => {
+        if (!ms) return "0m";
+        const totalSeconds = Math.floor(ms / 1000);
+        const days = Math.floor(totalSeconds / 86400);
+        const hours = Math.floor((totalSeconds % 86400) / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
 
-            let parts = [];
-            if (days > 0) parts.push(`${days}d`);
-            if (hours > 0) parts.push(`${hours}h`);
-            if (minutes > 0 || parts.length === 0) parts.push(`${minutes}m`);
-            
-            return parts.join(' ');
-        };
+        let parts = [];
+        if (days > 0) parts.push(`${days}d`);
+        if (hours > 0) parts.push(`${hours}h`);
+        if (minutes > 0 || parts.length === 0) parts.push(`${minutes}m`);
 
-        // Função copyIp removida (IP removido do dashboard)
+        return parts.join(" ");
+      };
 
-        const formatColor = (bar, percentage) => {
-            if (percentage < 60) bar.style.backgroundColor = 'var(--success-color)';
-            else if (percentage < 85) bar.style.backgroundColor = 'var(--warning-color)';
-            else bar.style.backgroundColor = 'var(--danger-color)';
-        };
+      // Função copyIp removida (IP removido do dashboard)
 
-        const formatBandwidth = (bytesPerSec) => {
-            if (bytesPerSec < 1024) return bytesPerSec.toFixed(1) + ' B/s';
-            if (bytesPerSec < 1024 * 1024) return (bytesPerSec / 1024).toFixed(2) + ' KB/s';
-            if (bytesPerSec < 1024 * 1024 * 1024) return (bytesPerSec / 1024 / 1024).toFixed(2) + ' MB/s';
-            return (bytesPerSec / 1024 / 1024 / 1024).toFixed(2) + ' GB/s';
-        };
+      const formatColor = (bar, percentage) => {
+        if (percentage < 60) bar.style.backgroundColor = "var(--success-color)";
+        else if (percentage < 85)
+          bar.style.backgroundColor = "var(--warning-color)";
+        else bar.style.backgroundColor = "var(--danger-color)";
+      };
 
-        const renderNetworkUsage = (networkUsage) => {
-            if (!networkUsage) return;
-            document.getElementById('rxSpeedTxt').innerText = formatBandwidth(networkUsage.rxSpeed);
-            document.getElementById('txSpeedTxt').innerText = formatBandwidth(networkUsage.txSpeed);
-        };
+      const formatBandwidth = (bytesPerSec) => {
+        if (bytesPerSec < 1024) return bytesPerSec.toFixed(1) + " B/s";
+        if (bytesPerSec < 1024 * 1024)
+          return (bytesPerSec / 1024).toFixed(2) + " KB/s";
+        if (bytesPerSec < 1024 * 1024 * 1024)
+          return (bytesPerSec / 1024 / 1024).toFixed(2) + " MB/s";
+        return (bytesPerSec / 1024 / 1024 / 1024).toFixed(2) + " GB/s";
+      };
 
-        const fetchMcInfo = async () => {
-            try {
-                const res = await fetch('/api/mcstatus');
-                if (!res.ok) return;
+      const renderNetworkUsage = (networkUsage) => {
+        if (!networkUsage) return;
+        document.getElementById("rxSpeedTxt").innerText = formatBandwidth(
+          networkUsage.rxSpeed,
+        );
+        document.getElementById("txSpeedTxt").innerText = formatBandwidth(
+          networkUsage.txSpeed,
+        );
+      };
 
-                const data = await res.json();
-                const statusText = document.getElementById('mcStatusText');
-                const playersText = document.getElementById('mcPlayersText');
-                const playersBar = document.getElementById('mcPlayersBar');
-                const versionText = document.getElementById('mcVersionText');
-                const motdText = document.getElementById('mcMotdText');
-                const playersList = document.getElementById('mcPlayersList');
-                const mapText = document.getElementById('mcMapText');
-                const pluginsText = document.getElementById('mcPluginsText');
-                const pluginsCount = document.getElementById('mcPluginsCount');
+      const fetchMcInfo = async () => {
+        try {
+          const res = await fetch("/api/mcstatus");
+          if (!res.ok) return;
 
-                if (data.online) {
-                    statusText.innerText = 'Online';
-                    statusText.style.color = 'var(--success-color)';
+          const data = await res.json();
+          const statusText = document.getElementById("mcStatusText");
+          const playersText = document.getElementById("mcPlayersText");
+          const playersBar = document.getElementById("mcPlayersBar");
+          const versionText = document.getElementById("mcVersionText");
+          const motdText = document.getElementById("mcMotdText");
+          const playersList = document.getElementById("mcPlayersList");
+          const mapText = document.getElementById("mcMapText");
+          const pluginsText = document.getElementById("mcPluginsText");
+          const pluginsCount = document.getElementById("mcPluginsCount");
 
-                    playersText.innerText = `${data.players.online} / ${data.players.max}`;
-                    const percentage = data.players.max > 0 ? (data.players.online / data.players.max) * 100 : 0;
-                    playersBar.style.width = `${percentage}%`;
+          if (data.online) {
+            statusText.innerText = "Online";
+            statusText.style.color = "var(--success-color)";
 
-                    versionText.innerText = data.version || '--';
-                    mapText.innerText = data.map || 'world';
-                    motdText.innerText = data.motd || '--';
+            playersText.innerText = `${data.players.online} / ${data.players.max}`;
+            const percentage =
+              data.players.max > 0
+                ? (data.players.online / data.players.max) * 100
+                : 0;
+            playersBar.style.width = `${percentage}%`;
 
-                    const pluginsList = data.plugins && data.plugins.length > 0 
-                        ? data.plugins.map(p => {
-                            let name = (typeof p === 'string') ? p : (p.name || 'Plugin');
-                            // Remove a versão (geralmente tudo após o primeiro espaço ou padrões como v1.0)
-                            return name.split(' ')[0].replace(/v\d+\..*/, '').trim();
-                        }).join(', ') 
-                        : '--';
-                    
-                    document.getElementById('mcPluginsText').innerText = pluginsList;
-                    document.getElementById('mcPluginsCount').innerText = data.plugins ? data.plugins.length : '0';
+            versionText.innerText = data.version || "--";
+            mapText.innerText = data.map || "world";
+            motdText.innerText = data.motd || "--";
 
-                    // Uptime e World
-                    document.getElementById('mcUptime').innerText = formatUptime(data.uptime);
-                    document.getElementById('mcWorldTime').innerText = data.world ? data.world.combined : '--';
+            const pluginsList =
+              data.plugins && data.plugins.length > 0
+                ? data.plugins
+                    .map((p) => {
+                      let name = typeof p === "string" ? p : p.name || "Plugin";
+                      // Remove a versão (geralmente tudo após o primeiro espaço ou padrões como v1.0)
+                      return name
+                        .split(" ")[0]
+                        .replace(/v\d+\..*/, "")
+                        .trim();
+                    })
+                    .join(", ")
+                : "--";
 
-                    // Render player list if available
-                    if (data.players.list && data.players.list.length > 0) {
-                        playersList.style.display = 'flex';
-                        playersList.innerHTML = '<span class="metric-title" style="margin-bottom: 5px;">Jogadores Conectados:</span>';
-                        data.players.list.forEach(name => {
-                            playersList.innerHTML += `
+            document.getElementById("mcPluginsText").innerText = pluginsList;
+            document.getElementById("mcPluginsCount").innerText = data.plugins
+              ? data.plugins.length
+              : "0";
+
+            // Uptime e World
+            document.getElementById("mcUptime").innerText = formatUptime(
+              data.uptime,
+            );
+            document.getElementById("mcWorldTime").innerText = data.world
+              ? data.world.combined
+              : "--";
+
+            // Render player list if available
+            if (data.players.list && data.players.list.length > 0) {
+              playersList.style.display = "flex";
+              playersList.innerHTML =
+                '<span class="metric-title" style="margin-bottom: 5px;">Jogadores Conectados:</span>';
+              data.players.list.forEach((name) => {
+                playersList.innerHTML += `
                                 <div class="network-badge" style="border-left-color: var(--accent); padding: 5px 10px; flex-direction: row; align-items: center; gap: 10px;">
                                     <img src="https://minotar.net/helm/${name}/24.png" alt="${name}" style="border-radius: 4px; width: 24px; height: 24px;">
                                     <span class="net-ip" style="font-size: 0.9rem;">${name}</span>
                                 </div>
                             `;
-                        });
-                    } else {
-                        playersList.style.display = 'none';
-                    }
-
-                } else {
-                    statusText.innerText = 'Offline';
-                    statusText.style.color = 'var(--danger-color)';
-                    playersText.innerText = '-- / --';
-                    playersBar.style.width = '0%';
-                    versionText.innerText = '--';
-                    mapText.innerText = '--';
-                    pluginsCount.innerText = '0';
-                    pluginsText.innerText = '--';
-                    motdText.innerText = data.error || 'Servidor indisponível';
-                    playersList.style.display = 'none';
-                }
-            } catch (err) {
-                console.error("Erro ao buscar info do MC:", err);
+              });
+            } else {
+              playersList.style.display = "none";
             }
-        };
+          } else {
+            statusText.innerText = "Offline";
+            statusText.style.color = "var(--danger-color)";
+            playersText.innerText = "-- / --";
+            playersBar.style.width = "0%";
+            versionText.innerText = "--";
+            mapText.innerText = "--";
+            pluginsCount.innerText = "0";
+            pluginsText.innerText = "--";
+            motdText.innerText = data.error || "Servidor indisponível";
+            playersList.style.display = "none";
+          }
+        } catch (err) {
+          console.error("Erro ao buscar info do MC:", err);
+        }
+      };
 
-        const fetchSysInfo = async () => {
-            try {
-                const res = await fetch('/api/sysinfo');
-                if (!res.ok) throw new Error('Falha na resposta da API');
+      const fetchSysInfo = async () => {
+        try {
+          const res = await fetch("/api/sysinfo");
+          if (!res.ok) throw new Error("Falha na resposta da API");
 
-                const data = await res.json();
+          const data = await res.json();
 
-                // IP Público removido da UI
+          // IP Público removido da UI
 
-                // RAM Refresh
-                document.getElementById('ramText').innerText =
-                    `${data.ram.usedGB} / ${data.ram.totalGB} GB (${data.ram.percentage}%)`;
-                const ramBar = document.getElementById('ramBar');
-                ramBar.style.width = `${data.ram.percentage}%`;
-                formatColor(ramBar, parseFloat(data.ram.percentage));
+          // RAM Refresh
+          document.getElementById("ramText").innerText =
+            `${data.ram.usedGB} / ${data.ram.totalGB} GB (${data.ram.percentage}%)`;
+          const ramBar = document.getElementById("ramBar");
+          ramBar.style.width = `${data.ram.percentage}%`;
+          formatColor(ramBar, parseFloat(data.ram.percentage));
 
-                // CPU Ticks Refresh
-                document.getElementById('cpuCores').innerText = data.cpu.cores;
-                document.getElementById('cpuText').innerText = `${data.cpu.loadPercentage}%`;
-                const cpuBar = document.getElementById('cpuBar');
-                cpuBar.style.width = `${data.cpu.loadPercentage}%`;
-                formatColor(cpuBar, parseFloat(data.cpu.loadPercentage));
+          // CPU Ticks Refresh
+          document.getElementById("cpuCores").innerText = data.cpu.cores;
+          document.getElementById("cpuText").innerText =
+            `${data.cpu.loadPercentage}%`;
+          const cpuBar = document.getElementById("cpuBar");
+          cpuBar.style.width = `${data.cpu.loadPercentage}%`;
+          formatColor(cpuBar, parseFloat(data.cpu.loadPercentage));
 
-                // Network List Refresh
-                if (data.networkUsage) renderNetworkUsage(data.networkUsage);
+          // Network List Refresh
+          if (data.networkUsage) renderNetworkUsage(data.networkUsage);
 
-                // LED Status
-                const dot = document.getElementById('serverStatus');
-                dot.style.backgroundColor = 'var(--success-color)';
-                dot.style.boxShadow = '0 0 10px var(--success-color)';
-            } catch (err) {
-                console.error("Erro ao buscar sysinfo:", err);
-                const dot = document.getElementById('serverStatus');
-                dot.style.backgroundColor = 'var(--danger-color)';
-                dot.style.boxShadow = '0 0 10px var(--danger-color)';
-            } finally {
-                const now = new Date();
-                document.getElementById('lastUpdate').innerText = `Última sincronização online: ${now.toLocaleTimeString()}`;
-            }
+          // LED Status
+          const dot = document.getElementById("serverStatus");
+          dot.style.backgroundColor = "var(--success-color)";
+          dot.style.boxShadow = "0 0 10px var(--success-color)";
+        } catch (err) {
+          console.error("Erro ao buscar sysinfo:", err);
+          const dot = document.getElementById("serverStatus");
+          dot.style.backgroundColor = "var(--danger-color)";
+          dot.style.boxShadow = "0 0 10px var(--danger-color)";
+        } finally {
+          const now = new Date();
+          document.getElementById("lastUpdate").innerText =
+            `Última sincronização online: ${now.toLocaleTimeString()}`;
+        }
 
-            // Call Minecraft API alongside system API
-            fetchMcInfo();
-        };
+        // Call Minecraft API alongside system API
+        fetchMcInfo();
+      };
 
-        // Bootstrap: Executa instantaneamente na primeira montagem DOM
-        fetchSysInfo();
+      // Bootstrap: Executa instantaneamente na primeira montagem DOM
+      fetchSysInfo();
 
-        // Loop: A cada 10 segundos
-        setInterval(fetchSysInfo, 10000);
+      // Loop: A cada 10 segundos
+      setInterval(fetchSysInfo, 10000);
     </script>
-</body>
-
+  </body>
 </html>
