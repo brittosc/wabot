@@ -11,3 +11,4 @@ config/config.json
 
 # Variáveis de ambiente
 .env
+tmp/test-friday-logic.js

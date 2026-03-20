@@ -109,6 +109,12 @@ const sendPolls = async (sock) => {
 
           await group.sendMessage(poll);
 
+          if (dayOfWeek === 5) {
+            await group.sendMessage(
+              "Sextou com S de saudades. Se possível, vote até as 14h, para que o motorista consiga se organizar com antecedência quanto à ida de um ou dois veículos.",
+            );
+          }
+
           dashboard.addLog(`Enquete enviada para o grupo: ${targetName}`);
           dashboard.incrementTotalSent();
           sentCount++;
