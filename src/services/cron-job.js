@@ -111,7 +111,7 @@ const sendPolls = async (sock) => {
 
           if (dayOfWeek === 5) {
             await group.sendMessage(
-              "Sextou com S de saudades. Se possível, vote até as 14h, para que o motorista consiga se organizar com antecedência quanto à ida de um ou dois veículos.",
+              "Se possível, *votem até as 14h00m*, para que o motorista consiga se organizar com antecedência quanto à ida de um ou dois veículos.",
             );
           }
 
