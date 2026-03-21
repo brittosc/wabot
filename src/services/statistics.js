@@ -361,7 +361,7 @@ const generateHtmlDashboard = (stats) => {
     <!-- Barra de Lotação do Dia -->
     <div id="capacitySection" style="display: none; width: 100%; max-width: 1100px; margin: 0 auto 25px auto;">
         <div class="card" style="width: 100%; align-items: stretch; padding: 25px; box-sizing: border-box;">
-            <div id="totalBusVotes" style="font-size: 0.95rem; font-weight: 800; color: var(--accent); margin-bottom: 30px; text-align: right; width: 100%; border-bottom: 2px solid var(--border-color); padding-bottom: 15px;"></div>
+            <div id="totalBusVotes" style="font-size: 0.85rem; font-weight: 600; color: var(--accent); margin-bottom: 5px; text-align: center; width: 100%;"></div>
             <div id="capacityList" style="padding-top: 15px;">
                 <!-- Preenchido via JS -->
             </div>
