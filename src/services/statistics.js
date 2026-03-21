@@ -214,11 +214,13 @@ const generateHtmlDashboard = (stats) => {
             border-color: var(--accent);
         }
         .dashboard {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            display: flex;
+            flex-wrap: wrap;
             gap: 25px;
             width: 100%;
             max-width: 1100px;
+            margin: 0 auto;
+            justify-content: center;
         }
         .highlights {
             display: grid;
@@ -232,7 +234,7 @@ const generateHtmlDashboard = (stats) => {
             padding: 20px;
             border-radius: 16px;
             border: 1px solid var(--border-color);
-            text-align: left;
+            text-align: center;
             position: relative;
             overflow: hidden;
         }
@@ -251,13 +253,14 @@ const generateHtmlDashboard = (stats) => {
         }
         .split-container {
             display: flex;
-            justify-content: space-between;
+            justify-content: center;
             gap: 15px;
         }
         .split-half {
             flex: 1;
             display: flex;
             flex-direction: column;
+            align-items: center;
         }
         .split-half .label {
             font-size: 0.7rem;
@@ -291,6 +294,9 @@ const generateHtmlDashboard = (stats) => {
             flex-direction: row;
             justify-content: space-around;
             padding: 30px;
+            max-width: 800px;
+            margin: 10px auto;
+            width: 100%;
         }
         .card {
             background-color: var(--card-bg);
@@ -301,7 +307,11 @@ const generateHtmlDashboard = (stats) => {
             flex-direction: column;
             align-items: center;
             border: 1px solid var(--border-color);
+            flex: 1 1 400px;
             max-width: 100%;
+        }
+        .card.card-wide {
+            flex: 1 1 100%;
         }
         .card h2 {
             font-size: 1.2rem;
@@ -317,43 +327,42 @@ const generateHtmlDashboard = (stats) => {
             margin-top: 40px;
             font-size: 0.9rem;
             color: #7f8c8d;
+            max-width: 1100px;
+            width: 100%;
+            margin: 40px auto;
+            text-align: center;
+            border-top: 1px solid var(--border-color);
+            padding-top: 30px;
         }
     </style>
 </head>
 <body>
 
-    <h1>Estatísticas das Enquetes</h1>
+    <div style="width: 100%; max-width: 1100px; margin: 0 auto; text-align: center;">
+        <h1>Estatísticas das Enquetes</h1>
 
-    <div class="controls">
-        <select id="groupSelect">
-            <option value="Todos">Todos os Grupos</option>
-            <!-- Preenchido via JS -->
-        </select>
+        <div class="controls">
+            <select id="groupSelect">
+                <option value="Todos">Todos os Grupos</option>
+                <!-- Preenchido via JS -->
+            </select>
 
-        <select id="periodSelect">
-            <option value="7" selected>Últimos 7 dias</option>
-            <option value="15">Últimos 15 dias</option>
-            <option value="30">Últimos 30 dias</option>
-            <option value="60">Últimos 2 meses</option>
-            <option value="90">Últimos 3 meses</option>
-            <option value="365">Últimos 12 meses</option>
-        </select>
-
-        <select id="chartTypeSelect">
-            <option value="bar">Gráfico: Barras Empilhadas</option>
-            <option value="line">Gráfico: Áreas (Linhas)</option>
-            <option value="radar">Gráfico: Radar</option>
-            <option value="polarArea">Gráfico: Área Polar</option>
-        </select>
+            <select id="periodSelect">
+                <option value="7" selected>Últimos 7 dias</option>
+                <option value="15">Últimos 15 dias</option>
+                <option value="30">Últimos 30 dias</option>
+                <option value="60">Últimos 2 meses</option>
+                <option value="90">Últimos 3 meses</option>
+                <option value="365">Últimos 12 meses</option>
+            </select>
+        </div>
     </div>
 
-    <!-- Destaques removidos daqui para serem movidos para baixo da proporção -->
-
     <!-- Barra de Lotação do Dia -->
-    <div id="capacitySection" style="display: none; width: 100%; max-width: 1000px; margin-bottom: 25px;">
-        <div class="card" style="width: 100%; align-items: stretch; padding: 25px; box-sizing: border-box; position: relative;">
-            <div id="totalBusVotes" style="position: absolute; top: 15px; right: 25px; font-size: 0.85rem; font-weight: 600; color: #888;"></div>
-            <div id="capacityList">
+    <div id="capacitySection" style="display: none; width: 100%; max-width: 1100px; margin: 0 auto 25px auto;">
+        <div class="card" style="width: 100%; align-items: stretch; padding: 25px; box-sizing: border-box;">
+            <div id="totalBusVotes" style="font-size: 0.95rem; font-weight: 800; color: var(--accent); margin-bottom: 30px; text-align: right; width: 100%; border-bottom: 2px solid var(--border-color); padding-bottom: 15px;"></div>
+            <div id="capacityList" style="padding-top: 15px;">
                 <!-- Preenchido via JS -->
             </div>
         </div>
@@ -374,15 +383,23 @@ const generateHtmlDashboard = (stats) => {
             </div>
         </div>
         
-        <div class="card" style="grid-column: 1 / -1;">
-            <h2 id="titleStackedBarChart">Proporção Diária</h2>
+        <div class="card card-wide" style="position: relative;">
+            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+                <h2 id="titleStackedBarChart" style="margin: 0;">Proporção Diária</h2>
+                <select id="chartTypeSelect" style="min-width: 150px; padding: 8px 12px; font-size: 0.85rem; border-radius: 8px;">
+                    <option value="bar">Barras Empilhadas</option>
+                    <option value="line">Áreas (Linhas)</option>
+                    <option value="radar">Radar</option>
+                    <option value="polarArea">Área Polar</option>
+                </select>
+            </div>
             <div class="chart-container">
                 <canvas id="stackedBarChart"></canvas>
             </div>
         </div>
 
         <!-- Cards de MAXs e MININ.s agora abaixo da Proporção Diária -->
-        <div class="highlights" style="grid-column: 1 / -1;">
+        <div class="highlights">
             <div class="highlight-card">
                 <div class="card-title"><h3>Ida/Volta</h3></div>
                 <div class="split-container">
@@ -442,6 +459,7 @@ const generateHtmlDashboard = (stats) => {
                         <span class="date" id="hlSoVoltaMinDate">-</span>
                     </div>
                 </div>
+            </div>
             <div class="highlight-card" style="background: linear-gradient(145deg, #1e1e1e, #1a2a1a);">
                 <div class="card-title"><h3>Mais Presença</h3></div>
                 <div class="split-container">
@@ -465,8 +483,8 @@ const generateHtmlDashboard = (stats) => {
         </div>
 
         <!-- Calendário de Próximas Enquetes (Item 9) -->
-        <div id="calendarSection" style="grid-column: 1 / -1; width: 100%;">
-            <div class="card" style="width: 100%; align-items: stretch;">
+        <div id="calendarSection" style="width: 100%;">
+            <div class="card card-wide" style="align-items: stretch;">
                 <h2 style="margin-bottom: 15px;">📅 Próximas Enquetes</h2>
                 <div id="nextPollsList" style="display: flex; flex-direction: column; gap: 8px;">
                     <!-- Preenchido via JS com layout de lista premium -->
@@ -474,7 +492,7 @@ const generateHtmlDashboard = (stats) => {
             </div>
         </div>
         
-        <div class="card summary-card" style="grid-column: 1 / -1;">
+        <div class="card card-wide summary-card">
             <div style="text-align: center;">
                 <h3 style="margin: 0; color: #7f8c8d; font-size: 1rem;">Total Votos (<span id="txtPeriod">7</span> dias)</h3>
                 <p id="lblTotalVotes" style="margin: 10px 0 0 0; font-size: 2.5rem; font-weight: bold; color: var(--title-color);">0</p>
@@ -486,7 +504,7 @@ const generateHtmlDashboard = (stats) => {
         </div>
     </div>
 
-    <div class="footer" style="padding-bottom: 40px; text-align: center; border-top: 1px solid var(--border-color); width: 100%; padding-top: 30px; margin-top: 30px;">
+    <div class="footer">
         <p style="margin: 0; font-weight: 600;">Atualizado: <span id="lblLastUpdate">${lastUpdateFormated}</span></p>
         <p style="margin: 8px 0 0 0; opacity: 0.7;">&copy; <span id="copyrightYear">2026</span> Grupo Britto. Todos os direitos reservados.</p>
     </div>
@@ -509,6 +527,7 @@ const generateHtmlDashboard = (stats) => {
 
         let pieChartIns = null;
         let barChartIns = null;
+        let stackedChartIns = null;
 
         // Extracts all unique group names across entire DB history
         const extractGroups = () => {
@@ -575,8 +594,13 @@ const generateHtmlDashboard = (stats) => {
             
             // Destaques de dias da semana
             let weekdayPresence = {
-                0: { count: 0, days: 0 }, 1: { count: 0, days: 0 }, 2: { count: 0, days: 0 },
-                3: { count: 0, days: 0 }, 4: { count: 0, days: 0 }, 5: { count: 0, days: 0 }, 6: { count: 0, days: 0 }
+                0: { presence: 0, absence: 0, days: 0 }, 
+                1: { presence: 0, absence: 0, days: 0 }, 
+                2: { presence: 0, absence: 0, days: 0 },
+                3: { presence: 0, absence: 0, days: 0 }, 
+                4: { presence: 0, absence: 0, days: 0 }, 
+                5: { presence: 0, absence: 0, days: 0 }, 
+                6: { presence: 0, absence: 0, days: 0 }
             };
 
             // Trackers for highlights (Peaks and Valleys)
@@ -591,6 +615,8 @@ const generateHtmlDashboard = (stats) => {
             
             let peakSoVolta = { val: -1, date: "" };
             let valleySoVolta = { val: Infinity, date: "" };
+
+            const daysOfWeekBR = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 
             for (let i = targetDays - 1; i >= 0; i--) {
                 const day = todayMoment.clone().subtract(i, 'days');
@@ -691,31 +717,38 @@ const generateHtmlDashboard = (stats) => {
 
                 if (dayTotal > 0) {
                     const dow = day.day();
-                    weekdayPresence[dow].count += dayTotal;
+                    const sumPresence = dayCounts["Irei, ida e volta."] + dayCounts["Irei, mas não retornarei."] + dayCounts["Não irei, apenas retornarei."];
+                    const sumAbsence = dayCounts["Não irei à faculdade hoje."];
+                    
+                    weekdayPresence[dow].presence += sumPresence;
+                    weekdayPresence[dow].absence += sumAbsence;
                     weekdayPresence[dow].days += 1;
+                    console.log("[Stats] " + dateStr + " (" + daysOfWeekBR[dow] + "): Presença=" + sumPresence + ", Ausência=" + sumAbsence);
                 }
             }
 
             // Calcula picos por dia da semana
-            const daysOfWeekBR = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
             let bestDay = { dow: -1, avg: -1 };
-            let worstDay = { dow: -1, avg: Infinity };
+            let worstDay = { dow: -1, avg: -1 };
 
             for (let d = 1; d <= 5; d++) { // Apenas dias úteis
                 if (weekdayPresence[d].days > 0) {
-                    const avg = weekdayPresence[d].count / weekdayPresence[d].days;
-                    if (avg > bestDay.avg) { bestDay = { dow: d, avg: avg }; }
-                    if (avg < worstDay.avg) { worstDay = { dow: d, avg: avg }; }
+                    const avgPresence = weekdayPresence[d].presence / weekdayPresence[d].days;
+                    const avgAbsence = weekdayPresence[d].absence / weekdayPresence[d].days;
+                    
+                    if (avgPresence > bestDay.avg) { bestDay = { dow: d, avg: avgPresence }; }
+                    // Item: Menos presença usa maior média de "Não irei"
+                    if (avgAbsence > worstDay.avg) { worstDay = { dow: d, avg: avgAbsence }; }
                 }
             }
 
             if (bestDay.dow !== -1) {
                 document.getElementById("hlWeekdayPeakVal").innerText = daysOfWeekBR[bestDay.dow];
-                document.getElementById("hlWeekdayPeakDate").innerText = "Média: " + bestDay.avg.toFixed(1) + " votos";
+                document.getElementById("hlWeekdayPeakDate").innerText = "";
             }
-            if (worstDay.dow !== -1 && worstDay.avg !== Infinity) {
+            if (worstDay.dow !== -1) {
                 document.getElementById("hlWeekdayValleyVal").innerText = daysOfWeekBR[worstDay.dow];
-                document.getElementById("hlWeekdayValleyDate").innerText = "Média: " + worstDay.avg.toFixed(1) + " votos";
+                document.getElementById("hlWeekdayValleyDate").innerText = "";
             }
 
             document.getElementById("txtPeriod").innerText = targetDaysStr;
@@ -1173,7 +1206,7 @@ const generateHtmlDashboard = (stats) => {
             
             let safetyLimit = displayLimit * 2; // Segurança para pular feriados/finais de semana
             
-            for (let i = 0; i < displayLimit && safetyLimit > 0; ) {
+            for (let i = 0; i < displayLimit; i++) {
                 const dayOfWeek = current.day();
                 const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
                 const brDate = current.format('DD/MM/YYYY');
@@ -1220,12 +1253,10 @@ const generateHtmlDashboard = (stats) => {
                             <span style="font-size: 0.75rem; background: rgba(33, 150, 243, 0.15); color: var(--accent); padding: 3px 8px; border-radius: 20px; font-weight: bold; white-space: nowrap;">' + timeRemaining + '</span> \
                         </div> \
                     ';
-                    i++; // Só incrementa o contador de dias mostrados se for um dia válido
                 }
                 
                 list.appendChild(row);
                 current.add(1, 'days');
-                safetyLimit--;
             }
         };
 
