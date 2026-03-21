@@ -47,7 +47,7 @@ async function startBot() {
     // Atualiza ocupação inicial no terminal e gera HTML inicial
     const currentStats = await statistics.readStats();
     await statistics.updateTerminalOccupancy(currentStats);
-    statistics.generateHtmlDashboard(currentStats);
+    await statistics.generateHtmlDashboard(currentStats);
 
     if (process.argv.includes("--now")) {
       dashboard.addLog("Parâmetro --now detectado. Forçando envio imediato 🎉");

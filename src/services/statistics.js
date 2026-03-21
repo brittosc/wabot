@@ -12,7 +12,7 @@ const readStats = async () => {
     // Mais para frente, podemos otimizar filtrando apenas o período necessário
     const { data: rows, error } = await supabase
       .from("votes")
-      .select("*")
+      .select("voter_id, group_name, vote_date, option, poll_name, created_at")
       .order("vote_date", { ascending: false })
       .limit(10000);
 
@@ -30,7 +30,10 @@ const readStats = async () => {
           votes: {},
         };
       }
-      stats[date].grupos[row.group_name].votes[row.voter_id] = row.option;
+      stats[date].grupos[row.group_name].votes[row.voter_id] = {
+        option: row.option,
+        timestamp: row.created_at,
+      };
     });
     return stats;
   } catch (e) {
@@ -59,7 +62,8 @@ const updateTerminalOccupancy = async (stats) => {
       const cap = capacities[gName];
       const groupData = dayEntry.grupos[gName];
       if (groupData && groupData.votes) {
-        Object.values(groupData.votes).forEach((opt) => {
+        Object.values(groupData.votes).forEach((vData) => {
+          const opt = typeof vData === "object" ? vData.option : vData;
           if (
             opt === "Irei, ida e volta." ||
             opt === "Irei, mas não retornarei." ||
@@ -124,12 +128,28 @@ const registerVote = async (vote) => {
   // Recarregar stats para atualizar terminal e dashboard
   const stats = await readStats();
   await updateTerminalOccupancy(stats);
-  generateHtmlDashboard(stats);
+  await generateHtmlDashboard(stats);
 };
 
-const generateHtmlDashboard = (stats) => {
+const generateHtmlDashboard = async (stats) => {
+  // Buscar passageiros para o Feed e contagem de pendentes
+  let passengers = [];
+  try {
+    const { data, error } = await supabase
+      .from("passengers")
+      .select("name, phone, photo_url, bus_number, status");
+    if (!error)
+      passengers = data.filter(
+        (p) =>
+          p.status === "aprovativo" || p.status === "aprovado" || !p.status,
+      ); // Fallback caso status mude
+  } catch (e) {
+    console.error("Erro ao buscar passageiros:", e.message);
+  }
+
   // Inject the raw JS object directly into HTML for dynamic reading
   const statsJSONStr = JSON.stringify(stats);
+  const passengersJSONStr = JSON.stringify(passengers);
   const lastUpdateFormated = moment()
     .tz("America/Sao_Paulo")
     .format("DD/MM/YYYY HH:mm:ss");
@@ -143,6 +163,7 @@ const generateHtmlDashboard = (stats) => {
   const aliasesJSONStr = JSON.stringify(aliases);
   const skipDatesJSONStr = JSON.stringify(config.skipDates || {});
   const pollTimeStr = config.pollTime || "06:00";
+  const targetGroupsJSONStr = JSON.stringify(config.targetGroups || []);
 
   const htmlContent = `
 <!DOCTYPE html>
@@ -156,6 +177,9 @@ const generateHtmlDashboard = (stats) => {
     <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment-timezone/0.5.43/moment-timezone-with-data.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         :root {
             --bg-color: #121212;
@@ -167,6 +191,7 @@ const generateHtmlDashboard = (stats) => {
             --border-color: #333333;
             --peak-color: #4caf50;
             --valley-color: #f44336;
+            --pending-color: #ff9800;
         }
         * {
             box-sizing: border-box;
@@ -292,11 +317,47 @@ const generateHtmlDashboard = (stats) => {
         .summary-card {
             display: flex;
             flex-direction: row;
-            justify-content: space-around;
-            padding: 30px;
-            max-width: 800px;
-            margin: 10px auto;
+            justify-content: space-between;
+            align-items: center;
+            padding: 25px 40px;
+            background: linear-gradient(145deg, #1e1e1e, #161616);
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+            max-width: 1100px;
+            margin: 10px auto 30px auto;
             width: 100%;
+            gap: 20px;
+        }
+        .summary-item {
+            flex: 1;
+            text-align: center;
+            position: relative;
+        }
+        .summary-item:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            right: -10px;
+            top: 20%;
+            height: 60%;
+            width: 1px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+        .summary-item h3 {
+            margin: 0 0 8px 0;
+            color: #7f8c8d;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .summary-item p {
+            margin: 0;
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--title-color);
+        }
+        .summary-item p.accent-val {
+            color: var(--accent);
+            text-shadow: 0 0 15px var(--accent-glow);
         }
         .card {
             background-color: var(--card-bg);
@@ -333,6 +394,232 @@ const generateHtmlDashboard = (stats) => {
             text-align: center;
             border-top: 1px solid var(--border-color);
             padding-top: 30px;
+        }
+        
+        /* Novas Estilizações para o Feed */
+        .feed-container {
+            width: 100%;
+            max-width: 1100px;
+            margin: 30px auto;
+        }
+        .feed-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0 8px;
+            margin-top: 20px;
+        }
+        .feed-table th {
+            text-align: left;
+            padding: 12px 15px;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            color: #888;
+            letter-spacing: 0.05em;
+        }
+        .feed-row {
+            background-color: var(--card-bg);
+            transition: transform 0.2s, background-color 0.2s;
+        }
+        .feed-row:hover {
+            transform: scale(1.01);
+            background-color: #252525;
+        }
+        .feed-row td {
+            padding: 15px;
+            border-top: 1px solid var(--border-color);
+            border-bottom: 1px solid var(--border-color);
+        }
+        .feed-row td:first-child { border-left: 1px solid var(--border-color); border-radius: 12px 0 0 12px; }
+        .feed-row td:last-child { border-right: 1px solid var(--border-color); border-radius: 0 12px 12px 0; }
+        
+        .user-cell {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .user-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            object-fit: cover;
+            background-color: #333;
+        }
+        .user-name {
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        .tag {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .tag-route { background: rgba(33, 150, 243, 0.15); color: var(--accent); }
+        .tag-vote { background: rgba(76, 175, 80, 0.15); color: #4caf50; }
+        .tag-waiting { background: rgba(255, 152, 0, 0.15); color: #ff9800; }
+        .tag-absence { background: rgba(244, 67, 54, 0.15); color: #f44336; }
+        .timestamp-cell {
+            font-size: 0.8rem;
+            color: #777;
+            font-family: monospace;
+        }
+        .live-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.7rem;
+            font-weight: 800;
+            color: #4caf50;
+        }
+        .dot {
+            width: 6px;
+            height: 6px;
+            background-color: #4caf50;
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { opacity: 0.4; }
+            50% { opacity: 1; }
+            100% { opacity: 0.4; }
+        }
+
+        /* Paginação e Botão Ver Mais */
+        .load-more-container {
+            text-align: center;
+            margin-top: 20px;
+            padding-bottom: 20px;
+        }
+        .btn-load-more {
+            background: rgba(33, 150, 243, 0.1);
+            color: var(--accent);
+            border: 1px solid var(--accent);
+            padding: 10px 25px;
+            border-radius: 25px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-load-more:hover {
+            background: var(--accent);
+            color: white;
+            box-shadow: 0 0 15px var(--accent-glow);
+        }
+        .btn-load-more:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            border-color: #555;
+            color: #777;
+            background: transparent;
+        }
+
+        /* Tabs para Feed e Pendentes */
+        .feed-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .feed-tab {
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            background: #252525;
+            color: #888;
+            transition: all 0.2s;
+        }
+        .feed-tab.active {
+            background: var(--accent);
+            color: white;
+        }
+
+        /* Próximas Enquetes - Redesign */
+        #nextPollsList {
+            display: flex;
+            flex-direction: column;
+        }
+        .poll-item {
+            display: flex;
+            align-items: center;
+            padding: 14px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            gap: 15px;
+            transition: background 0.2s;
+        }
+        .poll-item:last-child {
+            border-bottom: none;
+        }
+        .calendar-box {
+            width: 52px;
+            height: 52px;
+            background: #161616;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            flex-shrink: 0;
+        }
+        .calendar-box .cal-icon {
+            color: #666;
+            margin-bottom: 4px;
+            width: 16px;
+            height: 16px;
+        }
+        .calendar-box .cal-date {
+            font-size: 9px;
+            font-weight: 600;
+            color: #ddd;
+            text-transform: uppercase;
+            line-height: 1.1;
+            text-align: center;
+        }
+        .poll-info {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        .poll-title {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 1px;
+        }
+        .poll-subtitle {
+            font-size: 0.8rem;
+            color: #888888;
+        }
+        .status-badge {
+            padding: 4px 14px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            border: 1px solid transparent;
+            white-space: nowrap;
+        }
+        .status-agendada {
+            background: rgba(76, 175, 80, 0.1);
+            color: #4caf50;
+            border-color: rgba(76, 175, 80, 0.2);
+        }
+        .status-pendente {
+            background: rgba(255, 152, 0, 0.1);
+            color: #ff9800;
+            border-color: rgba(255, 152, 0, 0.2);
+        }
+        .status-rascunho {
+            background: rgba(158, 158, 158, 0.1);
+            color: #9e9e9e;
+            border-color: rgba(158, 158, 158, 0.2);
+        }
+        .status-bloqueada {
+            background: rgba(244, 67, 54, 0.05);
+            color: #f44336;
+            border-color: rgba(244, 67, 54, 0.1);
+            opacity: 0.6;
         }
     </style>
 </head>
@@ -492,14 +779,50 @@ const generateHtmlDashboard = (stats) => {
             </div>
         </div>
         
-        <div class="card card-wide summary-card">
-            <div style="text-align: center;">
-                <h3 style="margin: 0; color: #7f8c8d; font-size: 1rem;">Total Votos (<span id="txtPeriod">7</span> dias)</h3>
-                <p id="lblTotalVotes" style="margin: 10px 0 0 0; font-size: 2.5rem; font-weight: bold; color: var(--title-color);">0</p>
+        <div class="summary-card">
+            <div class="summary-item">
+                <h3 id="lblTotalVotesTitle">Total Votos (7 dias)</h3>
+                <p id="lblTotalVotes">0</p>
             </div>
-            <div style="text-align: center;">
-                <h3 style="margin: 0; color: #7f8c8d; font-size: 1rem;">Média Diária</h3>
-                <p id="lblAverage" style="margin: 10px 0 0 0; font-size: 2.5rem; font-weight: bold; color: var(--title-color);">0</p>
+            <div class="summary-item">
+                <h3>Média Diária</h3>
+                <p id="lblAverage">0</p>
+            </div>
+            <div class="summary-item">
+                <h3>Tempo Médio Voto</h3>
+                <p id="lblAvgVoteTime" class="accent-val">--</p>
+            </div>
+        </div>
+
+        <div class="feed-container">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <h2 style="margin: 0; font-size: 1.2rem;">Relatório de Respostas</h2>
+                    <div class="live-indicator"><div class="dot"></div> LIVE</div>
+                </div>
+                <div class="feed-tabs">
+                    <div class="feed-tab active" id="tabVotes" onclick="switchFeedTab('votes')">Votos do Dia</div>
+                    <div class="feed-tab" id="tabPending" onclick="switchFeedTab('pending')">Aguardando Resposta</div>
+                </div>
+            </div>
+            
+            <div class="card card-wide" style="padding: 0; border: none; background: transparent; box-shadow: none;">
+                <table class="feed-table">
+                    <thead>
+                        <tr id="feedHeader">
+                            <th>Horário</th>
+                            <th>Estudante</th>
+                            <th>Rota</th>
+                            <th>Resposta</th>
+                        </tr>
+                    </thead>
+                    <tbody id="voteFeedBody">
+                        <!-- Preenchido via JS -->
+                    </tbody>
+                </table>
+                <div id="loadMoreContainer" class="load-more-container">
+                    <button id="btnLoadMore" class="btn-load-more" onclick="loadMoreVotes()">Ver Mais</button>
+                </div>
             </div>
         </div>
     </div>
@@ -511,13 +834,20 @@ const generateHtmlDashboard = (stats) => {
 
     <script>
         let rawDB = ${statsJSONStr};
+        let passengers = ${passengersJSONStr};
         let capacities = ${capacitiesJSONStr};
         let groupAliases = ${aliasesJSONStr};
         let skipDates = ${skipDatesJSONStr};
         let pollTime = "${pollTimeStr}";
+        let targetGroups = ${targetGroupsJSONStr};
         
         let lastNotifiedCount = {}; // Para o item 4
         let notificationEnabled = false;
+        
+        // Estado do Feed
+        let currentFeedTab = 'votes';
+        let feedLimit = 10;
+        let currentTargetGroup = "Todos";
         const optionColors = {
             "Irei, ida e volta.": "#4caf50",
             "Irei, mas não retornarei.": "#2196f3",
@@ -528,6 +858,36 @@ const generateHtmlDashboard = (stats) => {
         let pieChartIns = null;
         let barChartIns = null;
         let stackedChartIns = null;
+
+        const normalizePhone = (p) => {
+            if (!p) return "";
+            let digits = p.replace(/\D/g, "");
+            if (digits.length === 11 && digits.startsWith("0")) digits = digits.substring(1);
+            if (digits.length <= 11) digits = "55" + digits;
+            // Caso especial: WhatsApp remove o 9 extra de certas regiões em alguns JIDs
+            // Se tiver 13 dígitos e começar com 55, tentamos também a versão com 12 dígitos
+            return digits;
+        };
+
+        const getPassengerByJid = (jid) => {
+            if (!jid) return null;
+            const jidDigits = jid.split('@')[0];
+            
+            // Tenta match direto no telefone normalizado
+            let found = passengers.find(p => normalizePhone(p.phone) === jidDigits);
+            
+            // Se não achou, tenta match ignorando o '9' extra (comum no BR)
+            if (!found && jidDigits.length === 13 && jidDigits.startsWith("55")) {
+                const withoutNine = jidDigits.substring(0, 4) + jidDigits.substring(5);
+                found = passengers.find(p => normalizePhone(p.phone) === withoutNine);
+            }
+            if (!found && jidDigits.length === 12 && jidDigits.startsWith("55")) {
+                const withNine = jidDigits.substring(0, 4) + "9" + jidDigits.substring(4);
+                found = passengers.find(p => normalizePhone(p.phone) === withNine);
+            }
+            
+            return found;
+        };
 
         // Extracts all unique group names across entire DB history
         const extractGroups = () => {
@@ -618,6 +978,9 @@ const generateHtmlDashboard = (stats) => {
 
             const daysOfWeekBR = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 
+            // For Average Vote Time
+            let voteTimestamps = [];
+
             for (let i = targetDays - 1; i >= 0; i--) {
                 const day = todayMoment.clone().subtract(i, 'days');
                 const dateStr = day.format('YYYY-MM-DD');
@@ -657,11 +1020,17 @@ const generateHtmlDashboard = (stats) => {
                         dayTotal += voters.length;
 
                         voters.forEach(v => {
-                            const opt = groupPayload.votes[v];
+                            const vData = groupPayload.votes[v];
+                            const opt = typeof vData === 'object' ? vData.option : vData;
+                            
                             if (globalOptionCounts[opt] !== undefined) globalOptionCounts[opt]++;
                             else globalOptionCounts[opt] = 1;
 
                             if (dayCounts[opt] !== undefined) dayCounts[opt]++;
+                            
+                            if (typeof vData === 'object' && vData.timestamp) {
+                                voteTimestamps.push(moment(vData.timestamp));
+                            }
                         });
                     });
                 }
@@ -751,9 +1120,11 @@ const generateHtmlDashboard = (stats) => {
                 document.getElementById("hlWeekdayValleyDate").innerText = "";
             }
 
-            document.getElementById("txtPeriod").innerText = targetDaysStr;
             document.getElementById("lblTotalVotes").innerText = accumTotalVotes.toLocaleString('pt-BR');
-            
+            const totalTitle = document.getElementById("lblTotalVotesTitle");
+            if (totalTitle) totalTitle.innerText = "Total Votos (" + targetDaysStr + " dias)";
+            calculateAverageInterval(voteTimestamps);
+
             // Item 2 & 3: Títulos dinâmicos
             const pieTitle = document.getElementById("titlePieChart");
             const barTitle = document.getElementById("titleBarChart");
@@ -797,7 +1168,165 @@ const generateHtmlDashboard = (stats) => {
             // Item 9: Próximas Enquetes
             updateNextPollsCalendar();
 
+            // Item 2: Feed de Respostas
+            updateVoteFeed(targetGroup);
+
             renderCharts(barLabels, barData, globalOptionCounts, stackedData);
+        };
+
+        const calculateAverageInterval = (timestamps) => {
+            const label = document.getElementById("lblAvgVoteTime");
+            if (!timestamps || timestamps.length < 2) {
+                label.innerText = "--";
+                return;
+            }
+            
+            // Ordena por tempo
+            timestamps.sort((a, b) => a.valueOf() - b.valueOf());
+            
+            let totalDiff = 0;
+            let count = 0;
+            
+            for (let i = 1; i < timestamps.length; i++) {
+                const diff = timestamps[i].diff(timestamps[i-1], 'seconds');
+                // Ignora intervalos muito longos (mais de 2 horas) que podem ser entre polls de dias diferentes ou pausas longas
+                if (diff > 0 && diff < 7200) { 
+                    totalDiff += diff;
+                    count++;
+                }
+            }
+            
+            if (count === 0) {
+                label.innerText = "--";
+                return;
+            }
+            
+            const avgSeconds = totalDiff / count;
+            if (avgSeconds < 60) {
+                label.innerText = Math.round(avgSeconds) + "s";
+            } else {
+                label.innerText = Math.round(avgSeconds / 60) + "m " + Math.round(avgSeconds % 60) + "s";
+            }
+        };
+
+        const switchFeedTab = (tab) => {
+            currentFeedTab = tab;
+            feedLimit = 10;
+            document.getElementById('tabVotes').classList.toggle('active', tab === 'votes');
+            document.getElementById('tabPending').classList.toggle('active', tab === 'pending');
+            updateVoteFeed(currentTargetGroup);
+        };
+
+        const loadMoreVotes = () => {
+            feedLimit += 10;
+            updateVoteFeed(currentTargetGroup);
+        };
+
+        const updateVoteFeed = (targetGroup) => {
+            currentTargetGroup = targetGroup;
+            const body = document.getElementById("voteFeedBody");
+            const header = document.getElementById("feedHeader");
+            const btnContainer = document.getElementById("loadMoreContainer");
+            if (!body) return;
+            
+            const todayStr = moment().startOf('day').format('YYYY-MM-DD');
+            const dayEntry = rawDB[todayStr] || { grupos: {} };
+            
+            // Header dinâmico baseado na aba
+            if (currentFeedTab === 'votes') {
+                header.innerHTML = '<th>Horário</th><th>Estudante</th><th>Rota</th><th>Resposta</th>';
+            } else {
+                header.innerHTML = '<th>Estudante</th><th>Rota</th><th>Status</th>';
+            }
+
+            if (currentFeedTab === 'votes') {
+                let allTodayVotes = [];
+                Object.keys(dayEntry.grupos).forEach(gName => {
+                    if (targetGroup !== "Todos" && gName !== targetGroup) return;
+                    const groupData = dayEntry.grupos[gName];
+                    Object.keys(groupData.votes).forEach(vId => {
+                        const vData = groupData.votes[vId];
+                        allTodayVotes.push({
+                            voter_id: vId,
+                            group: gName,
+                            option: typeof vData === 'object' ? vData.option : vData,
+                            timestamp: vData.timestamp || todayStr
+                        });
+                    });
+                });
+
+                allTodayVotes.sort((a, b) => moment(b.timestamp).valueOf() - moment(a.timestamp).valueOf());
+                
+                body.innerHTML = "";
+                const visibleVotes = allTodayVotes.slice(0, feedLimit);
+                
+                if (visibleVotes.length === 0) {
+                    body.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #555; padding: 30px;">Nenhum voto registrado hoje.</td></tr>';
+                    btnContainer.style.display = "none";
+                } else {
+                    visibleVotes.forEach(vote => {
+                        const pass = getPassengerByJid(vote.voter_id);
+                        const row = document.createElement("tr");
+                        row.className = "feed-row";
+                        const timeStr = vote.timestamp ? moment(vote.timestamp).tz("America/Sao_Paulo").format("HH:mm") : "--:--";
+                        const name = pass ? pass.name : "Externo (" + vote.voter_id.split('@')[0] + ")";
+                        const photo = (pass && pass.photo_url) ? pass.photo_url : "https://ui-avatars.com/api/?name=" + encodeURIComponent(name) + "&background=333&color=fff";
+                        const routeAlias = groupAliases[vote.group] || vote.group;
+                        let optClass = "tag-vote";
+                        if (vote.option.includes("Não irei")) optClass = "tag-absence";
+                        if (vote.option.includes("apenas retornarei")) optClass = "tag-waiting";
+                        
+                        row.innerHTML = ' \
+                            <td class="timestamp-cell">' + timeStr + '</td> \
+                            <td><div class="user-cell"><img src="' + photo + '" class="user-avatar" onerror="this.src=\\\'https://ui-avatars.com/api/?name=?\\\'"><span class="user-name">' + name + '</span></div></td> \
+                            <td><span class="tag tag-route">' + routeAlias + '</span></td> \
+                            <td><span class="tag ' + optClass + '">' + vote.option + '</span></td> \
+                        ';
+                        body.appendChild(row);
+                    });
+                    btnContainer.style.display = (allTodayVotes.length > feedLimit) ? "block" : "none";
+                }
+            } else {
+                // Aba de Pendentes
+                let pendingUsers = [];
+                let groupsToSearch = (targetGroup === "Todos") ? Object.keys(capacities) : [targetGroup];
+                
+                groupsToSearch.forEach(gName => {
+                    const busIdx = targetGroups.indexOf(gName) + 1;
+                    const routePassengers = passengers.filter(p => p.bus_number === busIdx);
+                    const votedJids = dayEntry.grupos[gName] ? Object.keys(dayEntry.grupos[gName].votes).map(v => v.split('@')[0]) : [];
+                    
+                    routePassengers.forEach(p => {
+                        const pJid = normalizePhone(p.phone);
+                        if (!votedJids.includes(pJid)) {
+                            pendingUsers.push({ ...p, group: gName });
+                        }
+                    });
+                });
+
+                body.innerHTML = "";
+                const visiblePending = pendingUsers.slice(0, feedLimit);
+                
+                if (visiblePending.length === 0) {
+                    body.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #4caf50; padding: 30px;">🎉 Ninguém pendente nesta rota!</td></tr>';
+                    btnContainer.style.display = "none";
+                } else {
+                    visiblePending.forEach(p => {
+                        const row = document.createElement("tr");
+                        row.className = "feed-row";
+                        const photo = p.photo_url || "https://ui-avatars.com/api/?name=" + encodeURIComponent(p.name) + "&background=333&color=fff";
+                        const routeAlias = groupAliases[p.group] || p.group;
+                        
+                        row.innerHTML = ' \
+                            <td><div class="user-cell"><img src="' + photo + '" class="user-avatar" onerror="this.src=\\\'https://ui-avatars.com/api/?name=?\\\'"><span class="user-name">' + p.name + '</span></div></td> \
+                            <td><span class="tag tag-route">' + routeAlias + '</span></td> \
+                            <td><span class="tag tag-waiting" style="background: rgba(255,152,0,0.1); color: #ff9800;">PENDENTE</span></td> \
+                        ';
+                        body.appendChild(row);
+                    });
+                    btnContainer.style.display = (pendingUsers.length > feedLimit) ? "block" : "none";
+                }
+            }
         };
 
         const updateCapacityCard = (targetGroup) => {
@@ -821,17 +1350,25 @@ const generateHtmlDashboard = (stats) => {
             groupsToShow.forEach(gName => {
                 let confirmations = 0;
                 const groupData = dayEntry.grupos ? dayEntry.grupos[gName] : null;
+                const votedCount = (groupData && groupData.votes) ? Object.keys(groupData.votes).length : 0;
 
                 if (groupData && groupData.votes) {
-                    Object.values(groupData.votes).forEach(opt => {
+                    Object.values(groupData.votes).forEach(vData => {
+                        const opt = typeof vData === 'object' ? vData.option : vData;
                         if (opt === "Irei, ida e volta." || opt === "Irei, mas não retornarei." || opt === "Não irei, apenas retornarei.") {
                             confirmations++;
                         }
                     });
                 }
                 
+                // Busca total de passageiros para esta rota (Item 3)
+                // Usamos o mapeamento de bus_number (1, 2, 3) baseado na ordem do config
+                const busIdx = targetGroups.indexOf(gName) + 1;
+                const totalPassengers = passengers.filter(p => p.bus_number === busIdx).length;
+                const pending = Math.max(0, totalPassengers - votedCount);
+
                 totalVotes += confirmations;
-                renderCompactBar(gName, confirmations, capacities[gName]);
+                renderCompactBar(gName, confirmations, capacities[gName], pending);
                 hasAnyCapacity = true;
             });
 
@@ -839,78 +1376,59 @@ const generateHtmlDashboard = (stats) => {
             capacitySection.style.display = hasAnyCapacity ? "block" : "none";
         };
 
-        const renderCompactBar = (name, count, cap) => {
+        const renderCompactBar = (name, count, cap, pending) => {
             const capacityList = document.getElementById("capacityList");
-            const percentage = Math.min(100, (count / cap) * 100);
+            const percentage = Math.round(Math.min(100, (count / cap) * 100));
             const displayName = groupAliases[name] || name;
             
-            // Item 8: Cores diferentes para cada ônibus
+            const isFull = count >= cap;
+            const excess = count > cap ? (count - cap) : 0;
+            
             const busColors = [
-                'linear-gradient(90deg, #2196f3, #4caf50)', // Azul para Verde
-                'linear-gradient(90deg, #9c27b0, #00bcd4)', // Roxo para Cyan
-                'linear-gradient(90deg, #fb8c00, #ffeb3b)', // Laranja para Amarelo (mais vibrante)
-                'linear-gradient(90deg, #f44336, #e91e63)', // Vermelho para Rosa
-                'linear-gradient(90deg, #3f51b5, #2196f3)'  // Indigo para Azul
+                { grad: 'linear-gradient(90deg, #2196f3, #4caf50)', glow: '#4caf50' },
+                { grad: 'linear-gradient(90deg, #9c27b0, #00bcd4)', glow: '#00bcd4' },
+                { grad: 'linear-gradient(90deg, #fb8c00, #ffeb3b)', glow: '#ffeb3b' },
+                { grad: 'linear-gradient(90deg, #f44336, #e91e63)', glow: '#e91e63' },
+                { grad: 'linear-gradient(90deg, #3f51b5, #2196f3)', glow: '#2196f3' }
             ];
-            // Usa o index do nome na lista de capacidades para decidir a cor
             const colorIdx = Object.keys(capacities).indexOf(name) % busColors.length;
-            const barGradient = busColors[colorIdx];
+            let barStyle = busColors[colorIdx];
 
-            let statusColor = "#94a3b8";
-            let statusText = (cap - count) + " vagas";
-            if (count > cap) {
-                statusColor = "#f44336";
-                statusText = "Excesso: " + (count - cap);
-            } else if (count === cap) {
-                statusColor = "#f44336";
-                statusText = "Lotado!";
-            } else if (percentage > 80) {
-                statusColor = "#ff9800";
-                statusText = "Quase lotado!";
-            }
-
-            // Item 4: Verificação de Notificação
-            if (notificationEnabled && (count === cap || (count > 0 && count % 5 === 0))) {
-                if (lastNotifiedCount[name] !== count) {
-                    new Notification("Alerta de Lotação", {
-                        body: "O ônibus " + displayName + " atingiu " + count + "/" + cap + " passageiros!",
-                        icon: "https://cdn-icons-png.flaticon.com/512/2850/2850383.png"
-                    });
-                    lastNotifiedCount[name] = count;
-                }
+            if (isFull) {
+                barStyle = { grad: 'linear-gradient(90deg, #f44336, #ff5252)', glow: '#ff5252' };
             }
 
             const container = document.createElement("div");
-            container.style.marginBottom = "12px";
+            container.style.marginBottom = "18px";
 
             const header = document.createElement("div");
-            header.style.cssText = "display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 6px;";
+            header.style.cssText = "display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;";
 
             const nameSpan = document.createElement("span");
-            nameSpan.style.cssText = "font-size: 0.9rem; font-weight: 600; color: var(--title-color);";
+            nameSpan.style.cssText = "font-size: 0.9rem; font-weight: 600; color: #fff; opacity: 0.9;";
             nameSpan.innerText = displayName;
 
             const infoDiv = document.createElement("div");
-            infoDiv.style.textAlign = "right";
+            infoDiv.style.cssText = "font-size: 0.9rem; font-weight: 500; color: #888; text-align: right;";
+            
+            let statusText = percentage + "% / " + count + " Votos";
+            if (excess > 0) statusText = "Excesso: +" + excess + " / " + count + " Votos";
+            else if (count === cap) statusText = "Lotado! / " + count + " Votos";
+            
+            infoDiv.innerText = statusText;
+            if (isFull) {
+                infoDiv.style.color = "#ff5252";
+                infoDiv.style.fontWeight = "700";
+            }
 
-            const sSpan = document.createElement("span");
-            sSpan.style.cssText = "font-size: 0.8rem; color: " + statusColor + "; font-weight: 500; margin-right: 8px;";
-            sSpan.innerText = statusText;
-
-            const cSpan = document.createElement("span");
-            cSpan.style.cssText = "font-size: 1rem; font-weight: bold; color: var(--accent);";
-            cSpan.innerText = count + "/" + cap;
-
-            infoDiv.appendChild(sSpan);
-            infoDiv.appendChild(cSpan);
             header.appendChild(nameSpan);
             header.appendChild(infoDiv);
 
             const progressContainer = document.createElement("div");
-            progressContainer.style.cssText = "width: 100%; height: 10px; background: #2c2c2c; border-radius: 5px; overflow: hidden; border: 1px solid var(--border-color);";
+            progressContainer.style.cssText = "width: 100%; height: 8px; background: #222; border-radius: 4px; overflow: visible;";
 
             const progressBar = document.createElement("div");
-            progressBar.style.cssText = "height: 100%; background: " + barGradient + "; transition: width 0.8s ease;";
+            progressBar.style.cssText = "height: 100%; background: " + barStyle.grad + "; border-radius: 4px; transition: width 1s cubic-bezier(0.4, 0, 0.2, 1); position: relative;";
             progressBar.style.width = percentage + "%";
 
             progressContainer.appendChild(progressBar);
@@ -1217,20 +1735,22 @@ const generateHtmlDashboard = (stats) => {
                 else if (skipReason) reason = skipReason;
                 
                 const row = document.createElement("div");
-                row.style.cssText = 'display: flex; align-items: center; padding: 10px 16px; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 10px; transition: all 0.2s ease; gap: 15px;';
-                
-                row.onmouseover = () => { row.style.background = "rgba(255, 255, 255, 0.06)"; row.style.borderColor = "rgba(21, 101, 192, 0.3)"; };
-                row.onmouseout = () => { row.style.background = "rgba(255, 255, 255, 0.03)"; row.style.borderColor = "rgba(255, 255, 255, 0.05)"; };
+                row.className = "poll-item";
 
+                const dateDisplay = current.format('DD MMM'); // Ex: 08 Nov
+                const weekNum = current.isoWeek();
+                
                 if (reason) {
-                    row.style.opacity = "0.5";
                     row.innerHTML = ' \
-                        <div style="font-size: 1.2rem; min-width: 30px; text-align: center;">🚫</div> \
-                        <div style="display: flex; flex-direction: column; flex: 1;"> \
-                            <span style="font-size: 0.85rem; font-weight: bold; color: #7f8c8d;">' + current.format('DD/MM') + ' <small>(' + daysOfWeekBR[dayOfWeek] + ')</small></span> \
-                            <span style="font-size: 0.75rem; color: #f44336; font-weight: 500;">SEM ENQUETE</span> \
+                        <div class="calendar-box" style="opacity: 0.5;"> \
+                            <i data-lucide="calendar-x" class="cal-icon"></i> \
+                            <div class="cal-date">' + dateDisplay + '</div> \
                         </div> \
-                        <div style="font-size: 0.75rem; color: #555; font-style: italic;">' + reason + '</div> \
+                        <div class="poll-info" style="opacity: 0.5;"> \
+                            <div class="poll-title">Indisponível</div> \
+                            <div class="poll-subtitle">' + reason + '</div> \
+                        </div> \
+                        <div class="status-badge status-bloqueada">Offline</div> \
                     ';
                 } else {
                     const duration = moment.duration(current.diff(now));
@@ -1239,24 +1759,29 @@ const generateHtmlDashboard = (stats) => {
                     const m = duration.minutes();
                     
                     let timeRemaining = "";
-                    if (d > 0) timeRemaining = "Em " + d + "d " + h + "h";
-                    else if (h > 0) timeRemaining = "Em " + h + "h " + m + "m";
-                    else timeRemaining = "Em " + m + "m";
+                    if (d > 0) timeRemaining = d + "d " + h + "h";
+                    else if (h > 0) timeRemaining = h + "h " + m + "m";
+                    else timeRemaining = m + "m";
 
                     row.innerHTML = ' \
-                        <div style="font-size: 1.2rem; min-width: 30px; text-align: center;">📅</div> \
-                        <div style="display: flex; flex-direction: column; flex: 1;"> \
-                            <span style="font-size: 0.85rem; font-weight: bold; color: var(--title-color);">' + current.format('DD/MM') + ' <small>(' + daysOfWeekBR[dayOfWeek] + ')</small></span> \
-                            <span style="font-size: 0.75rem; color: #4caf50; font-weight: 600;">AGENDADA - ' + pollTime + '</span> \
+                        <div class="calendar-box"> \
+                            <i data-lucide="calendar" class="cal-icon"></i> \
+                            <div class="cal-date">' + dateDisplay + '</div> \
                         </div> \
-                        <div style="text-align: right;"> \
-                            <span style="font-size: 0.75rem; background: rgba(33, 150, 243, 0.15); color: var(--accent); padding: 3px 8px; border-radius: 20px; font-weight: bold; white-space: nowrap;">' + timeRemaining + '</span> \
+                        <div class="poll-info"> \
+                            <div class="poll-title">Enquete de Frequência</div> \
+                            <div class="poll-subtitle">Semana ' + weekNum + ' • ' + pollTime + '</div> \
                         </div> \
+                        <div class="status-badge status-agendada">Agendada</div> \
                     ';
                 }
                 
                 list.appendChild(row);
                 current.add(1, 'days');
+            }
+
+            if (window.lucide) {
+                lucide.createIcons();
             }
         };
 
