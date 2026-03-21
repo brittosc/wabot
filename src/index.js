@@ -57,8 +57,17 @@ async function startBot() {
 
   client.on("vote_update", async (vote) => {
     try {
-      await statistics.registerVote(vote);
-      dashboard.addLog(`Voto computado de ${vote.voter}`);
+      // Tenta obter o nome do contato para auto-registro
+      let voterName = null;
+      try {
+        const contact = await client.getContactById(vote.voter);
+        voterName = contact.pushname || contact.name;
+      } catch (e) {
+        dashboard.addLog(`Aviso: Não foi possível obter nome de ${vote.voter}`);
+      }
+
+      await statistics.registerVote(vote, voterName);
+      dashboard.addLog(`Voto computado de ${voterName || vote.voter}`);
     } catch (error) {
       dashboard.addLog(`Erro ao computar voto: ${error.message}`);
     }

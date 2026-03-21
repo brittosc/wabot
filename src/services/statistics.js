@@ -6,6 +6,11 @@ const supabase = require("../database/supabaseClient");
 
 const htmlFile = "./public/estatisticas.html";
 
+const normalizePhone = (p) => {
+  if (!p) return "";
+  return p.replace(/\D/g, "");
+};
+
 const readStats = async () => {
   try {
     // Buscamos os últimos 10.000 votos (suficiente para vários meses)
@@ -30,15 +35,26 @@ const readStats = async () => {
           votes: {},
         };
       }
-      stats[date].grupos[row.group_name].votes[row.voter_id] = {
-        option: row.option,
-        timestamp: row.created_at,
-      };
+      // Garante que votos são objetos com option e timestamp
+      let voteObj = row.option;
+      if (typeof row.option === "string") {
+        voteObj = { option: row.option, timestamp: row.created_at };
+      }
+      stats[date].grupos[row.group_name].votes[row.voter_id] = voteObj;
     });
-    return stats;
+
+    // Verificar se houve enquete hoje
+    const todayStr = moment().tz("America/Sao_Paulo").format("YYYY-MM-DD");
+    const { data: pollHist } = await supabase
+      .from("poll_history")
+      .select("poll_date")
+      .eq("poll_date", todayStr);
+    const isPollSentToday = pollHist && pollHist.length > 0;
+
+    return { rawDB: stats, isPollSentToday };
   } catch (e) {
     console.error("Erro ao ler stats do Supabase:", e.message);
-    return {};
+    return { rawDB: {}, isPollSentToday: false };
   }
 };
 
@@ -86,7 +102,7 @@ const updateTerminalOccupancy = async (stats) => {
   }
 };
 
-const registerVote = async (vote) => {
+const registerVote = async (vote, voterName) => {
   const now = moment().tz("America/Sao_Paulo");
   const todayStr = now.format("YYYY-MM-DD");
 
@@ -103,6 +119,35 @@ const registerVote = async (vote) => {
   }
 
   const voterId = vote.voter;
+
+  // Auto-registro de passageiros
+  try {
+    const phone = normalizePhone(voterId);
+    
+    // Busca todos para verificar se o telefone já existe (considerando variações de formato)
+    const { data: allPassengers } = await supabase
+      .from("passengers")
+      .select("id, phone");
+
+    const existing = allPassengers?.find(p => normalizePhone(p.phone) === phone);
+
+    if (!existing) {
+      const config = configService.getConfig();
+      const targetGroups = config.targetGroups || [];
+      const busIndex = targetGroups.indexOf(groupName);
+      const busNumber = busIndex !== -1 ? busIndex + 1 : 1;
+      
+      await supabase.from("passengers").insert({
+        name: voterName || "Aluno Novo",
+        phone: phone, // Armazena apenas os dígitos para consistência
+        bus_number: busNumber,
+        status: "aprovado",
+        registration_number: "AUTO_" + phone.slice(-6) // Fallback para campo único
+      });
+    }
+  } catch (err) {
+    console.error("[Stats] Erro no auto-registro:", err.message);
+  }
 
   if (vote.selectedOptions && vote.selectedOptions.length > 0) {
     const selectedOption = vote.selectedOptions[0].name;
@@ -138,18 +183,33 @@ const generateHtmlDashboard = async (stats) => {
     const { data, error } = await supabase
       .from("passengers")
       .select("name, phone, photo_url, bus_number, status");
-    if (!error)
-      passengers = data.filter(
-        (p) =>
-          p.status === "aprovativo" || p.status === "aprovado" || !p.status,
-      ); // Fallback caso status mude
+
+    const config = configService.getConfig();
+    const targetGroups = config.targetGroups;
+
+    if (!error && data) {
+      passengers = data
+        .filter(
+          (p) =>
+            p.status === "aprovativo" || p.status === "aprovado" || !p.status,
+        )
+        .map((p) => {
+          const gName = targetGroups[p.bus_number - 1] || "Desconhecido";
+          return {
+            ...p,
+            group_name: gName,
+            jid: normalizePhone(p.phone || ""),
+          };
+        });
+    }
   } catch (e) {
     console.error("Erro ao buscar passageiros:", e.message);
   }
 
   // Inject the raw JS object directly into HTML for dynamic reading
-  const statsJSONStr = JSON.stringify(stats);
+  const statsJSONStr = JSON.stringify(stats.rawDB);
   const passengersJSONStr = JSON.stringify(passengers);
+  const isPollSentToday = !!stats.isPollSentToday;
   const lastUpdateFormated = moment()
     .tz("America/Sao_Paulo")
     .format("DD/MM/YYYY HH:mm:ss");
@@ -171,7 +231,7 @@ const generateHtmlDashboard = async (stats) => {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Estatísticas das Enquetes - WABOT</title>
+    <title>Estatísticas das Enquetes</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet">
@@ -772,7 +832,7 @@ const generateHtmlDashboard = async (stats) => {
         <!-- Calendário de Próximas Enquetes (Item 9) -->
         <div id="calendarSection" style="width: 100%;">
             <div class="card card-wide" style="align-items: stretch;">
-                <h2 style="margin-bottom: 15px;">📅 Próximas Enquetes</h2>
+                <h2 style="margin-bottom: 15px;">Próximas Enquetes</h2>
                 <div id="nextPollsList" style="display: flex; flex-direction: column; gap: 8px;">
                     <!-- Preenchido via JS com layout de lista premium -->
                 </div>
@@ -835,6 +895,7 @@ const generateHtmlDashboard = async (stats) => {
     <script>
         let rawDB = ${statsJSONStr};
         let passengers = ${passengersJSONStr};
+        let isPollSentToday = ${isPollSentToday};
         let capacities = ${capacitiesJSONStr};
         let groupAliases = ${aliasesJSONStr};
         let skipDates = ${skipDatesJSONStr};
@@ -1229,7 +1290,18 @@ const generateHtmlDashboard = async (stats) => {
             const btnContainer = document.getElementById("loadMoreContainer");
             if (!body) return;
             
-            const todayStr = moment().startOf('day').format('YYYY-MM-DD');
+            const formatPhone = (raw) => {
+                let clean = raw.replace(/\D/g, "");
+                if (clean.startsWith("55")) clean = clean.substring(2);
+                if (clean.length < 10) return raw;
+                const ddd = clean.substring(0, 2);
+                const hasNine = clean.length === 11;
+                const nine = hasNine ? clean.substring(2, 3) + "-" : "";
+                const prefix = clean.substring(hasNine ? 3 : 2, hasNine ? 7 : 6);
+                return "(" + ddd + ")" + nine + prefix + "-xxxx";
+            };
+
+            const todayStr = moment().tz("America/Sao_Paulo").format('YYYY-MM-DD');
             const dayEntry = rawDB[todayStr] || { grupos: {} };
             
             // Header dinâmico baseado na aba
@@ -1237,6 +1309,13 @@ const generateHtmlDashboard = async (stats) => {
                 header.innerHTML = '<th>Horário</th><th>Estudante</th><th>Rota</th><th>Resposta</th>';
             } else {
                 header.innerHTML = '<th>Estudante</th><th>Rota</th><th>Status</th>';
+                if (!isPollSentToday) {
+                    body.innerHTML = '<tr><td colspan="3" style="text-align: center; color: #555; padding: 40px;">' +
+                        '<div style="margin-bottom: 10px; opacity: 0.5; font-size: 2rem;">🕒</div>' +
+                        'Aguardando o envio da enquete de hoje (' + moment().tz("America/Sao_Paulo").format("DD/MM") + ').</td></tr>';
+                    btnContainer.style.display = "none";
+                    return;
+                }
             }
 
             if (currentFeedTab === 'votes') {
@@ -1269,8 +1348,15 @@ const generateHtmlDashboard = async (stats) => {
                         const row = document.createElement("tr");
                         row.className = "feed-row";
                         const timeStr = vote.timestamp ? moment(vote.timestamp).tz("America/Sao_Paulo").format("HH:mm") : "--:--";
-                        const name = pass ? pass.name : "Externo (" + vote.voter_id.split('@')[0] + ")";
-                        const photo = (pass && pass.photo_url) ? pass.photo_url : "https://ui-avatars.com/api/?name=" + encodeURIComponent(name) + "&background=333&color=fff";
+                        
+                        // Máscara de Nome e Telefone: Nome - (DD)9-XXXX-xxxx
+                        const voterIdDigit = vote.voter_id.split('@')[0];
+                        const maskedPhone = formatPhone(voterIdDigit);
+                        const rawName = pass ? pass.name : "Ext";
+                        const firstName = rawName.split(' ')[0];
+                        const displayName = firstName + " - " + maskedPhone;
+
+                        const photo = (pass && pass.photo_url) ? pass.photo_url : "https://ui-avatars.com/api/?name=" + encodeURIComponent(displayName) + "&background=333&color=fff";
                         const routeAlias = groupAliases[vote.group] || vote.group;
                         let optClass = "tag-vote";
                         if (vote.option.includes("Não irei")) optClass = "tag-absence";
@@ -1278,7 +1364,7 @@ const generateHtmlDashboard = async (stats) => {
                         
                         row.innerHTML = ' \
                             <td class="timestamp-cell">' + timeStr + '</td> \
-                            <td><div class="user-cell"><img src="' + photo + '" class="user-avatar" onerror="this.src=\\\'https://ui-avatars.com/api/?name=?\\\'"><span class="user-name">' + name + '</span></div></td> \
+                            <td><div class="user-cell"><img src="' + photo + '" class="user-avatar" onerror="this.src=\\\'https://ui-avatars.com/api/?name=?\\\'"><span class="user-name">' + displayName + '</span></div></td> \
                             <td><span class="tag tag-route">' + routeAlias + '</span></td> \
                             <td><span class="tag ' + optClass + '">' + vote.option + '</span></td> \
                         ';
@@ -1287,44 +1373,39 @@ const generateHtmlDashboard = async (stats) => {
                     btnContainer.style.display = (allTodayVotes.length > feedLimit) ? "block" : "none";
                 }
             } else {
-                // Aba de Pendentes
-                let pendingUsers = [];
-                let groupsToSearch = (targetGroup === "Todos") ? Object.keys(capacities) : [targetGroup];
-                
-                groupsToSearch.forEach(gName => {
-                    const busIdx = targetGroups.indexOf(gName) + 1;
-                    const routePassengers = passengers.filter(p => p.bus_number === busIdx);
-                    const votedJids = dayEntry.grupos[gName] ? Object.keys(dayEntry.grupos[gName].votes).map(v => v.split('@')[0]) : [];
-                    
-                    routePassengers.forEach(p => {
-                        const pJid = normalizePhone(p.phone);
-                        if (!votedJids.includes(pJid)) {
-                            pendingUsers.push({ ...p, group: gName });
-                        }
-                    });
+                // Aba PENDENTES
+                if (btnContainer) btnContainer.style.display = "none";
+                const votersToday = [];
+                Object.keys(dayEntry.grupos).forEach(gName => {
+                    Object.keys(dayEntry.grupos[gName].votes).forEach(vId => votersToday.push(vId));
+                });
+
+                const tGroup = (targetGroup === "Todos") ? null : targetGroup;
+                const pendingUsers = passengers.filter(p => {
+                    if (tGroup && p.group_name !== tGroup) return false;
+                    return !votersToday.includes(p.jid);
                 });
 
                 body.innerHTML = "";
-                const visiblePending = pendingUsers.slice(0, feedLimit);
-                
-                if (visiblePending.length === 0) {
-                    body.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #4caf50; padding: 30px;">🎉 Ninguém pendente nesta rota!</td></tr>';
-                    btnContainer.style.display = "none";
+                if (pendingUsers.length === 0) {
+                    body.innerHTML = '<tr><td colspan="3" style="text-align: center; color: #4caf50; padding: 30px;">✅ Todos os passageiros votaram hoje!</td></tr>';
                 } else {
-                    visiblePending.forEach(p => {
+                    pendingUsers.forEach(user => {
                         const row = document.createElement("tr");
                         row.className = "feed-row";
-                        const photo = p.photo_url || "https://ui-avatars.com/api/?name=" + encodeURIComponent(p.name) + "&background=333&color=fff";
-                        const routeAlias = groupAliases[p.group] || p.group;
+                        const routeAlias = groupAliases[user.group_name] || user.group_name;
+                        const firstName = user.name.split(' ')[0];
+                        const maskedPhone = formatPhone(user.phone || user.jid.split('@')[0]);
+                        const displayName = firstName + " - " + maskedPhone;
+                        const photo = user.photo_url || "https://ui-avatars.com/api/?name=" + encodeURIComponent(displayName) + "&background=333&color=fff";
                         
                         row.innerHTML = ' \
-                            <td><div class="user-cell"><img src="' + photo + '" class="user-avatar" onerror="this.src=\\\'https://ui-avatars.com/api/?name=?\\\'"><span class="user-name">' + p.name + '</span></div></td> \
+                            <td><div class="user-cell"><img src="' + photo + '" class="user-avatar" onerror="this.src=\\\'https://ui-avatars.com/api/?name=?\\\'"><span class="user-name">' + displayName + '</span></div></td> \
                             <td><span class="tag tag-route">' + routeAlias + '</span></td> \
-                            <td><span class="tag tag-waiting" style="background: rgba(255,152,0,0.1); color: #ff9800;">PENDENTE</span></td> \
+                            <td><span class="tag tag-pending">PENDENTE</span></td> \
                         ';
                         body.appendChild(row);
                     });
-                    btnContainer.style.display = (pendingUsers.length > feedLimit) ? "block" : "none";
                 }
             }
         };
@@ -1539,18 +1620,18 @@ const generateHtmlDashboard = async (stats) => {
             
             const datasets = [
                 {
-                    label: 'Ida e Volta',
-                    data: stackedData["Irei, ida e volta."],
+                    label: 'Só Volta',
+                    data: stackedData["Não irei, apenas retornarei."],
                     backgroundColor: isLine ? (context => {
                         const chart = context.chart;
                         const {ctx, chartArea} = chart;
                         if (!chartArea) return null;
                         const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
-                        gradient.addColorStop(0, hexToRgba(optionColors["Irei, ida e volta."], 0.5));
-                        gradient.addColorStop(1, hexToRgba(optionColors["Irei, ida e volta."], 0));
+                        gradient.addColorStop(0, hexToRgba(optionColors["Não irei, apenas retornarei."], 0.5));
+                        gradient.addColorStop(1, hexToRgba(optionColors["Não irei, apenas retornarei."], 0));
                         return gradient;
-                    }) : optionColors["Irei, ida e volta."],
-                    borderColor: optionColors["Irei, ida e volta."],
+                    }) : optionColors["Não irei, apenas retornarei."],
+                    borderColor: optionColors["Não irei, apenas retornarei."],
                     fill: isLine,
                     tension: isLine ? 0.4 : 0,
                     pointRadius: isLine ? 2 : 0,
@@ -1575,24 +1656,6 @@ const generateHtmlDashboard = async (stats) => {
                     borderWidth: isLine ? 2 : 1
                 },
                 {
-                    label: 'Só Volta',
-                    data: stackedData["Não irei, apenas retornarei."],
-                    backgroundColor: isLine ? (context => {
-                        const chart = context.chart;
-                        const {ctx, chartArea} = chart;
-                        if (!chartArea) return null;
-                        const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
-                        gradient.addColorStop(0, hexToRgba(optionColors["Não irei, apenas retornarei."], 0.5));
-                        gradient.addColorStop(1, hexToRgba(optionColors["Não irei, apenas retornarei."], 0));
-                        return gradient;
-                    }) : optionColors["Não irei, apenas retornarei."],
-                    borderColor: optionColors["Não irei, apenas retornarei."],
-                    fill: isLine,
-                    tension: isLine ? 0.4 : 0,
-                    pointRadius: isLine ? 2 : 0,
-                    borderWidth: isLine ? 2 : 1
-                },
-                {
                     label: 'Ausente',
                     data: stackedData["Não irei à faculdade hoje."],
                     backgroundColor: isLine ? (context => {
@@ -1605,6 +1668,24 @@ const generateHtmlDashboard = async (stats) => {
                         return gradient;
                     }) : optionColors["Não irei à faculdade hoje."],
                     borderColor: optionColors["Não irei à faculdade hoje."],
+                    fill: isLine,
+                    tension: isLine ? 0.4 : 0,
+                    pointRadius: isLine ? 2 : 0,
+                    borderWidth: isLine ? 2 : 1
+                },
+                {
+                    label: 'Ida e Volta',
+                    data: stackedData["Irei, ida e volta."],
+                    backgroundColor: isLine ? (context => {
+                        const chart = context.chart;
+                        const {ctx, chartArea} = chart;
+                        if (!chartArea) return null;
+                        const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+                        gradient.addColorStop(0, hexToRgba(optionColors["Irei, ida e volta."], 0.5));
+                        gradient.addColorStop(1, hexToRgba(optionColors["Irei, ida e volta."], 0));
+                        return gradient;
+                    }) : optionColors["Irei, ida e volta."],
+                    borderColor: optionColors["Irei, ida e volta."],
                     fill: isLine,
                     tension: isLine ? 0.4 : 0,
                     pointRadius: isLine ? 2 : 0,
