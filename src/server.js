@@ -190,12 +190,13 @@ const startServer = () => {
     // Rota API de rawDB para o Auto-Refresh do frontend das Estatísticas
     if (req.url === "/api/stats") {
       try {
-        const votes = await readStats();
+        const stats = await readStats();
         const config = configService.getConfig();
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(
           JSON.stringify({
-            votes,
+            votes: stats.rawDB || {},
+            isPollSentToday: !!stats.isPollSentToday,
             capacities: config.groupCapacities || {},
             aliases: config.groupAliases || {},
           }),

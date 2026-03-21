@@ -1904,9 +1904,10 @@ const generateHtmlDashboard = async (stats) => {
                 if (res.ok) {
                     const data = await res.json();
                     
-                    // Se houver mudança nos dados ou a data de hoje não existir no cache local mas existir no novo, atualiza
-                    if (JSON.stringify(rawDB) !== JSON.stringify(data.votes)) {
+                    // Se houver mudança nos dados, atualiza
+                    if (JSON.stringify(rawDB) !== JSON.stringify(data.votes) || isPollSentToday !== data.isPollSentToday) {
                         rawDB = data.votes || {};
+                        isPollSentToday = !!data.isPollSentToday;
                         capacities = data.capacities || {};
                         groupAliases = data.aliases || {};
                         updateDash(); // Re-render dos gráficos
