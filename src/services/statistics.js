@@ -150,169 +150,122 @@ const generateHtmlDashboard = (stats) => {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Painel Avançado de Estatísticas</title>
-    
-    <!-- SEO Meta Tags -->
-    <meta name="description" content="Acompanhe em tempo real a ocupação dos ônibus e estatísticas detalhadas de presença da faculdade.">
-    <meta name="keywords" content="ônibus, universitário, estatísticas, enquetes, lotação, faculdade">
-    <meta name="author" content="Mauricio de Britto">
-    <meta name="theme-color" content="#2196f3">
-    
-    <!-- Open Graph / Social Media -->
-    <meta property="og:type" content="website">
-    <meta property="og:title" content="Painel de Estatísticas">
-    <meta property="og:description" content="Dashboard interativo para monitoramento de transporte universitário.">
-    <meta property="og:image" content="https://cdn-icons-png.flaticon.com/512/2850/2850383.png">
-    
-    <!-- PWA -->
-    <link rel="manifest" href="/manifest.json">
-    <link rel="icon" href="https://dayz.com/favicon.ico">
-    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2850/2850383.png">
-
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <title>Estatísticas das Enquetes - WABOT</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
     <style>
         :root {
             --bg-color: #121212;
             --card-bg: #1e1e1e;
             --text-color: #e0e0e0;
-            --title-color: #ffffff;
             --accent: #2196f3;
-            --border-color: #333;
-        }
-        html, body {
-            max-width: 100%;
-            overflow-x: hidden;
+            --accent-glow: rgba(33, 150, 243, 0.3);
+            --title-color: #ffffff;
+            --border-color: #333333;
+            --peak-color: #4caf50;
+            --valley-color: #f44336;
         }
         * {
             box-sizing: border-box;
+            transition: background-color 0.3s, border-color 0.3s;
         }
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             background-color: var(--bg-color);
             color: var(--text-color);
             margin: 0;
-            padding: 10px;
+            padding: 20px;
             display: flex;
             flex-direction: column;
             align-items: center;
         }
-        h1, h2, h3 {
-            word-wrap: break-word;
-            max-width: 100%;
-        }
         h1 {
             color: var(--title-color);
-            margin-bottom: 20px;
-            text-align: center;
+            margin-bottom: 30px;
+            font-weight: 800;
+            letter-spacing: -0.02em;
         }
         .controls {
+            margin-bottom: 30px;
             display: flex;
             gap: 15px;
-            margin-bottom: 30px;
             flex-wrap: wrap;
             justify-content: center;
+            width: 100%;
+            max-width: 1000px;
         }
         select {
-            padding: 10px 15px;
-            border-radius: 8px;
+            padding: 12px 20px;
+            border-radius: 12px;
             border: 1px solid var(--border-color);
-            font-size: 1rem;
-            outline: none;
+            background-color: var(--card-bg);
+            color: var(--text-color);
+            font-size: 0.95rem;
+            font-weight: 500;
             cursor: pointer;
-            background-color: #2c2c2c;
-            color: var(--title-color);
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            outline: none;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            min-width: 180px;
         }
-        select:focus {
+        select:hover {
             border-color: var(--accent);
         }
         .dashboard {
             display: grid;
-            grid-template-columns: 1fr;
-            gap: 20px;
-            max-width: 1000px;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 25px;
             width: 100%;
+            max-width: 1100px;
         }
         .highlights {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
             width: 100%;
-            max-width: 1000px;
-        }
-        @media (max-width: 600px) {
-            .highlights {
-                grid-template-columns: 1fr;
-            }
+            margin-bottom: 25px;
         }
         .highlight-card {
-            background-color: var(--card-bg);
-            border-radius: 12px;
-            padding: 0;
+            background: linear-gradient(145deg, #1e1e1e, #161616);
+            padding: 20px;
+            border-radius: 16px;
             border: 1px solid var(--border-color);
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            text-align: left;
             position: relative;
-            min-height: 120px;
+            overflow: hidden;
         }
-        .highlight-card .card-title {
+        .highlight-card::after {
+            content: '';
             position: absolute;
-            top: 10px;
-            left: 0;
-            right: 0;
-            z-index: 10;
-            pointer-events: none;
-            text-align: center;
+            top: 0; left: 0; width: 4px; height: 100%;
+            background: var(--accent);
         }
-        .highlight-card h3 {
-            font-size: 0.8rem;
-            color: #ffffff;
-            margin: 0;
-            font-weight: 600;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
-            background: rgba(0,0,0,0.3);
-            display: inline-block;
-            padding: 2px 8px;
-            border-radius: 4px;
+        .card-title h3 {
+            margin: 0 0 15px 0;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: #888;
         }
         .split-container {
             display: flex;
-            width: 100%;
-            height: 100%;
-            position: absolute;
-            top: 0;
-            left: 0;
-            background: linear-gradient(135deg, rgba(76, 175, 80, 0.15) 0%, rgba(76, 175, 80, 0.05) 49.9%, rgba(244, 67, 54, 0.05) 50.1%, rgba(244, 67, 54, 0.15) 100%);
+            justify-content: space-between;
+            gap: 15px;
         }
         .split-half {
             flex: 1;
             display: flex;
             flex-direction: column;
-            justify-content: center;
-            padding: 35px 15px 15px 15px;
-            position: relative;
-            z-index: 1;
-        }
-        .split-peak {
-            align-items: flex-start;
-            text-align: left;
-        }
-        .split-valley {
-            align-items: flex-end;
-            text-align: right;
         }
         .split-half .label {
-            font-size: 0.65rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 4px;
+            font-size: 0.7rem;
             font-weight: 800;
+            margin-bottom: 4px;
         }
-        .split-peak .label { color: #4caf50; }
-        .split-valley .label { color: #f44336; }
+        .split-peak .label { color: var(--peak-color); }
+        .split-valley .label { color: var(--valley-color); }
 
         .split-half .value {
             font-size: 1.8rem;
@@ -321,39 +274,16 @@ const generateHtmlDashboard = (stats) => {
             line-height: 1;
         }
         .split-half .date {
-            font-size: 0.7rem;
-            color: var(--accent);
+            font-size: 0.75rem;
+            color: #666;
             margin-top: 4px;
-            font-weight: bold;
-            opacity: 0.9;
         }
-        @media (min-width: 768px) {
+        @media (max-width: 480px) {
             .dashboard {
-                grid-template-columns: 1fr 1fr;
-            }
-        }
-        @media (max-width: 600px) {
-            .controls {
-                flex-direction: column;
-                width: 100%;
-            }
-            select {
-                width: 100%;
-            }
-            .summary-card {
-                flex-direction: column !important;
-                gap: 20px;
-                padding: 20px !important;
-            }
-            .highlight-card {
-                min-height: 100px;
+                grid-template-columns: 1fr;
             }
             .split-half .value {
                 font-size: 1.4rem;
-            }
-            .card h2 {
-                font-size: 1rem;
-                text-align: center;
             }
         }
         .summary-card {
@@ -400,24 +330,31 @@ const generateHtmlDashboard = (stats) => {
             <!-- Preenchido via JS -->
         </select>
 
-        <select id="periodSelect" style="padding: 10px 15px; border-radius: 8px; border: 1px solid var(--border-color); font-size: 1rem; outline: none; cursor: pointer; background-color: #2c2c2c; color: var(--title-color); box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
-            <option value="7">Últimos 7 dias</option>
-            <option value="15" selected>Últimos 15 dias</option>
+        <select id="periodSelect">
+            <option value="7" selected>Últimos 7 dias</option>
+            <option value="15">Últimos 15 dias</option>
             <option value="30">Últimos 30 dias</option>
             <option value="60">Últimos 2 meses</option>
             <option value="90">Últimos 3 meses</option>
             <option value="365">Últimos 12 meses</option>
         </select>
 
+        <select id="chartTypeSelect">
+            <option value="bar">Gráfico: Barras Empilhadas</option>
+            <option value="line">Gráfico: Áreas (Linhas)</option>
+            <option value="radar">Gráfico: Radar</option>
+            <option value="polarArea">Gráfico: Área Polar</option>
+        </select>
     </div>
 
     <!-- Destaques removidos daqui para serem movidos para baixo da proporção -->
 
     <!-- Barra de Lotação do Dia -->
-    <div id="capacitySection" style="display: none; width: 100%; max-width: 1000px; margin-bottom: 20px;">
-        <div class="card" style="width: 100%; align-items: stretch; padding: 15px 20px; box-sizing: border-box;">
+    <div id="capacitySection" style="display: none; width: 100%; max-width: 1000px; margin-bottom: 25px;">
+        <div class="card" style="width: 100%; align-items: stretch; padding: 25px; box-sizing: border-box; position: relative;">
+            <div id="totalBusVotes" style="position: absolute; top: 15px; right: 25px; font-size: 0.85rem; font-weight: 600; color: #888;"></div>
             <div id="capacityList">
-                <!-- Preenchido via JS para suportar múltiplos grupos de forma compacta -->
+                <!-- Preenchido via JS -->
             </div>
         </div>
     </div>
@@ -505,6 +442,25 @@ const generateHtmlDashboard = (stats) => {
                         <span class="date" id="hlSoVoltaMinDate">-</span>
                     </div>
                 </div>
+            <div class="highlight-card" style="background: linear-gradient(145deg, #1e1e1e, #1a2a1a);">
+                <div class="card-title"><h3>Mais Presença</h3></div>
+                <div class="split-container">
+                    <div class="split-half split-peak" style="align-items: center; text-align: center;">
+                        <span class="label" id="hlWeekdayPeakLabel">DIA DE PICO</span>
+                        <span class="value" id="hlWeekdayPeakVal">-</span>
+                        <span class="date" id="hlWeekdayPeakDate">Carregando...</span>
+                    </div>
+                </div>
+            </div>
+            <div class="highlight-card" style="background: linear-gradient(145deg, #1e1e1e, #2a1a1a);">
+                <div class="card-title"><h3>Menos Presença</h3></div>
+                <div class="split-container">
+                    <div class="split-half split-valley" style="align-items: center; text-align: center;">
+                        <span class="label" id="hlWeekdayValleyLabel">DIA MÍNIMO</span>
+                        <span class="value" id="hlWeekdayValleyVal">-</span>
+                        <span class="date" id="hlWeekdayValleyDate">Carregando...</span>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -530,8 +486,9 @@ const generateHtmlDashboard = (stats) => {
         </div>
     </div>
 
-    <div class="footer" style="margin-bottom: 40px;">
-        Atualizado pela última vez em: <span id="lblLastUpdate">${lastUpdateFormated}</span>
+    <div class="footer" style="padding-bottom: 40px; text-align: center; border-top: 1px solid var(--border-color); width: 100%; padding-top: 30px; margin-top: 30px;">
+        <p style="margin: 0; font-weight: 600;">Atualizado: <span id="lblLastUpdate">${lastUpdateFormated}</span></p>
+        <p style="margin: 8px 0 0 0; opacity: 0.7;">&copy; <span id="copyrightYear">2026</span> Grupo Britto. Todos os direitos reservados.</p>
     </div>
 
     <script>
@@ -578,6 +535,16 @@ const generateHtmlDashboard = (stats) => {
 
             gSelect.addEventListener("change", updateDash);
             document.getElementById("periodSelect").addEventListener("change", updateDash);
+            document.getElementById("chartTypeSelect").addEventListener("change", updateChartsOnly);
+            
+            // Copyright dinâmico
+            document.getElementById("copyrightYear").innerText = new Date().getFullYear();
+        };
+
+        const updateChartsOnly = () => {
+            const grp = document.getElementById("groupSelect").value;
+            const per = document.getElementById("periodSelect").value;
+            processData(grp, per);
         };
 
         const processData = (targetGroup, targetDaysStr) => {
@@ -605,6 +572,12 @@ const generateHtmlDashboard = (stats) => {
             };
 
             let accumTotalVotes = 0;
+            
+            // Destaques de dias da semana
+            let weekdayPresence = {
+                0: { count: 0, days: 0 }, 1: { count: 0, days: 0 }, 2: { count: 0, days: 0 },
+                3: { count: 0, days: 0 }, 4: { count: 0, days: 0 }, 5: { count: 0, days: 0 }, 6: { count: 0, days: 0 }
+            };
 
             // Trackers for highlights (Peaks and Valleys)
             let peakLotacao = { val: -1, date: "" };
@@ -715,6 +688,34 @@ const generateHtmlDashboard = (stats) => {
 
                 barData.push(dayTotal);
                 accumTotalVotes += dayTotal;
+
+                if (dayTotal > 0) {
+                    const dow = day.day();
+                    weekdayPresence[dow].count += dayTotal;
+                    weekdayPresence[dow].days += 1;
+                }
+            }
+
+            // Calcula picos por dia da semana
+            const daysOfWeekBR = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
+            let bestDay = { dow: -1, avg: -1 };
+            let worstDay = { dow: -1, avg: Infinity };
+
+            for (let d = 1; d <= 5; d++) { // Apenas dias úteis
+                if (weekdayPresence[d].days > 0) {
+                    const avg = weekdayPresence[d].count / weekdayPresence[d].days;
+                    if (avg > bestDay.avg) { bestDay = { dow: d, avg: avg }; }
+                    if (avg < worstDay.avg) { worstDay = { dow: d, avg: avg }; }
+                }
+            }
+
+            if (bestDay.dow !== -1) {
+                document.getElementById("hlWeekdayPeakVal").innerText = daysOfWeekBR[bestDay.dow];
+                document.getElementById("hlWeekdayPeakDate").innerText = "Média: " + bestDay.avg.toFixed(1) + " votos";
+            }
+            if (worstDay.dow !== -1 && worstDay.avg !== Infinity) {
+                document.getElementById("hlWeekdayValleyVal").innerText = daysOfWeekBR[worstDay.dow];
+                document.getElementById("hlWeekdayValleyDate").innerText = "Média: " + worstDay.avg.toFixed(1) + " votos";
             }
 
             document.getElementById("txtPeriod").innerText = targetDaysStr;
@@ -770,14 +771,15 @@ const generateHtmlDashboard = (stats) => {
             const todayStr = moment().startOf('day').format('YYYY-MM-DD');
             const capacitySection = document.getElementById("capacitySection");
             const capacityList = document.getElementById("capacityList");
+            const totalLabel = document.getElementById("totalBusVotes");
             capacityList.innerHTML = "";
             
             let hasAnyCapacity = false;
+            let totalVotes = 0;
             const dayEntry = rawDB[todayStr] || { Version2: true, grupos: {} };
             
             let groupsToShow = [];
             if (targetGroup === "Todos") {
-                // Mostrar todos os grupos que possuem capacidade configurada
                 groupsToShow = Object.keys(capacities);
             } else if (capacities[targetGroup]) {
                 groupsToShow = [targetGroup];
@@ -795,10 +797,12 @@ const generateHtmlDashboard = (stats) => {
                     });
                 }
                 
+                totalVotes += confirmations;
                 renderCompactBar(gName, confirmations, capacities[gName]);
                 hasAnyCapacity = true;
             });
 
+            if (totalLabel) totalLabel.innerText = "Total de votos: " + totalVotes;
             capacitySection.style.display = hasAnyCapacity ? "block" : "none";
         };
 
@@ -883,15 +887,24 @@ const generateHtmlDashboard = (stats) => {
             capacityList.appendChild(container);
         };
 
-        let stackedChartIns = null;
+        const hexToRgba = (hex, alpha) => {
+            const r = parseInt(hex.slice(1, 3), 16);
+            const g = parseInt(hex.slice(3, 5), 16);
+            const b = parseInt(hex.slice(5, 7), 16);
+            return "rgba(" + r + ", " + g + ", " + b + ", " + alpha + ")";
+        };
 
         const renderCharts = (barLabels, barData, pieCountsMap, stackedData) => {
+            const selectedType = document.getElementById("chartTypeSelect").value;
+            const isLine = selectedType === 'line';
+
             const pieLabels = Object.keys(pieCountsMap);
             const pieData = Object.values(pieCountsMap);
             const pieColors = pieLabels.map(l => optionColors[l] || "#9e9e9e");
 
-            Chart.defaults.color = '#e0e0e0';
-            Chart.defaults.borderColor = '#333';
+            Chart.defaults.color = 'rgba(255, 255, 255, 0.7)';
+            Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.1)';
+            Chart.defaults.font.family = "'Inter', sans-serif";
 
             if(pieChartIns) pieChartIns.destroy();
             const pieCtx = document.getElementById('pieChart').getContext('2d');
@@ -902,21 +915,22 @@ const generateHtmlDashboard = (stats) => {
                     datasets: [{
                         data: pieData,
                         backgroundColor: pieColors,
-                        borderWidth: 1
+                        borderWidth: 0,
+                        hoverOffset: 15
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    cutout: '70%',
                     plugins: { 
                         legend: { 
                             position: 'bottom',
                             labels: {
-                                boxWidth: 10,
-                                padding: 10,
-                                font: {
-                                    size: window.innerWidth < 400 ? 8 : (window.innerWidth < 600 ? 10 : 12)
-                                }
+                                boxWidth: 12,
+                                usePointStyle: true,
+                                padding: 20,
+                                font: { size: 11, weight: 600 }
                             }
                         } 
                     }
@@ -930,14 +944,25 @@ const generateHtmlDashboard = (stats) => {
                 data: {
                     labels: barLabels,
                     datasets: [{
-                        label: 'Número de Votos',
+                        label: 'Votos',
                         data: barData,
                         borderColor: '#2196f3',
-                        backgroundColor: 'rgba(33, 150, 243, 0.1)',
-                        borderWidth: 2,
+                        backgroundColor: (context) => {
+                            const chart = context.chart;
+                            const {ctx, chartArea} = chart;
+                            if (!chartArea) return null;
+                            const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+                            gradient.addColorStop(0, 'rgba(33, 150, 243, 0.3)');
+                            gradient.addColorStop(1, 'rgba(33, 150, 243, 0)');
+                            return gradient;
+                        },
+                        borderWidth: 3,
                         fill: true,
                         tension: 0.4,
-                        pointBackgroundColor: '#2196f3'
+                        pointRadius: 4,
+                        pointBackgroundColor: '#2196f3',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2
                     }]
                 },
                 options: {
@@ -946,8 +971,13 @@ const generateHtmlDashboard = (stats) => {
                     scales: { 
                         y: { 
                             beginAtZero: true,
-                            grace: '10%'
-                        } 
+                            grid: { drawTicks: false },
+                            border: { display: false }
+                        },
+                        x: {
+                            grid: { display: false },
+                            border: { display: false }
+                        }
                     },
                     plugins: { legend: { display: false } }
                 }
@@ -955,39 +985,130 @@ const generateHtmlDashboard = (stats) => {
 
             if(stackedChartIns) stackedChartIns.destroy();
             const stackedCtx = document.getElementById('stackedBarChart').getContext('2d');
-            stackedChartIns = new Chart(stackedCtx, {
-                type: 'bar',
-                data: {
-                    labels: barLabels,
-                    datasets: [
-                        {
-                            label: 'Ida e Volta',
-                            data: stackedData["Irei, ida e volta."],
-                            backgroundColor: optionColors["Irei, ida e volta."]
-                        },
-                        {
-                            label: 'Só Ida',
-                            data: stackedData["Irei, mas não retornarei."],
-                            backgroundColor: optionColors["Irei, mas não retornarei."]
-                        },
-                        {
-                            label: 'Só Volta',
-                            data: stackedData["Não irei, apenas retornarei."],
-                            backgroundColor: optionColors["Não irei, apenas retornarei."]
-                        },
-                        {
-                            label: 'Ausente',
-                            data: stackedData["Não irei à faculdade hoje."],
-                            backgroundColor: optionColors["Não irei à faculdade hoje."]
-                        }
-                    ]
+            
+            const datasets = [
+                {
+                    label: 'Ida e Volta',
+                    data: stackedData["Irei, ida e volta."],
+                    backgroundColor: isLine ? (context => {
+                        const chart = context.chart;
+                        const {ctx, chartArea} = chart;
+                        if (!chartArea) return null;
+                        const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+                        gradient.addColorStop(0, hexToRgba(optionColors["Irei, ida e volta."], 0.5));
+                        gradient.addColorStop(1, hexToRgba(optionColors["Irei, ida e volta."], 0));
+                        return gradient;
+                    }) : optionColors["Irei, ida e volta."],
+                    borderColor: optionColors["Irei, ida e volta."],
+                    fill: isLine,
+                    tension: isLine ? 0.4 : 0,
+                    pointRadius: isLine ? 2 : 0,
+                    borderWidth: isLine ? 2 : 1
                 },
+                {
+                    label: 'Só Ida',
+                    data: stackedData["Irei, mas não retornarei."],
+                    backgroundColor: isLine ? (context => {
+                        const chart = context.chart;
+                        const {ctx, chartArea} = chart;
+                        if (!chartArea) return null;
+                        const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+                        gradient.addColorStop(0, hexToRgba(optionColors["Irei, mas não retornarei."], 0.5));
+                        gradient.addColorStop(1, hexToRgba(optionColors["Irei, mas não retornarei."], 0));
+                        return gradient;
+                    }) : optionColors["Irei, mas não retornarei."],
+                    borderColor: optionColors["Irei, mas não retornarei."],
+                    fill: isLine,
+                    tension: isLine ? 0.4 : 0,
+                    pointRadius: isLine ? 2 : 0,
+                    borderWidth: isLine ? 2 : 1
+                },
+                {
+                    label: 'Só Volta',
+                    data: stackedData["Não irei, apenas retornarei."],
+                    backgroundColor: isLine ? (context => {
+                        const chart = context.chart;
+                        const {ctx, chartArea} = chart;
+                        if (!chartArea) return null;
+                        const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+                        gradient.addColorStop(0, hexToRgba(optionColors["Não irei, apenas retornarei."], 0.5));
+                        gradient.addColorStop(1, hexToRgba(optionColors["Não irei, apenas retornarei."], 0));
+                        return gradient;
+                    }) : optionColors["Não irei, apenas retornarei."],
+                    borderColor: optionColors["Não irei, apenas retornarei."],
+                    fill: isLine,
+                    tension: isLine ? 0.4 : 0,
+                    pointRadius: isLine ? 2 : 0,
+                    borderWidth: isLine ? 2 : 1
+                },
+                {
+                    label: 'Ausente',
+                    data: stackedData["Não irei à faculdade hoje."],
+                    backgroundColor: isLine ? (context => {
+                        const chart = context.chart;
+                        const {ctx, chartArea} = chart;
+                        if (!chartArea) return null;
+                        const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+                        gradient.addColorStop(0, hexToRgba(optionColors["Não irei à faculdade hoje."], 0.5));
+                        gradient.addColorStop(1, hexToRgba(optionColors["Não irei à faculdade hoje."], 0));
+                        return gradient;
+                    }) : optionColors["Não irei à faculdade hoje."],
+                    borderColor: optionColors["Não irei à faculdade hoje."],
+                    fill: isLine,
+                    tension: isLine ? 0.4 : 0,
+                    pointRadius: isLine ? 2 : 0,
+                    borderWidth: isLine ? 2 : 1
+                }
+            ];
+
+            const isPolar = selectedType === 'polarArea';
+            let finalData;
+
+            if (isPolar) {
+                const labels = Object.keys(stackedData);
+                const data = labels.map(k => (stackedData[k] || []).reduce((a, b) => a + b, 0));
+                finalData = {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: labels.map(k => optionColors[k]),
+                        borderWidth: 1
+                    }]
+                };
+            } else {
+                finalData = {
+                    labels: barLabels,
+                    datasets: datasets
+                };
+            }
+
+            stackedChartIns = new Chart(stackedCtx, {
+                type: isLine ? 'line' : selectedType,
+                data: finalData,
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
                     scales: {
-                        x: { stacked: true },
-                        y: { stacked: true, beginAtZero: true, grace: '10%' }
+                        x: { 
+                            display: !['radar', 'polarArea'].includes(selectedType),
+                            stacked: selectedType === 'bar' 
+                        },
+                        y: { 
+                            display: !['radar', 'polarArea'].includes(selectedType),
+                            stacked: selectedType === 'bar', 
+                            beginAtZero: true, 
+                            grace: '10%' 
+                        },
+                        r: {
+                            display: ['radar', 'polarArea'].includes(selectedType),
+                            ticks: { display: false },
+                            grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                            angleLines: { color: 'rgba(255, 255, 255, 0.1)' }
+                        }
                     },
                     plugins: { 
                         legend: { 
@@ -999,7 +1120,11 @@ const generateHtmlDashboard = (stats) => {
                                     size: window.innerWidth < 400 ? 8 : (window.innerWidth < 600 ? 9 : 12)
                                 }
                             }
-                        } 
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false
+                        }
                     }
                 }
             });
@@ -1009,7 +1134,7 @@ const generateHtmlDashboard = (stats) => {
             const grp = document.getElementById("groupSelect").value;
             const per = document.getElementById("periodSelect").value;
             processData(grp, per);
-            updateNextPollsCalendar();
+            updateNextPollsCalendar(per);
         };
 
         // Item 4: Notificações Automatizadas
@@ -1029,10 +1154,12 @@ const generateHtmlDashboard = (stats) => {
         };
 
         // Item 9: Calendário de Próximas Enquetes (Lista Premium v2)
-        const updateNextPollsCalendar = () => {
+        const updateNextPollsCalendar = (limitDays = 7) => {
             const list = document.getElementById("nextPollsList");
             if (!list) return;
             list.innerHTML = "";
+            
+            const displayLimit = Math.min(30, parseInt(limitDays, 10)); // No máximo 30 dias para evitar excesso
             
             const daysOfWeekBR = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
             const now = moment();
@@ -1044,10 +1171,9 @@ const generateHtmlDashboard = (stats) => {
                 current.add(1, 'days');
             }
             
-            let found = 0;
-            let safetyLimit = 40; 
+            let safetyLimit = displayLimit * 2; // Segurança para pular feriados/finais de semana
             
-            while (found < 5 && safetyLimit > 0) {
+            for (let i = 0; i < displayLimit && safetyLimit > 0; ) {
                 const dayOfWeek = current.day();
                 const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
                 const brDate = current.format('DD/MM/YYYY');
@@ -1094,7 +1220,7 @@ const generateHtmlDashboard = (stats) => {
                             <span style="font-size: 0.75rem; background: rgba(33, 150, 243, 0.15); color: var(--accent); padding: 3px 8px; border-radius: 20px; font-weight: bold; white-space: nowrap;">' + timeRemaining + '</span> \
                         </div> \
                     ';
-                    found++;
+                    i++; // Só incrementa o contador de dias mostrados se for um dia válido
                 }
                 
                 list.appendChild(row);
