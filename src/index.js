@@ -38,7 +38,8 @@ async function startBot() {
         "--disable-default-apps",
         "--disable-sync",
       ],
-      dumpio: true, // Adicionado para depuração no Linux
+      dumpio: true,
+      protocolTimeout: 120000, // Timeout de 120s para comunicação com o browser
     },
     // Ativa vinculação por telefone se o número estiver no .env
     ...(process.env.PAIRING_PHONE ? {
