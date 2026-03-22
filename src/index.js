@@ -6,7 +6,6 @@ const qrcode = require("qrcode-terminal");
 const dashboard = require("./services/dashboard");
 const cronJob = require("./services/cron-job");
 const statistics = require("./services/statistics");
-const weatherService = require("./services/weatherService");
 const { startServer } = require("./server");
 
 async function startBot() {
@@ -74,20 +73,6 @@ async function startBot() {
   client.on("ready", async () => {
     dashboard.setStatus("Conectado ✅");
     dashboard.addLog("Bot conectado com sucesso!");
-    dashboard.addLog("Iniciando serviços secundários (Web Server, Clima, Stats)...");
-    dashboard.setQrCode(""); // Limpa QR
-
-    // Inicia o Servidor Web apenas após a conexão
-    startServer();
-
-    // Inicia serviços de Clima
-    try {
-      await weatherService.update();
-      setInterval(() => weatherService.update(), 3600000);
-    } catch (e) {
-      dashboard.addLog(`Erro inicial clima: ${e.message}`);
-    }
-
     // Inicia o cronJob com a instância do client
     cronJob.scheduleJob(client);
 
@@ -183,4 +168,5 @@ function updateNextPollTime() {
 
 // Inicia o processo do Bot (Modo Sobrevivência)
 dashboard.render();
+startServer();
 startBot();
