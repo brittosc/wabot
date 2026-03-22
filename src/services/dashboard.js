@@ -74,7 +74,7 @@ class Dashboard {
       padLine(`Próxima Enquete: ${chalk.cyan(this.nextPollTime)}`),
       padLine(`Total de Enquetes Enviadas: ${chalk.magenta(this.totalSent)}`),
       this.serverUrl
-        ? padLine(`Painel Web: ${chalk.cyan.underline(this.serverUrl)}`)
+        ? padLine(`API Backend: ${chalk.cyan.underline(this.serverUrl)}`)
         : "",
     ]
       .filter(Boolean)
