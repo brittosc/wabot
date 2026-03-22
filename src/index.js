@@ -15,23 +15,26 @@ async function startBot() {
 
   const client = new Client({
     authStrategy: new LocalAuth({ dataPath: "./auth_info" }),
-    authTimeoutMs: 300000, // Dá 5 minutos para autenticar (ideal para VPS muito lenta)
+    authTimeoutMs: 120000, // Dá 2 minutos para autenticar (ideal para VPS lenta)
     qrMaxRetries: 20, // Tenta mais vezes antes de falhar
     takeoverOnConflict: true, // Tenta assumir a sessão se houver conflito
     takeoverTimeoutMs: 60000,
     puppeteer: {
-      headless: true,
+      headless: "new",
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",
         "--disable-dev-shm-usage",
         "--disable-accelerated-2d-canvas",
         "--no-first-run",
+        "--no-zygote",
         "--disable-gpu",
         "--disable-extensions",
         "--disable-software-rasterizer",
+        "--single-process",
         "--mute-audio",
         "--no-default-browser-check",
+<<<<<<< HEAD
         "--js-flags='--max-old-space-size=512'",
         "--disable-web-security",
         "--disable-background-networking",
@@ -41,6 +44,8 @@ async function startBot() {
         "--disable-2d-canvas-clip-aa",
         "--disable-gl-drawing-for-tests",
         "--no-first-run",
+=======
+>>>>>>> parent of 4083aea (!)
       ],
       dumpio: true,
       protocolTimeout: 300000, // Timeout de 5 minutos
@@ -139,7 +144,10 @@ async function startBot() {
   });
 
   try {
+<<<<<<< HEAD
     dashboard.addLog("Iniciando Client.initialize()...");
+=======
+>>>>>>> parent of 4083aea (!)
     await client.initialize();
     dashboard.addLog("Client.initialize() concluído.");
   } catch (e) {
