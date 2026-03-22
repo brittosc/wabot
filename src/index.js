@@ -33,6 +33,7 @@ async function startBot() {
         "--mute-audio",
         "--no-default-browser-check",
         "--disable-features=IsolateOrigins,site-per-process",
+        "--js-flags='--max-old-space-size=256'",
       ],
     },
     webVersionCache: {
@@ -114,8 +115,8 @@ async function startBot() {
     await weatherService.update(); // Atualiza clima na inicialização
     setInterval(() => weatherService.update(), 3600000); // Atualiza a cada 1h
 
-    // Gera o template estático inicial se necessário
-    await statistics.generateHtmlDashboard();
+    // Gera o template estático inicial em background (pra não travar o Puppeteer)
+    statistics.generateHtmlDashboard().catch(e => console.error("Erro dashboard inicial:", e.message));
 
     await client.initialize();
   } catch (e) {

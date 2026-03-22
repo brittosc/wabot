@@ -1,3 +1,4 @@
+const https = require("https");
 const dashboard = require("./dashboard");
 
 class WeatherService {
@@ -10,28 +11,47 @@ class WeatherService {
   }
 
   async update() {
-    try {
-      const response = await fetch(this.apiUrl);
-      if (!response.ok) throw new Error("Falha ao buscar dados de clima");
-      
-      const data = await response.json();
-      this.weatherData = {
-        current: {
-          temp: data.current.temperature_2m,
-          humidity: data.current.relative_humidity_2m,
-          isDay: !!data.current.is_day,
-          code: data.current.weather_code,
-          description: this.getWeatherDescription(data.current.weather_code),
-        },
-        daily: data.daily,
-      };
-      this.lastUpdate = new Date();
-      dashboard.addLog(`[Weather] Clima atualizado: ${this.weatherData.current.temp}°C, ${this.weatherData.current.description}`);
-      return this.weatherData;
-    } catch (error) {
-      dashboard.addLog(`[Weather] Erro ao atualizar clima: ${error.message}`);
-      return null;
-    }
+    return new Promise((resolve) => {
+      const req = https.get(this.apiUrl, (res) => {
+        let body = "";
+        res.on("data", (chunk) => (body += chunk));
+        res.on("end", () => {
+          try {
+            if (res.statusCode !== 200) throw new Error(`Status ${res.statusCode}`);
+            const data = JSON.parse(body);
+            this.weatherData = {
+              current: {
+                temp: data.current.temperature_2m,
+                humidity: data.current.relative_humidity_2m,
+                isDay: !!data.current.is_day,
+                code: data.current.weather_code,
+                description: this.getWeatherDescription(data.current.weather_code),
+              },
+              daily: data.daily,
+            };
+            this.lastUpdate = new Date();
+            dashboard.addLog(
+              `[Weather] Clima atualizado: ${this.weatherData.current.temp}°C`,
+            );
+            resolve(this.weatherData);
+          } catch (e) {
+            dashboard.addLog(`[Weather] Erro no JSON: ${e.message}`);
+            resolve(null);
+          }
+        });
+      });
+
+      req.on("error", (error) => {
+        dashboard.addLog(`[Weather] Erro de rede: ${error.message}`);
+        resolve(null);
+      });
+
+      req.setTimeout(10000, () => {
+        req.destroy();
+        dashboard.addLog("[Weather] Timeout ao buscar clima");
+        resolve(null);
+      });
+    });
   }
 
   getWeather() {
