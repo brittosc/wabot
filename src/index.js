@@ -37,9 +37,13 @@ async function startBot() {
         "--disable-background-networking",
         "--disable-default-apps",
         "--disable-sync",
+        "--disable-canvas-aa",
+        "--disable-2d-canvas-clip-aa",
+        "--disable-gl-drawing-for-tests",
+        "--no-first-run",
       ],
       dumpio: true,
-      protocolTimeout: 120000, // Timeout de 120s para comunicação com o browser
+      protocolTimeout: 300000, // Timeout de 5 minutos
     },
     // Ativa vinculação por telefone se o número estiver no .env
     ...(process.env.PAIRING_PHONE ? {
