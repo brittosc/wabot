@@ -84,7 +84,7 @@ let currentNetUsage = { rxSpeed: 0, txSpeed: 0 }; // Bytes per second
 const startServer = () => {
   const port = process.env.PORT || 3000;
 
-  // Iniciar poller de rede (a cada 10 segundos para reduzir CPU)
+  // Iniciar poller de rede (a cada 60 segundos para modo sobrevivência)
   setInterval(() => {
     const isWindows = os.platform() === "win32";
 
@@ -123,7 +123,7 @@ const startServer = () => {
         updateNetUsage(totalRx, totalTx);
       });
     }
-  }, 10000);
+  }, 60000);
 
   const updateNetUsage = (rx, tx) => {
     const now = Date.now();

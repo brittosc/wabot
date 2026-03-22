@@ -33,7 +33,13 @@ async function startBot() {
         "--mute-audio",
         "--no-default-browser-check",
         "--disable-features=IsolateOrigins,site-per-process",
-        "--js-flags='--max-old-space-size=256'",
+        "--js-flags='--max-old-space-size=180 --lite-mode'",
+        "--disable-web-security",
+        "--disk-cache-size=1",
+        "--media-cache-size=1",
+        "--disable-background-networking",
+        "--disable-default-apps",
+        "--disable-sync",
       ],
     },
     // Removido webVersionCache pois causa picos de CPU em VPS ao verificar versões
@@ -111,11 +117,15 @@ async function startBot() {
     await weatherService.update(); // Atualiza clima na inicialização
     setInterval(() => weatherService.update(), 3600000); // Atualiza a cada 1h
 
-    // Adiado drasticamente (2 minutos após ligar) para não competir com a conexão
+    // Adiado drasticamente (5 minutos após ligar) para não competir
     setTimeout(() => {
       statistics.generateHtmlDashboard().catch(e => console.error("Erro dashboard inicial:", e.message));
-    }, 120000);
+    }, 300000);
 
+    // Desativa o dashboard visual durante a inicialização crítica para poupar CPU
+    dashboard.maxLogs = 10;
+    dashboard.status = "Iniciando em MODO LEVE...";
+    
     await client.initialize();
   } catch (e) {
     dashboard.addLog(`Erro fatal no puppeteer: ${e.message}`);
