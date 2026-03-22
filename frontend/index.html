@@ -1727,6 +1727,7 @@
                         capacities = data.capacities || {};
                         groupAliases = data.aliases || {};
                         weatherForecast = data.weather || [];
+                        if (data.pollTime) pollTime = data.pollTime;
                         updateDash(); // Re-render dos gráficos e calendário
                         
                         const now = new Date();

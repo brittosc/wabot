@@ -71,6 +71,7 @@ const startServer = () => {
             aliases: config.groupAliases || {},
             weather: weatherCache.data,
             weatherLastUpdate: weatherCache.lastUpdate,
+            pollTime: config.pollTime || '06:00'
           }),
         );
       } catch (err) {
