@@ -61,7 +61,7 @@ class Dashboard {
 
   render() {
     const width = process.stdout.columns || 80;
-    
+
     // Helper para garantir que a linha limpe o rastro do render anterior
     const padLine = (str) => {
       const plain = str.replace(/\u001b\[\d+m/g, ""); // Remove cores para contar tamanho real
@@ -69,8 +69,8 @@ class Dashboard {
       return str + " ".repeat(padding);
     };
 
-    const header = chalk.bgBlue.white.bold(
-      " 🤖 WhatsApp Bot Enquetes - Painel de Controle ",
+    const header = chalk.white(
+      "🤖 WhatsApp Bot Enquetes - Painel de Controle ",
     );
 
     let statusColor = chalk.yellow;
