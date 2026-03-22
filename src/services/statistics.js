@@ -3,6 +3,7 @@ const configService = require("./configService");
 const moment = require("moment-timezone");
 const dashboard = require("./dashboard");
 const supabase = require("../database/supabaseClient");
+const weatherService = require("./weatherService");
 
 const htmlFile = "./public/estatisticas.html";
 
@@ -228,6 +229,13 @@ const generateHtmlDashboard = async (stats) => {
   const lastUpdateFormated = moment()
     .tz("America/Sao_Paulo")
     .format("DD/MM/YYYY HH:mm:ss");
+  
+  const weatherLastUpdate = weatherService.lastUpdate ? 
+    moment(weatherService.lastUpdate).tz("America/Sao_Paulo").format("HH:mm") : "--:--";
+
+  // Dados de Clima
+  const weather = weatherService.getWeather();
+  const weatherJSONStr = JSON.stringify(weather);
 
   let capacities = {};
   let aliases = {};
@@ -267,6 +275,7 @@ const generateHtmlDashboard = async (stats) => {
             --peak-color: #4caf50;
             --valley-color: #f44336;
             --pending-color: #ff9800;
+            --weather-bg: linear-gradient(135deg, #1e3a8a, #1e40af);
         }
         * {
             box-sizing: border-box;
@@ -696,11 +705,72 @@ const generateHtmlDashboard = async (stats) => {
             border-color: rgba(244, 67, 54, 0.1);
             opacity: 0.6;
         }
+        .poll-weather {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-width: 50px;
+            gap: 2px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: #ddd;
+            margin: 0 10px;
+        }
+        .poll-weather-icon {
+            width: 18px;
+            height: 18px;
+            opacity: 0.9;
+        }
+        /* Widget de Clima */
+        .weather-widget {
+            display: flex;
+            align-items: center;
+            background: var(--weather-bg);
+            padding: 15px 25px;
+            border-radius: 16px;
+            margin-bottom: 25px;
+            color: #fff;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+            gap: 20px;
+            animation: fadeIn 0.8s ease-out;
+        }
+        .weather-info {
+            display: flex;
+            flex-direction: column;
+        }
+        .weather-temp {
+            font-size: 2.2rem;
+            font-weight: 800;
+            line-height: 1;
+        }
+        .weather-desc {
+            font-size: 0.85rem;
+            font-weight: 500;
+            opacity: 0.9;
+            text-transform: capitalize;
+        }
+        .weather-details {
+            display: flex;
+            gap: 15px;
+            margin-top: 5px;
+            font-size: 0.75rem;
+            opacity: 0.8;
+        }
+        .weather-icon-large {
+            width: 48px;
+            height: 48px;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
     </style>
 </head>
 <body>
 
-    <div style="width: 100%; max-width: 1100px; margin: 0 auto; text-align: center;">
+    <div style="width: 100%; max-width: 1100px; margin: 0 auto; display: flex; flex-direction: column; align-items: center;">
+        
         <h1>Estatísticas das Enquetes</h1>
 
         <div class="controls">
@@ -916,6 +986,8 @@ const generateHtmlDashboard = async (stats) => {
         let skipDates = ${skipDatesJSONStr};
         let pollTime = "${pollTimeStr}";
         let targetGroups = ${targetGroupsJSONStr};
+        let weatherData = ${weatherJSONStr};
+        let weatherLastUpdateStr = "${weatherLastUpdate}";
         
         let lastNotifiedCount = {}; // Para o item 4
         let notificationEnabled = false;
@@ -994,7 +1066,32 @@ const generateHtmlDashboard = async (stats) => {
             
             // Copyright dinâmico
             document.getElementById("copyrightYear").innerText = new Date().getFullYear();
+
+            // Clima no Rodapé
+            if (weatherLastUpdateStr !== "--:--") {
+                document.getElementById("lblLastUpdate").innerHTML += ' <span style="margin-left: 10px; opacity: 0.7;">| Clima: ' + weatherLastUpdateStr + '</span>';
+            }
+
+            // Calendário de Enquetes
+            const per = document.getElementById("periodSelect").value;
+            updateNextPollsCalendar(per);
         };
+
+        const updateWeatherWidget = () => {
+            // Removido conforme solicitação (exibição apenas na lista)
+        };
+
+        const getWeatherIcon = (code, isDay = true) => {
+            let iconName = "sun";
+            if (code >= 1 && code <= 3) iconName = "cloud-sun";
+            if (code >= 45 && code <= 48) iconName = "cloud-fog";
+            if (code >= 51 && code <= 65) iconName = "cloud-rain";
+            if (code >= 80 && code <= 82) iconName = "cloud-rain-wind";
+            if (code >= 95) iconName = "cloud-lightning";
+            if (!isDay && iconName === "sun") iconName = "moon";
+            return iconName;
+        };
+
 
         const updateChartsOnly = () => {
             const grp = document.getElementById("groupSelect").value;
@@ -1833,7 +1930,27 @@ const generateHtmlDashboard = async (stats) => {
                 const row = document.createElement("div");
                 row.className = "poll-item";
 
+                const dateISO = current.format('YYYY-MM-DD');
                 const dateDisplay = current.format('DD MMM'); // Ex: 08 Nov
+                
+                // Buscar Clima para este dia (Somente se não houver impedimento/feriado)
+                let weatherHtml = "";
+                if (!reason && weatherData && weatherData.daily && weatherData.daily.time) {
+                    const idx = weatherData.daily.time.indexOf(dateISO);
+                    if (idx !== -1) {
+                        const code = weatherData.daily.weather_code[idx];
+                        const max = Math.round(weatherData.daily.temperature_2m_max[idx]);
+                        const min = Math.round(weatherData.daily.temperature_2m_min[idx]);
+                        const icon = getWeatherIcon(code);
+                        weatherHtml = ' \
+                            <div class="poll-weather"> \
+                                <i data-lucide="' + icon + '" class="poll-weather-icon"></i> \
+                                <div>' + max + '° / ' + min + '°</div> \
+                            </div> \
+                        ';
+                    }
+                }
+
                 const weekNum = current.isoWeek();
                 
                 if (reason) {
@@ -1846,6 +1963,7 @@ const generateHtmlDashboard = async (stats) => {
                             <div class="poll-title">Indisponível</div> \
                             <div class="poll-subtitle">' + reason + '</div> \
                         </div> \
+                        ' + weatherHtml + ' \
                         <div class="status-badge status-bloqueada">Offline</div> \
                     ';
                 } else {
@@ -1868,6 +1986,7 @@ const generateHtmlDashboard = async (stats) => {
                             <div class="poll-title">Enquete de Frequência</div> \
                             <div class="poll-subtitle">Semana ' + weekNum + ' • ' + pollTime + '</div> \
                         </div> \
+                        ' + weatherHtml + ' \
                         <div class="status-badge status-agendada">Agendada</div> \
                     ';
                 }

@@ -6,6 +6,7 @@ const qrcode = require("qrcode-terminal");
 const dashboard = require("./services/dashboard");
 const cronJob = require("./services/cron-job");
 const statistics = require("./services/statistics");
+const weatherService = require("./services/weatherService");
 const { startServer } = require("./server");
 
 async function startBot() {
@@ -14,25 +15,24 @@ async function startBot() {
 
   const client = new Client({
     authStrategy: new LocalAuth({ dataPath: "./auth_info" }),
-    authTimeoutMs: 120000, // Dá 2 minutos para autenticar (ideal para VPS lenta)
+    authTimeoutMs: 300000, // Dá 5 minutos para autenticar (ideal para VPS muito lenta)
     qrMaxRetries: 20, // Tenta mais vezes antes de falhar
     takeoverOnConflict: true, // Tenta assumir a sessão se houver conflito
     takeoverTimeoutMs: 60000,
     puppeteer: {
-      headless: "new",
+      headless: true,
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",
         "--disable-dev-shm-usage",
         "--disable-accelerated-2d-canvas",
         "--no-first-run",
-        "--no-zygote",
         "--disable-gpu",
         "--disable-extensions",
         "--disable-software-rasterizer",
-        "--single-process",
         "--mute-audio",
         "--no-default-browser-check",
+        "--disable-features=IsolateOrigins,site-per-process",
       ],
     },
     webVersionCache: {
@@ -111,6 +111,9 @@ async function startBot() {
   });
 
   try {
+    await weatherService.update(); // Atualiza clima na inicialização
+    setInterval(() => weatherService.update(), 3600000); // Atualiza a cada 1h
+
     await client.initialize();
   } catch (e) {
     dashboard.addLog(`Erro fatal no puppeteer: ${e.message}`);
