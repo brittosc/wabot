@@ -3,6 +3,7 @@ const configService = require("./configService");
 const moment = require("moment-timezone");
 const dashboard = require("./dashboard");
 const supabase = require("../database/supabaseClient");
+const weatherService = require("./weatherService");
 
 const htmlFile = "./public/estatisticas.html";
 
@@ -178,23 +179,29 @@ const registerVote = async (vote, voterName) => {
   // Atualiza ocupação no terminal imediatamente (leve)
   await updateTerminalOccupancy();
 
-  // REMOVIDO: Escrita recorrente de HTML em disco (I/O pesado)
-  // O dashboard web agora consome os dados via /api/stats
+  // Debounce para a geração do HTML (pesado)
+  // Evita múltiplas escritas em disco se muitos votos chegarem ao mesmo tempo
+  if (global.htmlUpdateTimer) clearTimeout(global.htmlUpdateTimer);
+  global.htmlUpdateTimer = setTimeout(
+    async () => {
+      const freshStats = await readStats();
+      await generateHtmlDashboard(freshStats);
+      dashboard.addLog("Dashboard Web sincronizado com sucesso.");
+    },
+    20000, // 20 segundos de silêncio após o último voto para regerar o HTML
+  );
 };
 
-const getDashboardData = async () => {
-  const stats = await readStats();
-  const config = configService.getConfig();
-  // Buscar passageiros
-
-  // Buscar passageiros
+const generateHtmlDashboard = async (stats) => {
+  // Buscar passageiros para o Feed e contagem de pendentes
   let passengers = [];
   try {
     const { data, error } = await supabase
       .from("passengers")
       .select("name, phone, photo_url, bus_number, status");
 
-    const targetGroups = config.targetGroups || [];
+    const config = configService.getConfig();
+    const targetGroups = config.targetGroups;
 
     if (!error && data) {
       passengers = data
@@ -212,29 +219,8 @@ const getDashboardData = async () => {
         });
     }
   } catch (e) {
-    console.error("Erro ao buscar passageiros para API:", e.message);
+    console.error("Erro ao buscar passageiros:", e.message);
   }
-
-  return {
-    votes: stats.rawDB || {},
-    isPollSentToday: !!stats.isPollSentToday,
-    passengers: passengers,
-    capacities: config.groupCapacities || {},
-    aliases: config.groupAliases || {},
-    skipDates: config.skipDates || {},
-    pollTime: config.pollTime || "05:30",
-    targetGroups: config.targetGroups || [],
-    weather: null,
-    weatherLastUpdate: "--:--",
-    lastUpdate: moment().tz("America/Sao_Paulo").format("DD/MM/YYYY HH:mm:ss")
-  };
-};
-
-const generateHtmlDashboard = async (stats) => {
-  // Chamado apenas uma vez na inicialização ou se o arquivo não existir
-  if (fs.existsSync(htmlFile)) return;
-  
-  dashboard.addLog("[Stats] Gerando template estático inicial do Dashboard.");
 
   // Inject the raw JS object directly into HTML for dynamic reading
   const statsJSONStr = JSON.stringify(stats.rawDB);
@@ -243,11 +229,13 @@ const generateHtmlDashboard = async (stats) => {
   const lastUpdateFormated = moment()
     .tz("America/Sao_Paulo")
     .format("DD/MM/YYYY HH:mm:ss");
-<<<<<<< HEAD
   
-  const weatherJSONStr = JSON.stringify(null);
-=======
->>>>>>> parent of 4083aea (!)
+  const weatherLastUpdate = weatherService.lastUpdate ? 
+    moment(weatherService.lastUpdate).tz("America/Sao_Paulo").format("HH:mm") : "--:--";
+
+  // Dados de Clima
+  const weather = weatherService.getWeather();
+  const weatherJSONStr = JSON.stringify(weather);
 
   let capacities = {};
   let aliases = {};
@@ -287,6 +275,7 @@ const generateHtmlDashboard = async (stats) => {
             --peak-color: #4caf50;
             --valley-color: #f44336;
             --pending-color: #ff9800;
+            --weather-bg: linear-gradient(135deg, #1e3a8a, #1e40af);
         }
         * {
             box-sizing: border-box;
@@ -716,11 +705,72 @@ const generateHtmlDashboard = async (stats) => {
             border-color: rgba(244, 67, 54, 0.1);
             opacity: 0.6;
         }
+        .poll-weather {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-width: 50px;
+            gap: 2px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: #ddd;
+            margin: 0 10px;
+        }
+        .poll-weather-icon {
+            width: 18px;
+            height: 18px;
+            opacity: 0.9;
+        }
+        /* Widget de Clima */
+        .weather-widget {
+            display: flex;
+            align-items: center;
+            background: var(--weather-bg);
+            padding: 15px 25px;
+            border-radius: 16px;
+            margin-bottom: 25px;
+            color: #fff;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+            gap: 20px;
+            animation: fadeIn 0.8s ease-out;
+        }
+        .weather-info {
+            display: flex;
+            flex-direction: column;
+        }
+        .weather-temp {
+            font-size: 2.2rem;
+            font-weight: 800;
+            line-height: 1;
+        }
+        .weather-desc {
+            font-size: 0.85rem;
+            font-weight: 500;
+            opacity: 0.9;
+            text-transform: capitalize;
+        }
+        .weather-details {
+            display: flex;
+            gap: 15px;
+            margin-top: 5px;
+            font-size: 0.75rem;
+            opacity: 0.8;
+        }
+        .weather-icon-large {
+            width: 48px;
+            height: 48px;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
     </style>
 </head>
 <body>
 
-    <div style="width: 100%; max-width: 1100px; margin: 0 auto; text-align: center;">
+    <div style="width: 100%; max-width: 1100px; margin: 0 auto; display: flex; flex-direction: column; align-items: center;">
+        
         <h1>Estatísticas das Enquetes</h1>
 
         <div class="controls">
@@ -928,19 +978,6 @@ const generateHtmlDashboard = async (stats) => {
     </div>
 
     <script>
-<<<<<<< HEAD
-        // Variáveis globais inicializadas vazias (serão preenchidas via fetch)
-        let rawDB = {};
-        let passengers = [];
-        let isPollSentToday = false;
-        let capacities = {};
-        let groupAliases = {};
-        let skipDates = {};
-        let pollTime = "05:30";
-        let targetGroups = [];
-        let weatherData = null;
-        let weatherLastUpdateStr = "--:--";
-=======
         let rawDB = ${statsJSONStr};
         let passengers = ${passengersJSONStr};
         let isPollSentToday = ${isPollSentToday};
@@ -949,7 +986,8 @@ const generateHtmlDashboard = async (stats) => {
         let skipDates = ${skipDatesJSONStr};
         let pollTime = "${pollTimeStr}";
         let targetGroups = ${targetGroupsJSONStr};
->>>>>>> parent of 4083aea (!)
+        let weatherData = ${weatherJSONStr};
+        let weatherLastUpdateStr = "${weatherLastUpdate}";
         
         let lastNotifiedCount = {}; // Para o item 4
         let notificationEnabled = false;
@@ -1028,7 +1066,32 @@ const generateHtmlDashboard = async (stats) => {
             
             // Copyright dinâmico
             document.getElementById("copyrightYear").innerText = new Date().getFullYear();
+
+            // Clima no Rodapé
+            if (weatherLastUpdateStr !== "--:--") {
+                document.getElementById("lblLastUpdate").innerHTML += ' <span style="margin-left: 10px; opacity: 0.7;">| Clima: ' + weatherLastUpdateStr + '</span>';
+            }
+
+            // Calendário de Enquetes
+            const per = document.getElementById("periodSelect").value;
+            updateNextPollsCalendar(per);
         };
+
+        const updateWeatherWidget = () => {
+            // Removido conforme solicitação (exibição apenas na lista)
+        };
+
+        const getWeatherIcon = (code, isDay = true) => {
+            let iconName = "sun";
+            if (code >= 1 && code <= 3) iconName = "cloud-sun";
+            if (code >= 45 && code <= 48) iconName = "cloud-fog";
+            if (code >= 51 && code <= 65) iconName = "cloud-rain";
+            if (code >= 80 && code <= 82) iconName = "cloud-rain-wind";
+            if (code >= 95) iconName = "cloud-lightning";
+            if (!isDay && iconName === "sun") iconName = "moon";
+            return iconName;
+        };
+
 
         const updateChartsOnly = () => {
             const grp = document.getElementById("groupSelect").value;
@@ -1867,7 +1930,27 @@ const generateHtmlDashboard = async (stats) => {
                 const row = document.createElement("div");
                 row.className = "poll-item";
 
+                const dateISO = current.format('YYYY-MM-DD');
                 const dateDisplay = current.format('DD MMM'); // Ex: 08 Nov
+                
+                // Buscar Clima para este dia (Somente se não houver impedimento/feriado)
+                let weatherHtml = "";
+                if (!reason && weatherData && weatherData.daily && weatherData.daily.time) {
+                    const idx = weatherData.daily.time.indexOf(dateISO);
+                    if (idx !== -1) {
+                        const code = weatherData.daily.weather_code[idx];
+                        const max = Math.round(weatherData.daily.temperature_2m_max[idx]);
+                        const min = Math.round(weatherData.daily.temperature_2m_min[idx]);
+                        const icon = getWeatherIcon(code);
+                        weatherHtml = ' \
+                            <div class="poll-weather"> \
+                                <i data-lucide="' + icon + '" class="poll-weather-icon"></i> \
+                                <div>' + max + '° / ' + min + '°</div> \
+                            </div> \
+                        ';
+                    }
+                }
+
                 const weekNum = current.isoWeek();
                 
                 if (reason) {
@@ -1880,6 +1963,7 @@ const generateHtmlDashboard = async (stats) => {
                             <div class="poll-title">Indisponível</div> \
                             <div class="poll-subtitle">' + reason + '</div> \
                         </div> \
+                        ' + weatherHtml + ' \
                         <div class="status-badge status-bloqueada">Offline</div> \
                     ';
                 } else {
@@ -1902,6 +1986,7 @@ const generateHtmlDashboard = async (stats) => {
                             <div class="poll-title">Enquete de Frequência</div> \
                             <div class="poll-subtitle">Semana ' + weekNum + ' • ' + pollTime + '</div> \
                         </div> \
+                        ' + weatherHtml + ' \
                         <div class="status-badge status-agendada">Agendada</div> \
                     ';
                 }
@@ -1929,43 +2014,22 @@ const generateHtmlDashboard = async (stats) => {
             }
         };
 
-        // Boot instantâneo com carregamento de dados via API
-        const loadInitialData = async () => {
-            try {
-                const res = await fetch('/api/stats');
-                if (res.ok) {
-                    const data = await res.json();
-                    applyData(data);
-                    
-                    // Inicializa os selects somente após o primeiro carregamento
-                    initSelects();
-                    initNotification();
-                    updateDash();
-                }
-            } catch (err) {
-                console.error('Erro ao carregar dados iniciais:', err);
-            }
-        };
-
-        const applyData = (data) => {
-            rawDB = data.votes || {};
-            passengers = data.passengers || [];
-            isPollSentToday = !!data.isPollSentToday;
-            capacities = data.capacities || {};
-            groupAliases = data.aliases || {};
-            skipDates = data.skipDates || {};
-            pollTime = data.pollTime || "05:30";
-            targetGroups = data.targetGroups || [];
-            weatherData = data.weather || null;
-            weatherLastUpdateStr = data.weatherLastUpdate || "--:--";
-            
-            if (data.lastUpdate) {
-                document.getElementById('lblLastUpdate').innerText = data.lastUpdate;
-            }
-        };
-
-        loadInitialData();
+        // Boot instantâneo
+        initSelects();
+        initNotification();
         
+        // Pequeno delay apenas para garantir que o DOM e Charts estejam prontos
+        window.addEventListener('load', () => {
+            updateDash();
+            fetchStats(); // Forçar busca imediata para garantir dados frescos
+        });
+        
+        // Execução imediata caso o load já tenha passado
+        if (document.readyState === 'complete') {
+            updateDash();
+            fetchStats();
+        }
+
         // Auto-refresh via JS fetch para não piscar a tela
         const fetchStats = async () => {
             checkMidnightReset();
@@ -1976,8 +2040,14 @@ const generateHtmlDashboard = async (stats) => {
                     
                     // Se houver mudança nos dados, atualiza
                     if (JSON.stringify(rawDB) !== JSON.stringify(data.votes) || isPollSentToday !== data.isPollSentToday) {
-                        applyData(data);
+                        rawDB = data.votes || {};
+                        isPollSentToday = !!data.isPollSentToday;
+                        capacities = data.capacities || {};
+                        groupAliases = data.aliases || {};
                         updateDash(); // Re-render dos gráficos
+                        
+                        const now = new Date();
+                        document.getElementById('lblLastUpdate').innerText = now.toLocaleDateString('pt-BR') + ' ' + now.toLocaleTimeString('pt-BR');
                     }
                 }
             } catch (err) {
