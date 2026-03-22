@@ -114,6 +114,9 @@ async function startBot() {
     await weatherService.update(); // Atualiza clima na inicialização
     setInterval(() => weatherService.update(), 3600000); // Atualiza a cada 1h
 
+    // Gera o template estático inicial se necessário
+    await statistics.generateHtmlDashboard();
+
     await client.initialize();
   } catch (e) {
     dashboard.addLog(`Erro fatal no puppeteer: ${e.message}`);

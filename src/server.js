@@ -84,7 +84,7 @@ let currentNetUsage = { rxSpeed: 0, txSpeed: 0 }; // Bytes per second
 const startServer = () => {
   const port = process.env.PORT || 3000;
 
-  // Iniciar poller de rede (a cada 2 segundos)
+  // Iniciar poller de rede (a cada 10 segundos para reduzir CPU)
   setInterval(() => {
     const isWindows = os.platform() === "win32";
 
@@ -123,7 +123,7 @@ const startServer = () => {
         updateNetUsage(totalRx, totalTx);
       });
     }
-  }, 2000);
+  }, 10000);
 
   const updateNetUsage = (rx, tx) => {
     const now = Date.now();
@@ -190,17 +190,10 @@ const startServer = () => {
     // Rota API de rawDB para o Auto-Refresh do frontend das Estatísticas
     if (req.url === "/api/stats") {
       try {
-        const stats = await readStats();
-        const config = configService.getConfig();
+        const { getDashboardData } = require("./services/statistics");
+        const data = await getDashboardData();
         res.writeHead(200, { "Content-Type": "application/json" });
-        res.end(
-          JSON.stringify({
-            votes: stats.rawDB || {},
-            isPollSentToday: !!stats.isPollSentToday,
-            capacities: config.groupCapacities || {},
-            aliases: config.groupAliases || {},
-          }),
-        );
+        res.end(JSON.stringify(data));
       } catch (err) {
         res.writeHead(500, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ error: err.message }));

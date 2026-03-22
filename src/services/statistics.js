@@ -179,29 +179,25 @@ const registerVote = async (vote, voterName) => {
   // Atualiza ocupação no terminal imediatamente (leve)
   await updateTerminalOccupancy();
 
-  // Debounce para a geração do HTML (pesado)
-  // Evita múltiplas escritas em disco se muitos votos chegarem ao mesmo tempo
-  if (global.htmlUpdateTimer) clearTimeout(global.htmlUpdateTimer);
-  global.htmlUpdateTimer = setTimeout(
-    async () => {
-      const freshStats = await readStats();
-      await generateHtmlDashboard(freshStats);
-      dashboard.addLog("Dashboard Web sincronizado com sucesso.");
-    },
-    20000, // 20 segundos de silêncio após o último voto para regerar o HTML
-  );
+  // REMOVIDO: Escrita recorrente de HTML em disco (I/O pesado)
+  // O dashboard web agora consome os dados via /api/stats
 };
 
-const generateHtmlDashboard = async (stats) => {
-  // Buscar passageiros para o Feed e contagem de pendentes
+const getDashboardData = async () => {
+  const stats = await readStats();
+  const config = configService.getConfig();
+  const weather = weatherService.getWeather();
+  const weatherLastUpdate = weatherService.lastUpdate ? 
+    moment(weatherService.lastUpdate).tz("America/Sao_Paulo").format("HH:mm") : "--:--";
+
+  // Buscar passageiros
   let passengers = [];
   try {
     const { data, error } = await supabase
       .from("passengers")
       .select("name, phone, photo_url, bus_number, status");
 
-    const config = configService.getConfig();
-    const targetGroups = config.targetGroups;
+    const targetGroups = config.targetGroups || [];
 
     if (!error && data) {
       passengers = data
@@ -219,8 +215,29 @@ const generateHtmlDashboard = async (stats) => {
         });
     }
   } catch (e) {
-    console.error("Erro ao buscar passageiros:", e.message);
+    console.error("Erro ao buscar passageiros para API:", e.message);
   }
+
+  return {
+    votes: stats.rawDB || {},
+    isPollSentToday: !!stats.isPollSentToday,
+    passengers: passengers,
+    capacities: config.groupCapacities || {},
+    aliases: config.groupAliases || {},
+    skipDates: config.skipDates || {},
+    pollTime: config.pollTime || "05:30",
+    targetGroups: config.targetGroups || [],
+    weather: weather,
+    weatherLastUpdate: weatherLastUpdate,
+    lastUpdate: moment().tz("America/Sao_Paulo").format("DD/MM/YYYY HH:mm:ss")
+  };
+};
+
+const generateHtmlDashboard = async (stats) => {
+  // Chamado apenas uma vez na inicialização ou se o arquivo não existir
+  if (fs.existsSync(htmlFile)) return;
+  
+  dashboard.addLog("[Stats] Gerando template estático inicial do Dashboard.");
 
   // Inject the raw JS object directly into HTML for dynamic reading
   const statsJSONStr = JSON.stringify(stats.rawDB);
@@ -978,16 +995,17 @@ const generateHtmlDashboard = async (stats) => {
     </div>
 
     <script>
-        let rawDB = ${statsJSONStr};
-        let passengers = ${passengersJSONStr};
-        let isPollSentToday = ${isPollSentToday};
-        let capacities = ${capacitiesJSONStr};
-        let groupAliases = ${aliasesJSONStr};
-        let skipDates = ${skipDatesJSONStr};
-        let pollTime = "${pollTimeStr}";
-        let targetGroups = ${targetGroupsJSONStr};
-        let weatherData = ${weatherJSONStr};
-        let weatherLastUpdateStr = "${weatherLastUpdate}";
+        // Variáveis globais inicializadas vazias (serão preenchidas via fetch)
+        let rawDB = {};
+        let passengers = [];
+        let isPollSentToday = false;
+        let capacities = {};
+        let groupAliases = {};
+        let skipDates = {};
+        let pollTime = "05:30";
+        let targetGroups = [];
+        let weatherData = null;
+        let weatherLastUpdateStr = "--:--";
         
         let lastNotifiedCount = {}; // Para o item 4
         let notificationEnabled = false;
@@ -2014,22 +2032,43 @@ const generateHtmlDashboard = async (stats) => {
             }
         };
 
-        // Boot instantâneo
-        initSelects();
-        initNotification();
-        
-        // Pequeno delay apenas para garantir que o DOM e Charts estejam prontos
-        window.addEventListener('load', () => {
-            updateDash();
-            fetchStats(); // Forçar busca imediata para garantir dados frescos
-        });
-        
-        // Execução imediata caso o load já tenha passado
-        if (document.readyState === 'complete') {
-            updateDash();
-            fetchStats();
-        }
+        // Boot instantâneo com carregamento de dados via API
+        const loadInitialData = async () => {
+            try {
+                const res = await fetch('/api/stats');
+                if (res.ok) {
+                    const data = await res.json();
+                    applyData(data);
+                    
+                    // Inicializa os selects somente após o primeiro carregamento
+                    initSelects();
+                    initNotification();
+                    updateDash();
+                }
+            } catch (err) {
+                console.error('Erro ao carregar dados iniciais:', err);
+            }
+        };
 
+        const applyData = (data) => {
+            rawDB = data.votes || {};
+            passengers = data.passengers || [];
+            isPollSentToday = !!data.isPollSentToday;
+            capacities = data.capacities || {};
+            groupAliases = data.aliases || {};
+            skipDates = data.skipDates || {};
+            pollTime = data.pollTime || "05:30";
+            targetGroups = data.targetGroups || [];
+            weatherData = data.weather || null;
+            weatherLastUpdateStr = data.weatherLastUpdate || "--:--";
+            
+            if (data.lastUpdate) {
+                document.getElementById('lblLastUpdate').innerText = data.lastUpdate;
+            }
+        };
+
+        loadInitialData();
+        
         // Auto-refresh via JS fetch para não piscar a tela
         const fetchStats = async () => {
             checkMidnightReset();
@@ -2040,14 +2079,8 @@ const generateHtmlDashboard = async (stats) => {
                     
                     // Se houver mudança nos dados, atualiza
                     if (JSON.stringify(rawDB) !== JSON.stringify(data.votes) || isPollSentToday !== data.isPollSentToday) {
-                        rawDB = data.votes || {};
-                        isPollSentToday = !!data.isPollSentToday;
-                        capacities = data.capacities || {};
-                        groupAliases = data.aliases || {};
+                        applyData(data);
                         updateDash(); // Re-render dos gráficos
-                        
-                        const now = new Date();
-                        document.getElementById('lblLastUpdate').innerText = now.toLocaleDateString('pt-BR') + ' ' + now.toLocaleTimeString('pt-BR');
                     }
                 }
             } catch (err) {
