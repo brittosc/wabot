@@ -12,6 +12,7 @@ class Dashboard {
     this.maxLogs = 5;
     this.serverUrl = "";
     this.occupancyData = []; // Array of { name, count, cap }
+    this.pairingCode = ""; // Código de pareamento (8 dígitos)
   }
 
   setOccupancy(data) {
@@ -26,6 +27,13 @@ class Dashboard {
 
   setQrCode(qr) {
     this.qrCodeStr = qr;
+    this.pairingCode = ""; // Limpa pairing se QR vier
+    this.render();
+  }
+
+  setPairingCode(code) {
+    this.pairingCode = code;
+    this.qrCodeStr = ""; // Limpa QR se pairing vier
     this.render();
   }
 
@@ -135,9 +143,26 @@ class Dashboard {
     if (this.qrCodeStr) {
       output +=
         "\n" +
-        padLine(chalk.bold("Por favor, escaneie o QR Code abaixo:")) +
+        padLine(chalk.bold("Escaneie o QR Code abaixo no seu celular:")) +
         "\n" +
         this.qrCodeStr +
+        "\n";
+    }
+
+    if (this.pairingCode) {
+      output +=
+        "\n" +
+        padLine(chalk.bgRed.white.bold(" 🔑 CÓDIGO DE VINCULAÇÃO (PAIRING CODE) ")) +
+        "\n\n" +
+        padLine(chalk.white("Digite este código no seu WhatsApp:")) +
+        "\n" +
+        padLine(chalk.yellow.bold(`       ${this.pairingCode}       `)) +
+        "\n\n" +
+        padLine(chalk.gray("Passo a passo no celular:")) +
+        "\n" +
+        padLine(chalk.gray("1. Configurações > Aparelhos Conectados")) +
+        "\n" +
+        padLine(chalk.gray("2. Conectar um Aparelho > Conectar por número")) +
         "\n";
     }
 

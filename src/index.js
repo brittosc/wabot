@@ -45,12 +45,26 @@ async function startBot() {
     // Removido webVersionCache pois causa picos de CPU em VPS ao verificar versões
   });
 
-  client.on("qr", (qr) => {
-    qrcode.generate(qr, { small: true }, function (qrcodeStr) {
-      dashboard.setQrCode(qrcodeStr);
-      dashboard.setStatus("Aguardando escaneamento do QR Code...");
-    });
-    dashboard.addLog("Novo QR Code gerado.");
+  client.on("qr", async (qr) => {
+    if (process.env.PAIRING_PHONE) {
+      try {
+        const code = await client.getPairingCode(process.env.PAIRING_PHONE);
+        dashboard.setPairingCode(code);
+        dashboard.setStatus("Aguardando digitação do código no celular...");
+        dashboard.addLog(`Pairing Code gerado para ${process.env.PAIRING_PHONE}`);
+      } catch (e) {
+        dashboard.addLog(`Erro ao gerar Pairing Code: ${e.message}`);
+        qrcode.generate(qr, { small: true }, function (qrcodeStr) {
+          dashboard.setQrCode(qrcodeStr);
+        });
+      }
+    } else {
+      qrcode.generate(qr, { small: true }, function (qrcodeStr) {
+        dashboard.setQrCode(qrcodeStr);
+        dashboard.setStatus("Aguardando escaneamento do QR Code...");
+      });
+      dashboard.addLog("Novo QR Code gerado.");
+    }
   });
 
   client.on("ready", async () => {
