@@ -49,7 +49,15 @@ async function startBot() {
   client.on("qr", async (qr) => {
     if (process.env.PAIRING_PHONE) {
       try {
-        const code = await client.getPairingCode(process.env.PAIRING_PHONE);
+        let code;
+        if (typeof client.getPairingCode === "function") {
+          code = await client.getPairingCode(process.env.PAIRING_PHONE);
+        } else if (typeof client.requestPairingCode === "function") {
+          code = await client.requestPairingCode(process.env.PAIRING_PHONE);
+        } else {
+          throw new Error("Sua versão do whatsapp-web.js não suporta Vincular por Telefone. Rode: npm install whatsapp-web.js@latest");
+        }
+        
         dashboard.setPairingCode(code);
         dashboard.setStatus("Aguardando digitação do código no celular...");
         dashboard.addLog(`Pairing Code gerado para ${process.env.PAIRING_PHONE}`);
