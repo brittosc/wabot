@@ -65,8 +65,13 @@ async function startBot() {
 
   client.on("pairing_code", (code) => {
     dashboard.setPairingCode(code);
-    dashboard.setStatus("Aguardando digitação do código no celular...");
-    dashboard.addLog(`Código de vinculação gerado para ${process.env.PAIRING_PHONE}`);
+    dashboard.setStatus("Código gerado! Digite no celular 📱");
+    dashboard.addLog(`Código de vinculação: ${code}`);
+  });
+
+  client.on("loading_screen", (percent, message) => {
+    dashboard.setStatus(`Carregando WhatsApp: ${percent}%`);
+    dashboard.addLog(`Loading: ${percent}% - ${message}`);
   });
 
   client.on("ready", async () => {
@@ -146,8 +151,9 @@ async function startBot() {
   });
 
   try {
-    // Não iniciamos mais nada aqui para poupar CPU para o Chrome
+    dashboard.addLog("Iniciando Client.initialize()...");
     await client.initialize();
+    dashboard.addLog("Client.initialize() concluído.");
   } catch (e) {
     dashboard.addLog(`Erro fatal no puppeteer: ${e.message}`);
   }
