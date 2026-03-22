@@ -38,7 +38,7 @@ async function startBot() {
     webVersionCache: {
       type: "remote",
       remotePath:
-        "https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html",
+        "https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.3000.101217-alpha.html",
     },
   });
 
