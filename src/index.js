@@ -36,11 +36,7 @@ async function startBot() {
         "--js-flags='--max-old-space-size=256'",
       ],
     },
-    webVersionCache: {
-      type: "remote",
-      remotePath:
-        "https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html",
-    },
+    // Removido webVersionCache pois causa picos de CPU em VPS ao verificar versões
   });
 
   client.on("qr", (qr) => {
@@ -115,8 +111,10 @@ async function startBot() {
     await weatherService.update(); // Atualiza clima na inicialização
     setInterval(() => weatherService.update(), 3600000); // Atualiza a cada 1h
 
-    // Gera o template estático inicial em background (pra não travar o Puppeteer)
-    statistics.generateHtmlDashboard().catch(e => console.error("Erro dashboard inicial:", e.message));
+    // Adiado drasticamente (2 minutos após ligar) para não competir com a conexão
+    setTimeout(() => {
+      statistics.generateHtmlDashboard().catch(e => console.error("Erro dashboard inicial:", e.message));
+    }, 120000);
 
     await client.initialize();
   } catch (e) {

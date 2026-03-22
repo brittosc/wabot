@@ -67,7 +67,7 @@ class Dashboard {
         this._renderPending = false;
         this.render();
       }
-    }, 200); // Máximo de 5 renders por segundo
+    }, 1000); // Máximo de 1 render por segundo
   }
 
   _doRender() {
