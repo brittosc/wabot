@@ -11,7 +11,8 @@ const { startServer } = require("./server");
 
 async function startBot() {
   dashboard.setStatus("Processando inicialização...");
-  dashboard.addLog("Preparando cliente WhatsApp via whatsapp-web.js");
+  dashboard.addLog(`Ambiente: ${process.env.PAIRING_PHONE ? "Pairing Code Ativo" : "Modo QR Code"}`);
+  if (process.env.PAIRING_PHONE) dashboard.addLog(`Número: ${process.env.PAIRING_PHONE}`);
 
   const client = new Client({
     authStrategy: new LocalAuth({ dataPath: "./auth_info" }),
