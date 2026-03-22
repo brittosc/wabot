@@ -56,7 +56,19 @@ async function startBot() {
   client.on("ready", async () => {
     dashboard.setStatus("Conectado ✅");
     dashboard.addLog("Bot conectado com sucesso!");
+    dashboard.addLog("Iniciando serviços secundários (Web Server, Clima, Stats)...");
     dashboard.setQrCode(""); // Limpa QR
+
+    // Inicia o Servidor Web apenas após a conexão
+    startServer();
+
+    // Inicia serviços de Clima
+    try {
+      await weatherService.update();
+      setInterval(() => weatherService.update(), 3600000);
+    } catch (e) {
+      dashboard.addLog(`Erro inicial clima: ${e.message}`);
+    }
 
     // Inicia o cronJob com a instância do client
     cronJob.scheduleJob(client);
@@ -64,7 +76,11 @@ async function startBot() {
     // Atualiza ocupação inicial no terminal e gera HTML inicial
     const currentStats = await statistics.readStats();
     await statistics.updateTerminalOccupancy(currentStats);
-    await statistics.generateHtmlDashboard(currentStats);
+    // Gera o Dashboard inicial
+    statistics.generateHtmlDashboard().catch(e => dashboard.addLog(`Erro Dash: ${e.message}`));
+    
+    // Calcula próxima enquete
+    updateNextPollTime();
 
     if (process.argv.includes("--now")) {
       dashboard.addLog("Parâmetro --now detectado. Forçando envio imediato 🎉");
@@ -114,25 +130,38 @@ async function startBot() {
   });
 
   try {
-    await weatherService.update(); // Atualiza clima na inicialização
-    setInterval(() => weatherService.update(), 3600000); // Atualiza a cada 1h
-
-    // Adiado drasticamente (5 minutos após ligar) para não competir
-    setTimeout(() => {
-      statistics.generateHtmlDashboard().catch(e => console.error("Erro dashboard inicial:", e.message));
-    }, 300000);
-
-    // Desativa o dashboard visual durante a inicialização crítica para poupar CPU
-    dashboard.maxLogs = 10;
-    dashboard.status = "Iniciando em MODO LEVE...";
-    
+    // Não iniciamos mais nada aqui para poupar CPU para o Chrome
     await client.initialize();
   } catch (e) {
     dashboard.addLog(`Erro fatal no puppeteer: ${e.message}`);
   }
 }
 
-// Inicia Dashboard no terminal
+function updateNextPollTime() {
+  const configService = require("./services/configService");
+  const config = configService.getConfig();
+  const pollTimeStr = config.pollTime || "05:30";
+  const skipDates = config.skipDates || {};
+  const [hour, minute] = pollTimeStr.split(":").map(Number);
+  const moment = require("moment-timezone");
+  
+  let next = moment().tz("America/Sao_Paulo").set({ hour, minute, second: 0, millisecond: 0 });
+  if (next.isBefore(moment())) next.add(1, "day");
+  
+  while (next.day() === 0 || next.day() === 6 || skipDates[next.format("YYYY-MM-DD")]) {
+    next.add(1, "day");
+  }
+  
+  const diff = next.diff(moment());
+  const duration = moment.duration(diff);
+  const days = Math.floor(duration.asDays());
+  const hours = duration.hours();
+  const mins = duration.minutes();
+  
+  const display = next.format("DD/MM/YYYY HH:mm") + ` (em ${days}d ${hours}h ${mins}m)`;
+  dashboard.setNextPoll(display);
+}
+
+// Inicia o processo do Bot (Modo Sobrevivência)
 dashboard.render();
-startServer();
 startBot();
