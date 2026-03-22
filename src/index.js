@@ -1,4 +1,4 @@
-require("dotenv").config(); // Carrega variáveis de ambiente do .env
+require("dotenv").config({ quiet: true }); // Carrega variáveis de ambiente do .env
 process.removeAllListeners("warning");
 
 const { Client, LocalAuth } = require("whatsapp-web.js");
@@ -37,12 +37,13 @@ async function startBot() {
   });
 
   client.on("ready", async () => {
-    dashboard.setStatus("Conectado ✅");
+    dashboard.setStatus("Conectado!");
     dashboard.addLog("Bot conectado com sucesso!");
     dashboard.setQrCode(""); // Limpa QR
 
     // Inicia o cronJob com a instância do client
     cronJob.scheduleJob(client);
+    cronJob.checkMissedSends(client);
 
     // Atualiza ocupação inicial no terminal
     const currentStats = await statistics.readStats();
