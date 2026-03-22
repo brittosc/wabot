@@ -8,6 +8,13 @@ const { Rcon } = require("rcon-client");
 const dashboard = require("./services/dashboard");
 const { readStats } = require("./services/statistics");
 const configService = require("./services/configService");
+const moment = require("moment-timezone");
+
+// Cache de Clima
+let weatherCache = {
+  data: [],
+  lastUpdate: null,
+};
 
 // Variável publicIpCache removida (IP removido do dashboard)
 
@@ -192,6 +199,37 @@ const startServer = () => {
       try {
         const stats = await readStats();
         const config = configService.getConfig();
+
+        // Busca clima via backend com cache de 1 hora
+        const oneHour = 60 * 60 * 1000;
+        const now = Date.now();
+        if (
+          !weatherCache.lastUpdate ||
+          now - weatherCache.lastUpdate > oneHour
+        ) {
+          try {
+            // Open-Meteo para Criciúma, SC (Latitude: -28.67, Longitude: -49.37)
+            const weatherRes = await fetch(
+              "https://api.open-meteo.com/v1/forecast?latitude=-28.6775&longitude=-49.3703&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=America%2FSao_Paulo",
+            );
+            if (weatherRes.ok) {
+              const d = await weatherRes.json();
+              if (d && d.daily) {
+                // Converte formato Open-Meteo para o formato esperado pelo frontend (compatível com HG Brasil)
+                weatherCache.data = d.daily.time.map((time, i) => ({
+                  date: moment(time).format("DD/MM"),
+                  max: Math.round(d.daily.temperature_2m_max[i]),
+                  min: Math.round(d.daily.temperature_2m_min[i]),
+                  condition_code: d.daily.weather_code[i],
+                }));
+                weatherCache.lastUpdate = now;
+              }
+            }
+          } catch (we) {
+            console.error("Erro ao buscar clima no Open-Meteo:", we.message);
+          }
+        }
+
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(
           JSON.stringify({
@@ -199,6 +237,8 @@ const startServer = () => {
             isPollSentToday: !!stats.isPollSentToday,
             capacities: config.groupCapacities || {},
             aliases: config.groupAliases || {},
+            weather: weatherCache.data,
+            weatherLastUpdate: weatherCache.lastUpdate,
           }),
         );
       } catch (err) {

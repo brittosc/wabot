@@ -123,26 +123,28 @@ const registerVote = async (vote, voterName) => {
   // Auto-registro de passageiros
   try {
     const phone = normalizePhone(voterId);
-    
+
     // Busca todos para verificar se o telefone já existe (considerando variações de formato)
     const { data: allPassengers } = await supabase
       .from("passengers")
       .select("id, phone");
 
-    const existing = allPassengers?.find(p => normalizePhone(p.phone) === phone);
+    const existing = allPassengers?.find(
+      (p) => normalizePhone(p.phone) === phone,
+    );
 
     if (!existing) {
       const config = configService.getConfig();
       const targetGroups = config.targetGroups || [];
       const busIndex = targetGroups.indexOf(groupName);
       const busNumber = busIndex !== -1 ? busIndex + 1 : 1;
-      
+
       await supabase.from("passengers").insert({
         name: voterName || "Aluno Novo",
         phone: phone, // Armazena apenas os dígitos para consistência
         bus_number: busNumber,
         status: "aprovado",
-        registration_number: "AUTO_" + phone.slice(-6) // Fallback para campo único
+        registration_number: "AUTO_" + phone.slice(-6), // Fallback para campo único
       });
     }
   } catch (err) {
@@ -239,6 +241,7 @@ const generateHtmlDashboard = async (stats) => {
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment-timezone/0.5.43/moment-timezone-with-data.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         :root {
@@ -469,7 +472,7 @@ const generateHtmlDashboard = async (stats) => {
             margin-top: 20px;
         }
         .feed-table th {
-            text-align: left;
+            text-align: center;
             padding: 12px 15px;
             font-size: 0.75rem;
             text-transform: uppercase;
@@ -486,6 +489,7 @@ const generateHtmlDashboard = async (stats) => {
         }
         .feed-row td {
             padding: 15px;
+            text-align: center;
             border-top: 1px solid var(--border-color);
             border-bottom: 1px solid var(--border-color);
         }
@@ -495,6 +499,7 @@ const generateHtmlDashboard = async (stats) => {
         .user-cell {
             display: flex;
             align-items: center;
+            justify-content: center;
             gap: 12px;
         }
         .user-avatar {
@@ -681,6 +686,27 @@ const generateHtmlDashboard = async (stats) => {
             border-color: rgba(244, 67, 54, 0.1);
             opacity: 0.6;
         }
+        .weather-tag {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            color: #aaa;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            margin-right: 5px;
+        }
+        .weather-tag .temp-val {
+            font-weight: 700;
+            color: #fff;
+        }
+        .weather-icon {
+            width: 14px;
+            height: 14px;
+            color: var(--accent);
+        }
     </style>
 </head>
 <body>
@@ -734,10 +760,8 @@ const generateHtmlDashboard = async (stats) => {
             <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
                 <h2 id="titleStackedBarChart" style="margin: 0;">Proporção Diária</h2>
                 <select id="chartTypeSelect" style="min-width: 150px; padding: 8px 12px; font-size: 0.85rem; border-radius: 8px;">
-                    <option value="bar">Barras Empilhadas</option>
-                    <option value="line">Áreas (Linhas)</option>
-                    <option value="radar">Radar</option>
-                    <option value="polarArea">Área Polar</option>
+                    <option value="bar">Barras</option>
+                    <option value="line">Linhas</option>
                 </select>
             </div>
             <div class="chart-container">
@@ -901,6 +925,19 @@ const generateHtmlDashboard = async (stats) => {
         let skipDates = ${skipDatesJSONStr};
         let pollTime = "${pollTimeStr}";
         let targetGroups = ${targetGroupsJSONStr};
+        
+        // Previsão do Tempo (Open-Meteo via Backend)
+        let weatherForecast = [];
+        const getWeatherIcon = (code) => {
+            // Mapeamento Open-Meteo WMO Codes -> Lucide
+            if (code === 0) return 'sun';
+            if ([1, 2, 3].includes(code)) return 'cloud-sun';
+            if ([45, 48].includes(code)) return 'cloud-fog';
+            if ([51, 53, 55, 61, 63, 65, 80, 81, 82].includes(code)) return 'cloud-rain';
+            if ([95, 96, 99].includes(code)) return 'cloud-lightning';
+            if ([71, 73, 75, 77, 85, 86].includes(code)) return 'snowflake';
+            return 'cloud';
+        };
         
         let lastNotifiedCount = {}; // Para o item 4
         let notificationEnabled = false;
@@ -1564,9 +1601,30 @@ const generateHtmlDashboard = async (stats) => {
                                 padding: 20,
                                 font: { size: 11, weight: 600 }
                             }
-                        } 
+                        },
+                        datalabels: {
+                            color: '#fff',
+                            anchor: 'center',
+                            align: 'center',
+                            offset: 0,
+                            font: {
+                                weight: '800',
+                                size: 12
+                            },
+                            formatter: (value, ctx) => {
+                                let sum = 0;
+                                let dataArr = ctx.chart.data.datasets[0].data;
+                                dataArr.map(data => {
+                                    sum += data;
+                                });
+                                let pctValue = (value * 100 / sum);
+                                let percentage = pctValue.toFixed(0) + "%";
+                                return pctValue >= 5 ? percentage : ""; // Oculta se for < 5%
+                            }
+                        }
                     }
-                }
+                },
+                plugins: [ChartDataLabels]
             });
 
             if(barChartIns) barChartIns.destroy();
@@ -1809,6 +1867,7 @@ const generateHtmlDashboard = async (stats) => {
                 const dayOfWeek = current.day();
                 const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
                 const brDate = current.format('DD/MM/YYYY');
+                const currentDayMonth = current.format('DD/MM');
                 const skipReason = skipDates[brDate];
                 
                 let reason = "";
@@ -1821,6 +1880,21 @@ const generateHtmlDashboard = async (stats) => {
                 const dateDisplay = current.format('DD MMM'); // Ex: 08 Nov
                 const weekNum = current.isoWeek();
                 
+                // Busca clima para este dia
+                const dayWeather = weatherForecast.find(f => f.date === currentDayMonth);
+                let weatherHtml = "";
+                if (dayWeather) {
+                    const icon = getWeatherIcon(dayWeather.condition);
+                    weatherHtml = ' \
+                        <div class="weather-tag"> \
+                            <i data-lucide="' + icon + '" class="weather-icon"></i> \
+                            <span class="temp-val">' + dayWeather.max + '°</span> \
+                            <span style="opacity: 0.5">/</span> \
+                            <span>' + dayWeather.min + '°</span> \
+                        </div> \
+                    ';
+                }
+
                 if (reason) {
                     row.innerHTML = ' \
                         <div class="calendar-box" style="opacity: 0.5;"> \
@@ -1853,6 +1927,7 @@ const generateHtmlDashboard = async (stats) => {
                             <div class="poll-title">Enquete de Frequência</div> \
                             <div class="poll-subtitle">Semana ' + weekNum + ' • ' + pollTime + '</div> \
                         </div> \
+                        ' + weatherHtml + ' \
                         <div class="status-badge status-agendada">Agendada</div> \
                     ';
                 }
@@ -1905,15 +1980,17 @@ const generateHtmlDashboard = async (stats) => {
                     const data = await res.json();
                     
                     // Se houver mudança nos dados, atualiza
-                    if (JSON.stringify(rawDB) !== JSON.stringify(data.votes) || isPollSentToday !== data.isPollSentToday) {
+                    if (JSON.stringify(rawDB) !== JSON.stringify(data.votes) || isPollSentToday !== data.isPollSentToday || JSON.stringify(weatherForecast) !== JSON.stringify(data.weather)) {
                         rawDB = data.votes || {};
                         isPollSentToday = !!data.isPollSentToday;
                         capacities = data.capacities || {};
                         groupAliases = data.aliases || {};
-                        updateDash(); // Re-render dos gráficos
+                        weatherForecast = data.weather || [];
+                        updateDash(); // Re-render dos gráficos e calendário
                         
                         const now = new Date();
-                        document.getElementById('lblLastUpdate').innerText = now.toLocaleDateString('pt-BR') + ' ' + now.toLocaleTimeString('pt-BR');
+                        const weatherUpdateStr = data.weatherLastUpdate ? ' | Clima: ' + new Date(data.weatherLastUpdate).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '';
+                        document.getElementById('lblLastUpdate').innerText = now.toLocaleDateString('pt-BR') + ' ' + now.toLocaleTimeString('pt-BR') + weatherUpdateStr;
                     }
                 }
             } catch (err) {

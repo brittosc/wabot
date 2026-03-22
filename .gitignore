@@ -12,3 +12,5 @@ config/config.json
 # Variáveis de ambiente
 .env
 tmp/test-friday-logic.js
+debug_server.js
+public/estatisticas.html
