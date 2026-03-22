@@ -6,7 +6,6 @@ const qrcode = require("qrcode-terminal");
 const dashboard = require("./services/dashboard");
 const cronJob = require("./services/cron-job");
 const statistics = require("./services/statistics");
-const weatherService = require("./services/weatherService");
 const { startServer } = require("./server");
 
 async function startBot() {
@@ -15,10 +14,6 @@ async function startBot() {
 
   const client = new Client({
     authStrategy: new LocalAuth({ dataPath: "./auth_info" }),
-    authTimeoutMs: 300000, // Dá 5 minutos para autenticar (ideal para VPS muito lenta)
-    qrMaxRetries: 20, // Tenta mais vezes antes de falhar
-    takeoverOnConflict: true, // Tenta assumir a sessão se houver conflito
-    takeoverTimeoutMs: 60000,
     puppeteer: {
       headless: true,
       args: [
@@ -27,18 +22,9 @@ async function startBot() {
         "--disable-dev-shm-usage",
         "--disable-accelerated-2d-canvas",
         "--no-first-run",
+        "--no-zygote",
         "--disable-gpu",
-        "--disable-extensions",
-        "--disable-software-rasterizer",
-        "--mute-audio",
-        "--no-default-browser-check",
-        "--disable-features=IsolateOrigins,site-per-process",
       ],
-    },
-    webVersionCache: {
-      type: "remote",
-      remotePath:
-        "https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.3000.101217-alpha.html",
     },
   });
 
@@ -111,9 +97,6 @@ async function startBot() {
   });
 
   try {
-    await weatherService.update(); // Atualiza clima na inicialização
-    setInterval(() => weatherService.update(), 3600000); // Atualiza a cada 1h
-
     await client.initialize();
   } catch (e) {
     dashboard.addLog(`Erro fatal no puppeteer: ${e.message}`);
