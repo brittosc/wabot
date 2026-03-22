@@ -13,11 +13,16 @@ const normalizePhone = (p) => {
 
 const readStats = async () => {
   try {
-    // Buscamos os últimos 10.000 votos (suficiente para vários meses)
-    // Mais para frente, podemos otimizar filtrando apenas o período necessário
+    // Filtramos apenas os últimos 90 dias para reduzir o payload e uso de RAM na VPS
+    const thresholdDate = moment()
+      .tz("America/Sao_Paulo")
+      .subtract(90, "days")
+      .format("YYYY-MM-DD");
+
     const { data: rows, error } = await supabase
       .from("votes")
       .select("voter_id, group_name, vote_date, option, poll_name, created_at")
+      .gte("vote_date", thresholdDate)
       .order("vote_date", { ascending: false })
       .limit(10000);
 
@@ -170,10 +175,20 @@ const registerVote = async (vote, voterName) => {
       .match({ voter_id: voterId, group_name: groupName, vote_date: todayStr });
   }
 
-  // Recarregar stats para atualizar terminal e dashboard
-  const stats = await readStats();
-  await updateTerminalOccupancy(stats);
-  await generateHtmlDashboard(stats);
+  // Atualiza ocupação no terminal imediatamente (leve)
+  await updateTerminalOccupancy();
+
+  // Debounce para a geração do HTML (pesado)
+  // Evita múltiplas escritas em disco se muitos votos chegarem ao mesmo tempo
+  if (global.htmlUpdateTimer) clearTimeout(global.htmlUpdateTimer);
+  global.htmlUpdateTimer = setTimeout(
+    async () => {
+      const freshStats = await readStats();
+      await generateHtmlDashboard(freshStats);
+      dashboard.addLog("Dashboard Web sincronizado com sucesso.");
+    },
+    20000, // 20 segundos de silêncio após o último voto para regerar o HTML
+  );
 };
 
 const generateHtmlDashboard = async (stats) => {

@@ -14,8 +14,12 @@ async function startBot() {
 
   const client = new Client({
     authStrategy: new LocalAuth({ dataPath: "./auth_info" }),
+    authTimeoutMs: 120000, // Dá 2 minutos para autenticar (ideal para VPS lenta)
+    qrMaxRetries: 20, // Tenta mais vezes antes de falhar
+    takeoverOnConflict: true, // Tenta assumir a sessão se houver conflito
+    takeoverTimeoutMs: 60000,
     puppeteer: {
-      headless: true,
+      headless: "new",
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",
@@ -24,7 +28,17 @@ async function startBot() {
         "--no-first-run",
         "--no-zygote",
         "--disable-gpu",
+        "--disable-extensions",
+        "--disable-software-rasterizer",
+        "--single-process",
+        "--mute-audio",
+        "--no-default-browser-check",
       ],
+    },
+    webVersionCache: {
+      type: "remote",
+      remotePath:
+        "https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html",
     },
   });
 

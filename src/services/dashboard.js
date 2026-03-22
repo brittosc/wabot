@@ -54,6 +54,23 @@ class Dashboard {
   }
 
   render() {
+    // Evita renderizações excessivas em milissegundos, poupando CPU na VPS
+    if (this._renderTimeout) {
+      this._renderPending = true;
+      return;
+    }
+
+    this._renderTimeout = setTimeout(() => {
+      this._doRender();
+      this._renderTimeout = null;
+      if (this._renderPending) {
+        this._renderPending = false;
+        this.render();
+      }
+    }, 200); // Máximo de 5 renders por segundo
+  }
+
+  _doRender() {
     // Helper para garantir que a linha limpe o rastro do render anterior
     const padLine = (str, width = 70) => {
       const plain = str.replace(/\u001b\[\d+m/g, ""); // Remove cores para contar tamanho real
