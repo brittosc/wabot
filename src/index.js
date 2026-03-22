@@ -38,6 +38,7 @@ async function startBot() {
         "--disable-default-apps",
         "--disable-sync",
       ],
+      dumpio: true, // Adicionado para depuração no Linux
     },
     // Ativa vinculação por telefone se o número estiver no .env
     ...(process.env.PAIRING_PHONE ? {
