@@ -12,36 +12,37 @@ class Dashboard {
     this.maxLogs = 5;
     this.serverUrl = "";
     this.occupancyData = []; // Array of { name, count, cap }
+    this.renderTimeout = null;
   }
 
   setOccupancy(data) {
     this.occupancyData = data;
-    this.render();
+    this.requestRender();
   }
 
   setStatus(newStatus) {
     this.status = newStatus;
-    this.render();
+    this.requestRender();
   }
 
   setQrCode(qr) {
     this.qrCodeStr = qr;
-    this.render();
+    this.requestRender();
   }
 
   setNextPoll(timeStr) {
     this.nextPollTime = timeStr;
-    this.render();
+    this.requestRender();
   }
 
   setServerUrl(url) {
     this.serverUrl = url;
-    this.render();
+    this.requestRender();
   }
 
   incrementTotalSent() {
     this.totalSent++;
-    this.render();
+    this.requestRender();
   }
 
   addLog(message) {
@@ -50,14 +51,21 @@ class Dashboard {
     if (this.logs.length > this.maxLogs) {
       this.logs.pop();
     }
-    this.render();
+    this.requestRender();
+  }
+
+  requestRender() {
+    if (this.renderTimeout) clearTimeout(this.renderTimeout);
+    this.renderTimeout = setTimeout(() => this.render(), 50);
   }
 
   render() {
+    const width = process.stdout.columns || 80;
+    
     // Helper para garantir que a linha limpe o rastro do render anterior
-    const padLine = (str, width = 70) => {
+    const padLine = (str) => {
       const plain = str.replace(/\u001b\[\d+m/g, ""); // Remove cores para contar tamanho real
-      const padding = Math.max(0, width - plain.length);
+      const padding = Math.max(0, width - plain.length - 1);
       return str + " ".repeat(padding);
     };
 
@@ -82,9 +90,9 @@ class Dashboard {
 
     const logsSection = [
       padLine(chalk.bold.underline("Últimos Eventos:")),
-      this.logs.length > 0
-        ? this.logs.map((l) => padLine(chalk.gray(l))).join("\n")
-        : padLine(chalk.gray("Sem logs recentes.")),
+      ...(this.logs.length > 0
+        ? this.logs.map((l) => padLine(chalk.gray(l)))
+        : [padLine(chalk.gray("Sem logs recentes."))]),
     ].join("\n");
 
     let occupancySection = "";
@@ -106,7 +114,6 @@ class Dashboard {
 
     // Construção final com ordem estável e espaçamentos fixos
     let output =
-      "\n" +
       padLine(header) +
       "\n\n" +
       infoSection +

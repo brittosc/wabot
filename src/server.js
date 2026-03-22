@@ -58,7 +58,7 @@ const startServer = () => {
               }
             }
           } catch (we) {
-            console.error("Erro ao buscar clima no Open-Meteo:", we.message);
+            dashboard.addLog(`Erro ao buscar clima no Open-Meteo: ${we.message}`);
           }
         }
 

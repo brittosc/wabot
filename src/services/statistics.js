@@ -8,13 +8,27 @@ const normalizePhone = (p) => {
   return p.replace(/\D/g, "");
 };
 
+const withRetry = async (fn, retries = 3, delay = 1000) => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      if (i === retries - 1) throw err;
+      dashboard.addLog(`[Supabase] Tentativa ${i + 1} falhou, tentando novamente...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+};
+
 const readStats = async () => {
   try {
-    const { data: rows, error } = await supabase
-      .from("votes")
-      .select("voter_id, group_name, vote_date, option, poll_name, created_at")
-      .order("vote_date", { ascending: false })
-      .limit(10000);
+    const { data: rows, error } = await withRetry(() => 
+      supabase
+        .from("votes")
+        .select("voter_id, group_name, vote_date, option, poll_name, created_at")
+        .order("vote_date", { ascending: false })
+        .limit(10000)
+    );
 
     if (error) throw error;
 
@@ -39,15 +53,17 @@ const readStats = async () => {
 
     // Verificar se houve enquete hoje
     const todayStr = moment().tz("America/Sao_Paulo").format("YYYY-MM-DD");
-    const { data: pollHist } = await supabase
-      .from("poll_history")
-      .select("poll_date")
-      .eq("poll_date", todayStr);
+    const { data: pollHist } = await withRetry(() => 
+      supabase
+        .from("poll_history")
+        .select("poll_date")
+        .eq("poll_date", todayStr)
+    );
     const isPollSentToday = pollHist && pollHist.length > 0;
 
     return { rawDB: stats, isPollSentToday };
   } catch (e) {
-    console.error("Erro ao ler stats do Supabase:", e.message);
+    dashboard.addLog(`Erro ao ler stats do Supabase: ${e.message}`);
     return { rawDB: {}, isPollSentToday: false };
   }
 };
@@ -116,9 +132,11 @@ const registerVote = async (vote, voterName) => {
   // Auto-registro de passageiros
   try {
     const phone = normalizePhone(voterId);
-    const { data: allPassengers } = await supabase
-      .from("passengers")
-      .select("id, phone");
+    const { data: allPassengers } = await withRetry(() => 
+      supabase
+        .from("passengers")
+        .select("id, phone")
+    );
 
     const existing = allPassengers?.find(
       (p) => normalizePhone(p.phone) === phone,
@@ -130,36 +148,42 @@ const registerVote = async (vote, voterName) => {
       const busIndex = targetGroups.indexOf(groupName);
       const busNumber = busIndex !== -1 ? busIndex + 1 : 1;
 
-      await supabase.from("passengers").insert({
-        name: voterName || "Aluno Novo",
-        phone: phone,
-        bus_number: busNumber,
-        status: "aprovado",
-        registration_number: "AUTO_" + phone.slice(-6),
-      });
+      await withRetry(() => 
+        supabase.from("passengers").insert({
+          name: voterName || "Aluno Novo",
+          phone: phone,
+          bus_number: busNumber,
+          status: "aprovado",
+          registration_number: "AUTO_" + phone.slice(-6),
+        })
+      );
     }
   } catch (err) {
-    console.error("[Stats] Erro no auto-registro:", err.message);
+    dashboard.addLog(`[Stats] Erro no auto-registro: ${err.message}`);
   }
 
   if (vote.selectedOptions && vote.selectedOptions.length > 0) {
     const selectedOption = vote.selectedOptions[0].name;
-    await supabase.from("votes").upsert(
-      {
-        voter_id: voterId,
-        group_name: groupName,
-        vote_date: todayStr,
-        option: selectedOption,
-        poll_name: pollName,
-      },
-      { onConflict: "voter_id,group_name,vote_date" },
+    await withRetry(() => 
+      supabase.from("votes").upsert(
+        {
+          voter_id: voterId,
+          group_name: groupName,
+          vote_date: todayStr,
+          option: selectedOption,
+          poll_name: pollName,
+        },
+        { onConflict: "voter_id,group_name,vote_date" }
+      )
     );
   } else {
     // Deletar voto (desmarcado)
-    await supabase
-      .from("votes")
-      .delete()
-      .match({ voter_id: voterId, group_name: groupName, vote_date: todayStr });
+    await withRetry(() => 
+      supabase
+        .from("votes")
+        .delete()
+        .match({ voter_id: voterId, group_name: groupName, vote_date: todayStr })
+    );
   }
 
   // Atualiza ocupação no terminal
