@@ -3,7 +3,6 @@ const configService = require("./configService");
 const moment = require("moment-timezone");
 const dashboard = require("./dashboard");
 const supabase = require("../database/supabaseClient");
-const weatherService = require("./weatherService");
 
 const htmlFile = "./public/estatisticas.html";
 
@@ -186,9 +185,7 @@ const registerVote = async (vote, voterName) => {
 const getDashboardData = async () => {
   const stats = await readStats();
   const config = configService.getConfig();
-  const weather = weatherService.getWeather();
-  const weatherLastUpdate = weatherService.lastUpdate ? 
-    moment(weatherService.lastUpdate).tz("America/Sao_Paulo").format("HH:mm") : "--:--";
+  // Buscar passageiros
 
   // Buscar passageiros
   let passengers = [];
@@ -227,8 +224,8 @@ const getDashboardData = async () => {
     skipDates: config.skipDates || {},
     pollTime: config.pollTime || "05:30",
     targetGroups: config.targetGroups || [],
-    weather: weather,
-    weatherLastUpdate: weatherLastUpdate,
+    weather: null,
+    weatherLastUpdate: "--:--",
     lastUpdate: moment().tz("America/Sao_Paulo").format("DD/MM/YYYY HH:mm:ss")
   };
 };
@@ -247,12 +244,7 @@ const generateHtmlDashboard = async (stats) => {
     .tz("America/Sao_Paulo")
     .format("DD/MM/YYYY HH:mm:ss");
   
-  const weatherLastUpdate = weatherService.lastUpdate ? 
-    moment(weatherService.lastUpdate).tz("America/Sao_Paulo").format("HH:mm") : "--:--";
-
-  // Dados de Clima
-  const weather = weatherService.getWeather();
-  const weatherJSONStr = JSON.stringify(weather);
+  const weatherJSONStr = JSON.stringify(null);
 
   let capacities = {};
   let aliases = {};
