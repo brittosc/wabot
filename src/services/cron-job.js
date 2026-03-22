@@ -208,4 +208,27 @@ const updateNextPollDisplay = (targetHour, targetMinute) => {
   );
 };
 
-module.exports = { scheduleJob, sendPolls };
+/**
+ * Verifica se já passou do horário de envio hoje e se a enquete já foi disparada.
+ * Caso tenha passado e não tenha sido enviada, dispara agora.
+ * @param {object} sock - Cliente do WhatsApp
+ */
+const checkMissedSends = async (sock) => {
+  const config = configService.getConfig();
+  const time = config.pollTime || "06:00";
+  const [hour, minute] = time.split(":").map(Number);
+
+  const now = moment().tz("America/Sao_Paulo");
+  const targetTime = moment()
+    .tz("America/Sao_Paulo")
+    .hours(hour)
+    .minutes(minute)
+    .seconds(0);
+
+  if (now.isAfter(targetTime)) {
+    dashboard.addLog("Verificando se houve envio pendente para hoje...");
+    await sendPolls(sock);
+  }
+};
+
+module.exports = { scheduleJob, sendPolls, checkMissedSends };
