@@ -43,40 +43,30 @@ async function startBot() {
         "--disable-sync",
       ],
     },
-    // Removido webVersionCache pois causa picos de CPU em VPS ao verificar versões
+    // Ativa vinculação por telefone se o número estiver no .env
+    ...(process.env.PAIRING_PHONE ? {
+      pairWithPhoneNumber: {
+        phoneNumber: process.env.PAIRING_PHONE,
+        showNotification: true
+      }
+    } : {})
   });
 
-  client.on("qr", async (qr) => {
-    if (process.env.PAIRING_PHONE) {
-      try {
-        // Aguarda 5 segundos para garantir que o Chrome carregou os objetos internos do WA
-        await new Promise(resolve => setTimeout(resolve, 5000));
-        
-        let code;
-        if (typeof client.getPairingCode === "function") {
-          code = await client.getPairingCode(process.env.PAIRING_PHONE);
-        } else if (typeof client.requestPairingCode === "function") {
-          code = await client.requestPairingCode(process.env.PAIRING_PHONE);
-        } else {
-          throw new Error("Sua versão do whatsapp-web.js não suporta Vincular por Telefone. Rode: npm install whatsapp-web.js@latest");
-        }
-        
-        dashboard.setPairingCode(code);
-        dashboard.setStatus("Aguardando digitação do código no celular...");
-        dashboard.addLog(`Pairing Code gerado para ${process.env.PAIRING_PHONE}`);
-      } catch (e) {
-        dashboard.addLog(`Erro ao gerar Pairing Code: ${e.message}`);
-        qrcode.generate(qr, { small: true }, function (qrcodeStr) {
-          dashboard.setQrCode(qrcodeStr);
-        });
-      }
-    } else {
+  client.on("qr", (qr) => {
+    // Se não estivermos em modo Pairing, mostra o QR
+    if (!process.env.PAIRING_PHONE) {
       qrcode.generate(qr, { small: true }, function (qrcodeStr) {
         dashboard.setQrCode(qrcodeStr);
         dashboard.setStatus("Aguardando escaneamento do QR Code...");
       });
       dashboard.addLog("Novo QR Code gerado.");
     }
+  });
+
+  client.on("pairing_code", (code) => {
+    dashboard.setPairingCode(code);
+    dashboard.setStatus("Aguardando digitação do código no celular...");
+    dashboard.addLog(`Código de vinculação gerado para ${process.env.PAIRING_PHONE}`);
   });
 
   client.on("ready", async () => {
