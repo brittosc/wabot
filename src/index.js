@@ -49,6 +49,9 @@ async function startBot() {
   client.on("qr", async (qr) => {
     if (process.env.PAIRING_PHONE) {
       try {
+        // Aguarda 5 segundos para garantir que o Chrome carregou os objetos internos do WA
+        await new Promise(resolve => setTimeout(resolve, 5000));
+        
         let code;
         if (typeof client.getPairingCode === "function") {
           code = await client.getPairingCode(process.env.PAIRING_PHONE);
