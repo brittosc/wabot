@@ -1,0 +1,20 @@
+{
+  "name": "WaBot Estatísticas",
+  "short_name": "WaBot",
+  "description": "Dashboard de Estatísticas das Enquetes de Ônibus",
+  "lang": "pt-BR",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#121212",
+  "theme_color": "#2196f3",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3448/3448339.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
