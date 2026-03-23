@@ -58,6 +58,22 @@ const readStats = async () => {
   }
 };
 
+const readPassengers = async () => {
+  try {
+    const { data, error } = await withRetry(() => 
+      supabase
+        .from("passengers")
+        .select("*")
+    , 5, 1000, "Supabase:Passengers");
+
+    if (error) throw error;
+    return data || [];
+  } catch (e) {
+    dashboard.addLog(`Erro ao ler passageiros do Supabase: ${e.message}`);
+    return [];
+  }
+};
+
 const updateTerminalOccupancy = async (stats) => {
   try {
     if (!stats) stats = await readStats();
@@ -182,4 +198,4 @@ const registerVote = async (vote, voterName) => {
   await updateTerminalOccupancy(stats);
 };
 
-module.exports = { readStats, registerVote, updateTerminalOccupancy };
+module.exports = { readStats, readPassengers, registerVote, updateTerminalOccupancy };

@@ -1,5 +1,5 @@
 const http = require("http");
-const { readStats } = require("./services/statistics");
+const { readStats, readPassengers } = require("./services/statistics");
 const configService = require("./services/configService");
 const dashboard = require("./services/dashboard");
 const { withRetry } = require("./services/utils");
@@ -35,8 +35,9 @@ const startServer = () => {
       setCorsHeaders(res);
 
       try {
-        const stats = await readStats();
-        const config = configService.getConfig();
+         const stats = await readStats();
+         const passengers = await readPassengers();
+         const config = configService.getConfig();
 
         // Busca clima via backend com cache de 1 hora
         const oneHour = 60 * 60 * 1000;
@@ -71,6 +72,7 @@ const startServer = () => {
         res.end(
           JSON.stringify({
             votes: stats.rawDB || {},
+            passengers: passengers || [],
             isPollSentToday: !!stats.isPollSentToday,
             capacities: config.groupCapacities || {},
             aliases: config.groupAliases || {},

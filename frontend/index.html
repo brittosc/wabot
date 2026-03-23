@@ -301,7 +301,8 @@
       .user-cell {
         display: flex;
         align-items: center;
-        justify-content: center;
+        justify-content: flex-start;
+        padding-left: 15%;
         gap: 12px;
       }
       .user-avatar {
@@ -1433,9 +1434,11 @@
         const formatPhone = (raw) => {
           let clean = raw.replace(/\D/g, "");
           if (clean.startsWith("55")) clean = clean.substring(2);
-          // Se for um ID do WhatsApp (LID) ou não tiver tamanho de telefone BR
           if (clean.length > 11 || clean.length < 10) {
-            return raw.length > 15 ? raw.substring(0, 5) + "..." : raw;
+            // Formato solicitado pelo usuário: (48) XXXX-xxxx
+            // Usamos os dígitos do próprio LID para preencher
+            const part1 = clean.substring(0, 4);
+            return "(48) " + part1 + "-xxxx";
           }
           const ddd = clean.substring(0, 2);
           const hasNine = clean.length === 11;
@@ -2232,9 +2235,11 @@
             if (
               JSON.stringify(rawDB) !== JSON.stringify(data.votes) ||
               isPollSentToday !== data.isPollSentToday ||
-              JSON.stringify(weatherForecast) !== JSON.stringify(data.weather)
+              JSON.stringify(weatherForecast) !== JSON.stringify(data.weather) ||
+              JSON.stringify(passengers) !== JSON.stringify(data.passengers)
             ) {
               rawDB = data.votes || {};
+              passengers = data.passengers || [];
               isPollSentToday = !!data.isPollSentToday;
               capacities = data.capacities || {};
               groupAliases = data.aliases || {};
