@@ -1431,23 +1431,6 @@
         const btnContainer = document.getElementById("loadMoreContainer");
         if (!body) return;
 
-        const formatPhone = (raw) => {
-          let clean = raw.replace(/\D/g, "");
-          if (clean.startsWith("55")) clean = clean.substring(2);
-          
-          if (clean.length > 11 || clean.length < 10) {
-            // Fallback para LIDs: (48) XXXX-xxxx
-            const part1 = clean.substring(0, 4);
-            return "(48) " + part1 + "-xxxx";
-          }
-          
-          // Telefone Real BR
-          const ddd = clean.substring(0, 2);
-          const rest = clean.substring(2);
-          const isMobile = rest.length === 9;
-          const prefix = rest.substring(0, isMobile ? 5 : 4);
-          return "(" + ddd + ") " + prefix + "-xxxx";
-        };
 
         const todayStr = moment().tz("America/Sao_Paulo").format("YYYY-MM-DD");
         const dayEntry = rawDB[todayStr] || { grupos: {} };
@@ -1500,6 +1483,7 @@
             btnContainer.style.display = "none";
           } else {
             visibleVotes.forEach((vote) => {
+              // Apenas o nome ou "Desconhecido", sem números de telefone por solicitação do usuário
               const pass = getPassengerByJid(vote.voter_id);
               const row = document.createElement("tr");
               row.className = "feed-row";
@@ -1507,14 +1491,8 @@
                 ? moment(vote.timestamp).tz("America/Sao_Paulo").format("HH:mm")
                 : "--:--";
 
-              // Máscara de Nome e Telefone: Nome - (DD)9-XXXX-xxxx
-              const voterIdDigits = vote.voter_id.split("@")[0];
-              const phoneToFormat = pass && pass.phone ? pass.phone : voterIdDigits;
-              const maskedPhone = formatPhone(phoneToFormat);
-
-              const displayName = pass
-                ? pass.name + " - " + maskedPhone
-                : "Ext - " + maskedPhone;
+              // Prioriza o nome salvo no voto, depois o nome do cadastro de passageiro
+              const displayName = vote.voter_name || (pass ? pass.name : "Desconhecido");
 
               const photo =
                 pass && pass.photo_url
@@ -1573,11 +1551,7 @@
               row.className = "feed-row";
               const routeAlias =
                 groupAliases[user.group_name] || user.group_name;
-              const firstName = user.name.split(" ")[0];
-              const maskedPhone = formatPhone(
-                user.phone || user.jid.split("@")[0],
-              );
-              const displayName = firstName + " - " + maskedPhone;
+              const displayName = user.name;
               const photo =
                 user.photo_url ||
                 "https://ui-avatars.com/api/?name=" +
@@ -2255,8 +2229,8 @@
               const weatherUpdateStr = data.weatherLastUpdate
                 ? " | Clima: " +
                   new Date(data.weatherLastUpdate).toLocaleTimeString("pt-BR", {
-                    hour: "4-digit",
-                    minute: "4-digit",
+                    hour: "2-digit",
+                    minute: "2-digit",
                   })
                 : "";
               document.getElementById("lblLastUpdate").innerText =

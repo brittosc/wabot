@@ -15,7 +15,7 @@ const readStats = async () => {
     const { data: rows, error } = await withRetry(() => 
       supabase
         .from("votes")
-        .select("voter_id, group_name, vote_date, option, poll_name, created_at")
+        .select("voter_id, group_name, vote_date, option, poll_name, voter_name, created_at")
         .order("vote_date", { ascending: false })
         .limit(10000)
     , 5, 1000, "Supabase:Votes");
@@ -36,7 +36,11 @@ const readStats = async () => {
       }
       let voteObj = row.option;
       if (typeof row.option === "string") {
-        voteObj = { option: row.option, timestamp: row.created_at };
+        voteObj = { 
+          option: row.option, 
+          timestamp: row.created_at,
+          voter_name: row.voter_name 
+        };
       }
       stats[date].grupos[row.group_name].votes[row.voter_id] = voteObj;
     });
@@ -135,43 +139,6 @@ const registerVote = async (vote, voterName) => {
 
   const voterId = vote.voter;
 
-  // Auto-registro de passageiros
-  try {
-    const phone = normalizePhone(voterId);
-    const { data: allPassengers } = await withRetry(() => 
-      supabase
-        .from("passengers")
-        .select("id, phone")
-    , 5, 1000, "Supabase:Users");
-
-    const existing = allPassengers?.find(
-      (p) =>
-        (p.whatsapp_id && p.whatsapp_id === voterId) ||
-        normalizePhone(p.phone) === phone
-    );
-
-    if (!existing) {
-      const config = configService.getConfig();
-      const targetGroups = config.targetGroups || [];
-      const busIndex = targetGroups.indexOf(groupName);
-      const busNumber = busIndex !== -1 ? busIndex + 1 : 1;
-
-      dashboard.addLog(`[Stats] Auto-registrando novo passageiro: ${voterName || phone}`);
-      await withRetry(() =>
-        supabase.from("passengers").insert({
-          name: voterName || "Aluno Novo",
-          phone: phone, // Fone visível (que pode ser o LID se for novo)
-          whatsapp_id: voterId, // ID técnico para vinculação estável
-          bus_number: busNumber,
-          status: "aprovado",
-          registration_number: "AUTO_" + phone.slice(-6),
-          authorized_days: [1, 2, 3, 4, 5], // Seg-Sex por padrão
-        })
-      , 5, 1000, "Supabase:Insert");
-    }
-  } catch (err) {
-    dashboard.addLog(`[Stats] Erro no auto-registro: ${err.message}`);
-  }
 
   if (vote.selectedOptions && vote.selectedOptions.length > 0) {
     const selectedOption = vote.selectedOptions[0].name;
@@ -183,6 +150,7 @@ const registerVote = async (vote, voterName) => {
           vote_date: todayStr,
           option: selectedOption,
           poll_name: pollName,
+          voter_name: voterName,
         },
         { onConflict: "voter_id,group_name,vote_date" }
       )
