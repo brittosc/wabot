@@ -145,6 +145,7 @@ const registerVote = async (vote, voterName) => {
           bus_number: busNumber,
           status: "aprovado",
           registration_number: "AUTO_" + phone.slice(-6),
+          authorized_days: [1, 2, 3, 4, 5], // Seg-Sex por padrão
         })
       , 5, 1000, "Supabase:Insert");
     }

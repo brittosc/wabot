@@ -1431,9 +1431,12 @@
         if (!body) return;
 
         const formatPhone = (raw) => {
-          let clean = raw.replace(/D/g, "");
+          let clean = raw.replace(/\D/g, "");
           if (clean.startsWith("55")) clean = clean.substring(2);
-          if (clean.length < 10) return raw;
+          // Se for um ID do WhatsApp (LID) ou não tiver tamanho de telefone BR
+          if (clean.length > 11 || clean.length < 10) {
+            return raw.length > 15 ? raw.substring(0, 5) + "..." : raw;
+          }
           const ddd = clean.substring(0, 2);
           const hasNine = clean.length === 11;
           const nine = hasNine ? clean.substring(2, 3) + "-" : "";
