@@ -1434,17 +1434,19 @@
         const formatPhone = (raw) => {
           let clean = raw.replace(/\D/g, "");
           if (clean.startsWith("55")) clean = clean.substring(2);
+          
           if (clean.length > 11 || clean.length < 10) {
-            // Formato solicitado pelo usuário: (48) XXXX-xxxx
-            // Usamos os dígitos do próprio LID para preencher
+            // Fallback para LIDs: (48) XXXX-xxxx
             const part1 = clean.substring(0, 4);
             return "(48) " + part1 + "-xxxx";
           }
+          
+          // Telefone Real BR
           const ddd = clean.substring(0, 2);
-          const hasNine = clean.length === 11;
-          const nine = hasNine ? clean.substring(2, 3) + "-" : "";
-          const prefix = clean.substring(hasNine ? 3 : 2, hasNine ? 7 : 6);
-          return "(" + ddd + ")" + nine + prefix + "-xxxx";
+          const rest = clean.substring(2);
+          const isMobile = rest.length === 9;
+          const prefix = rest.substring(0, isMobile ? 5 : 4);
+          return "(" + ddd + ") " + prefix + "-xxxx";
         };
 
         const todayStr = moment().tz("America/Sao_Paulo").format("YYYY-MM-DD");
@@ -1506,11 +1508,13 @@
                 : "--:--";
 
               // Máscara de Nome e Telefone: Nome - (DD)9-XXXX-xxxx
-              const voterIdDigit = vote.voter_id.split("@")[0];
-              const maskedPhone = formatPhone(voterIdDigit);
-              const rawName = pass ? pass.name : "Ext";
-              const firstName = rawName.split(" ")[0];
-              const displayName = firstName + " - " + maskedPhone;
+              const voterIdDigits = vote.voter_id.split("@")[0];
+              const phoneToFormat = pass && pass.phone ? pass.phone : voterIdDigits;
+              const maskedPhone = formatPhone(phoneToFormat);
+
+              const displayName = pass
+                ? pass.name + " - " + maskedPhone
+                : "Ext - " + maskedPhone;
 
               const photo =
                 pass && pass.photo_url

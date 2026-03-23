@@ -145,7 +145,9 @@ const registerVote = async (vote, voterName) => {
     , 5, 1000, "Supabase:Users");
 
     const existing = allPassengers?.find(
-      (p) => normalizePhone(p.phone) === phone,
+      (p) =>
+        (p.whatsapp_id && p.whatsapp_id === voterId) ||
+        normalizePhone(p.phone) === phone
     );
 
     if (!existing) {
@@ -154,10 +156,12 @@ const registerVote = async (vote, voterName) => {
       const busIndex = targetGroups.indexOf(groupName);
       const busNumber = busIndex !== -1 ? busIndex + 1 : 1;
 
-      await withRetry(() => 
+      dashboard.addLog(`[Stats] Auto-registrando novo passageiro: ${voterName || phone}`);
+      await withRetry(() =>
         supabase.from("passengers").insert({
           name: voterName || "Aluno Novo",
-          phone: phone,
+          phone: phone, // Fone visível (que pode ser o LID se for novo)
+          whatsapp_id: voterId, // ID técnico para vinculação estável
           bus_number: busNumber,
           status: "aprovado",
           registration_number: "AUTO_" + phone.slice(-6),
