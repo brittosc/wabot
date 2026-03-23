@@ -2,23 +2,13 @@ const configService = require("./configService");
 const moment = require("moment-timezone");
 const dashboard = require("./dashboard");
 const supabase = require("../database/supabaseClient");
+const { withRetry } = require("./utils");
 
 const normalizePhone = (p) => {
   if (!p) return "";
   return p.replace(/\D/g, "");
 };
 
-const withRetry = async (fn, retries = 3, delay = 1000) => {
-  for (let i = 0; i < retries; i++) {
-    try {
-      return await fn();
-    } catch (err) {
-      if (i === retries - 1) throw err;
-      dashboard.addLog(`[Supabase] Tentativa ${i + 1} falhou, tentando novamente...`);
-      await new Promise(resolve => setTimeout(resolve, delay));
-    }
-  }
-};
 
 const readStats = async () => {
   try {
@@ -28,7 +18,7 @@ const readStats = async () => {
         .select("voter_id, group_name, vote_date, option, poll_name, created_at")
         .order("vote_date", { ascending: false })
         .limit(10000)
-    );
+    , 5, 1000, "Supabase:Votes");
 
     if (error) throw error;
 
@@ -58,7 +48,7 @@ const readStats = async () => {
         .from("poll_history")
         .select("poll_date")
         .eq("poll_date", todayStr)
-    );
+    , 5, 1000, "Supabase:Polls");
     const isPollSentToday = pollHist && pollHist.length > 0;
 
     return { rawDB: stats, isPollSentToday };
@@ -136,7 +126,7 @@ const registerVote = async (vote, voterName) => {
       supabase
         .from("passengers")
         .select("id, phone")
-    );
+    , 5, 1000, "Supabase:Users");
 
     const existing = allPassengers?.find(
       (p) => normalizePhone(p.phone) === phone,
@@ -156,7 +146,7 @@ const registerVote = async (vote, voterName) => {
           status: "aprovado",
           registration_number: "AUTO_" + phone.slice(-6),
         })
-      );
+      , 5, 1000, "Supabase:Insert");
     }
   } catch (err) {
     dashboard.addLog(`[Stats] Erro no auto-registro: ${err.message}`);
@@ -175,7 +165,7 @@ const registerVote = async (vote, voterName) => {
         },
         { onConflict: "voter_id,group_name,vote_date" }
       )
-    );
+    , 5, 1000, "Supabase:Upsert");
   } else {
     // Deletar voto (desmarcado)
     await withRetry(() => 
@@ -183,7 +173,7 @@ const registerVote = async (vote, voterName) => {
         .from("votes")
         .delete()
         .match({ voter_id: voterId, group_name: groupName, vote_date: todayStr })
-    );
+    , 5, 1000, "Supabase:Delete");
   }
 
   // Atualiza ocupação no terminal

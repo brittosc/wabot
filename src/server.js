@@ -2,6 +2,7 @@ const http = require("http");
 const { readStats } = require("./services/statistics");
 const configService = require("./services/configService");
 const dashboard = require("./services/dashboard");
+const { withRetry } = require("./services/utils");
 const moment = require("moment-timezone");
 
 // Cache de Clima (1 hora)
@@ -42,21 +43,25 @@ const startServer = () => {
         const now = Date.now();
         if (!weatherCache.lastUpdate || now - weatherCache.lastUpdate > oneHour) {
           try {
-            const weatherRes = await fetch(
-              "https://api.open-meteo.com/v1/forecast?latitude=-28.6775&longitude=-49.3703&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=America%2FSao_Paulo",
-            );
-            if (weatherRes.ok) {
-              const d = await weatherRes.json();
-              if (d && d.daily) {
-                weatherCache.data = d.daily.time.map((time, i) => ({
-                  date: moment(time).format("DD/MM"),
-                  max: Math.round(d.daily.temperature_2m_max[i]),
-                  min: Math.round(d.daily.temperature_2m_min[i]),
-                  condition_code: d.daily.weather_code[i],
-                }));
-                weatherCache.lastUpdate = now;
+            await withRetry(async () => {
+              const weatherRes = await fetch(
+                "https://api.open-meteo.com/v1/forecast?latitude=-28.6775&longitude=-49.3703&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=America%2FSao_Paulo",
+              );
+              if (weatherRes.ok) {
+                const d = await weatherRes.json();
+                if (d && d.daily) {
+                  weatherCache.data = d.daily.time.map((time, i) => ({
+                    date: moment(time).format("DD/MM"),
+                    max: Math.round(d.daily.temperature_2m_max[i]),
+                    min: Math.round(d.daily.temperature_2m_min[i]),
+                    condition_code: d.daily.weather_code[i],
+                  }));
+                  weatherCache.lastUpdate = now;
+                }
+              } else {
+                throw new Error(`HTTP ${weatherRes.status}`);
               }
-            }
+            }, 5, 1000, "Clima");
           } catch (we) {
             dashboard.addLog(`Erro ao buscar clima no Open-Meteo: ${we.message}`);
           }
