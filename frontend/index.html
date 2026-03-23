@@ -628,7 +628,7 @@
             "
           >
             <option value="bar">Barras</option>
-            <option value="line">Linhas</option>
+            <option value="line" selected>Linhas</option>
           </select>
         </div>
         <div class="chart-container">
@@ -1431,7 +1431,6 @@
         const btnContainer = document.getElementById("loadMoreContainer");
         if (!body) return;
 
-
         const todayStr = moment().tz("America/Sao_Paulo").format("YYYY-MM-DD");
         const dayEntry = rawDB[todayStr] || { grupos: {} };
 
@@ -1465,6 +1464,7 @@
                 group: gName,
                 option: typeof vData === "object" ? vData.option : vData,
                 timestamp: vData.timestamp || todayStr,
+                voter_name: typeof vData === "object" ? vData.voter_name : null,
               });
             });
           });
@@ -1492,7 +1492,8 @@
                 : "--:--";
 
               // Prioriza o nome salvo no voto, depois o nome do cadastro de passageiro
-              const displayName = vote.voter_name || (pass ? pass.name : "Desconhecido");
+              const displayName =
+                vote.voter_name || (pass ? pass.name : "Desconhecido");
 
               const photo =
                 pass && pass.photo_url
@@ -2213,7 +2214,8 @@
             if (
               JSON.stringify(rawDB) !== JSON.stringify(data.votes) ||
               isPollSentToday !== data.isPollSentToday ||
-              JSON.stringify(weatherForecast) !== JSON.stringify(data.weather) ||
+              JSON.stringify(weatherForecast) !==
+                JSON.stringify(data.weather) ||
               JSON.stringify(passengers) !== JSON.stringify(data.passengers)
             ) {
               rawDB = data.votes || {};
