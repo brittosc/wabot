@@ -25,6 +25,19 @@ class Dashboard {
 
   setupScrollRegion() {
     const h = this.getDashHeight();
+    // Esconde o cursor permanentemente e restaura no encerramento do processo
+    process.stdout.write("\x1b[?25l");
+    const restoreCursor = () => process.stdout.write("\x1b[?25h");
+    process.on("exit", restoreCursor);
+    process.on("SIGINT", () => {
+      restoreCursor();
+      process.exit();
+    });
+    process.on("SIGTERM", () => {
+      restoreCursor();
+      process.exit();
+    });
+
     // Zona de scroll: linha (h+1) até o fim da tela
     process.stdout.write(`\x1b[${h + 1};r`);
     // Posiciona cursor na zona de logs
@@ -135,18 +148,15 @@ class Dashboard {
       ...occupancyLines,
     ];
     const dashOutput =
-      "\x1b[?25l" + // Esconde cursor
       "\x1b[s" + // Salva posição do cursor
       "\x1b[1;1H" + // Move para Home (topo)
       "\x1b[?6l" + // Desabilita origin mode para não ficar preso na scroll region
       allLines.map((line) => `\x1b[2K${line}`).join("\n") +
       "\n" +
-      "\x1b[2K" +
       "\n" +
       "\n" +
       "\x1b[?6h" + // Reabilita origin mode
-      "\x1b[u" + // Restaura posição do cursor
-      "\x1b[?25h"; // Mostra cursor
+      "\x1b[u"; // Restaura posição do cursor
 
     process.stdout.write(dashOutput);
   }
