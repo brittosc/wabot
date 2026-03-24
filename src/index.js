@@ -49,6 +49,11 @@ async function startBot() {
     const currentStats = await statistics.readStats();
     await statistics.updateTerminalOccupancy(currentStats);
 
+    // Sincroniza fotos de quem votou recentemente (últimos 7 dias)
+    syncRecentPhotos(client).catch(err => {
+      dashboard.addLog(`Erro na sincronização inicial de fotos: ${err.message}`);
+    });
+
     if (process.argv.includes("--now")) {
       dashboard.addLog("Parâmetro --now detectado. Forçando envio imediato 🎉");
       cronJob.sendPolls(client);
@@ -57,16 +62,34 @@ async function startBot() {
 
   client.on("vote_update", async (vote) => {
     try {
-      // Tenta obter o nome do contato para auto-registro
+      // Tenta obter o nome do contato e a foto para auto-registro
       let voterName = null;
+      let photoUrl = null;
       try {
         const contact = await client.getContactById(vote.voter);
-        voterName = contact.pushname || contact.name;
+        voterName = contact.pushname || contact.name || "Desconhecido";
+        const jid = (contact.id && contact.id._serialized) || vote.voter;
+
+        try {
+          photoUrl = await client.pupPage.evaluate(async (lid) => {
+            try {
+              const Store = window.Store;
+              const wid = Store.WidFactory.createWid(lid);
+              await Store.ProfilePic.requestProfilePicFromServer(wid);
+              // Lê a URL do contato após o request
+              const contact = Store.Contact.get(wid);
+              if (contact && contact.profilePicThumbObj) {
+                return contact.profilePicThumbObj.eurl || contact.profilePicThumbObj.img || null;
+              }
+              return null;
+            } catch(e) { return null; }
+          }, vote.voter);
+        } catch (e) { /* silencioso */ }
       } catch (e) {
-        dashboard.addLog(`Aviso: Não foi possível obter nome de ${vote.voter}`);
+        dashboard.addLog(`Aviso: Não foi possível obter dados de ${vote.voter}`);
       }
 
-      await statistics.registerVote(vote, voterName);
+      await statistics.registerVote(vote, voterName, photoUrl);
       dashboard.addLog(`Voto computado de ${voterName || vote.voter}`);
     } catch (error) {
       dashboard.addLog(`Erro ao computar voto: ${error.message}`);
@@ -100,6 +123,85 @@ async function startBot() {
     await client.initialize();
   } catch (e) {
     dashboard.addLog(`Erro fatal no puppeteer: ${e.message}`);
+  }
+}
+
+/**
+ * Busca fotos de perfil para usuários que votaram nos últimos 7 dias
+ * e ainda não possuem foto ou precisam de atualização.
+ */
+async function syncRecentPhotos(client) {
+  // Delay de 5s para não brigar com as mensagens de inicialização
+  await new Promise(resolve => setTimeout(resolve, 5000));
+  
+  const stats = await statistics.readStats();
+  const rawDB = stats.rawDB || {};
+  
+  // Coleta IDs únicos dos votos
+  const voterIds = new Set();
+  Object.values(rawDB).forEach(day => {
+    if (day.grupos) {
+      Object.values(day.grupos).forEach(group => {
+        if (group.votes) {
+          Object.keys(group.votes).forEach(id => voterIds.add(id));
+        }
+      });
+    }
+  });
+
+  let count = 0;
+  let skipped = 0;
+  let errors = 0;
+  
+  for (const id of voterIds) {
+    try {
+      if (!id || !id.includes("@")) {
+        skipped++;
+        continue;
+      }
+
+      let name = "Desconhecido";
+      let jid = id;
+      try {
+        const contact = await client.getContactById(id);
+        name = contact.pushname || contact.name || "Desconhecido";
+        
+        // Traduz LID para JID (@c.us) — client.getProfilePicUrl(@lid) retorna undefined
+        if (contact.id && contact.id._serialized) {
+          jid = contact.id._serialized;
+        }
+      } catch (ce) { /* ignora */ }
+
+
+      let photoUrl = null;
+
+      try {
+        photoUrl = await client.pupPage.evaluate(async (lid) => {
+          try {
+            const Store = window.Store;
+            const wid = Store.WidFactory.createWid(lid);
+            // Método correto: busca foto do servidor
+            await Store.ProfilePic.requestProfilePicFromServer(wid);
+            // Lê a URL do contato após o request
+            const contact = Store.Contact.get(wid);
+            if (contact && contact.profilePicThumbObj) {
+              return contact.profilePicThumbObj.eurl || contact.profilePicThumbObj.img || null;
+            }
+            return null;
+          } catch(e) { return null; }
+        }, id);
+      } catch (pe) { /* silencioso */ }
+
+      
+      if (photoUrl) {
+        await statistics.syncPassengerMetadata(id, name, photoUrl);
+        count++;
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 500));
+    } catch (err) {
+      errors++;
+    }
   }
 }
 

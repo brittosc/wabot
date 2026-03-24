@@ -121,7 +121,7 @@ const updateTerminalOccupancy = async (stats) => {
   }
 };
 
-const registerVote = async (vote, voterName) => {
+const registerVote = async (vote, voterName, photoUrl) => {
   const now = moment().tz("America/Sao_Paulo");
   const todayStr = now.format("YYYY-MM-DD");
 
@@ -138,6 +138,11 @@ const registerVote = async (vote, voterName) => {
   }
 
   const voterId = vote.voter;
+
+  // Sincroniza metadados do passageiro (nome e foto) na tabela passengers
+  if (voterName || photoUrl) {
+    await syncPassengerMetadata(voterId, voterName, photoUrl, groupName);
+  }
 
 
   if (vote.selectedOptions && vote.selectedOptions.length > 0) {
@@ -170,4 +175,32 @@ const registerVote = async (vote, voterName) => {
   await updateTerminalOccupancy(stats);
 };
 
-module.exports = { readStats, readPassengers, registerVote, updateTerminalOccupancy };
+/**
+ * Sincroniza metadados básicos do passageiro na tabela passengers.
+ * Útil para garantir que o dashboard tenha o nome e a foto atualizados.
+ */
+const syncPassengerMetadata = async (whatsappId, name, photoUrl, groupName) => {
+  try {
+    const updateData = {
+      whatsapp_id: whatsappId,
+      updated_at: new Date().toISOString()
+    };
+    
+    if (name) updateData.name = name;
+    if (photoUrl) {
+      updateData.photo_url = photoUrl;
+      // dashboard.addLog(`DEBUG: Salvando foto para ${whatsappId}`);
+    }
+    
+    // Só atualiza se o passageiro já existe — nunca insere (evita erro de NOT NULL em registration_number)
+    await withRetry(() =>
+      supabase.from("passengers")
+        .update(updateData)
+        .eq("whatsapp_id", whatsappId)
+    , 2, 1000, "Supabase:SyncPassenger");
+  } catch (e) {
+    // Silencioso — falha de sync de foto não é crítica
+  }
+};
+
+module.exports = { readStats, readPassengers, registerVote, updateTerminalOccupancy, syncPassengerMetadata };

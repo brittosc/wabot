@@ -15,10 +15,10 @@ class ConfigService {
     try {
       const data = fs.readFileSync(CONFIG_PATH, "utf8");
       this.config = JSON.parse(data);
-      dashboard.addLog("[ConfigService] Configuração carregada com sucesso.");
+      dashboard.addLog("Configuração carregada com sucesso.");
     } catch (error) {
       dashboard.addLog(
-        `[ConfigService] Erro ao carregar config.json: ${error.message}`,
+        `Erro ao carregar config.json: ${error.message}`,
       );
     }
   }
@@ -29,7 +29,7 @@ class ConfigService {
         // Pequeno delay para garantir que o arquivo foi totalmente gravado
         setTimeout(() => {
           dashboard.addLog(
-            "[ConfigService] Alteração detectada no config.json. Recarregando...",
+            "Alteração detectada no config.json. Recarregando...",
           );
           this.loadConfig();
         }, 100);

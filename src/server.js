@@ -35,36 +35,46 @@ const startServer = () => {
       setCorsHeaders(res);
 
       try {
-         const stats = await readStats();
-         const passengers = await readPassengers();
-         const config = configService.getConfig();
+        const stats = await readStats();
+        const passengers = await readPassengers();
+        const config = configService.getConfig();
 
         // Busca clima via backend com cache de 1 hora
         const oneHour = 60 * 60 * 1000;
         const now = Date.now();
-        if (!weatherCache.lastUpdate || now - weatherCache.lastUpdate > oneHour) {
+        if (
+          !weatherCache.lastUpdate ||
+          now - weatherCache.lastUpdate > oneHour
+        ) {
           try {
-            await withRetry(async () => {
-              const weatherRes = await fetch(
-                "https://api.open-meteo.com/v1/forecast?latitude=-28.6775&longitude=-49.3703&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=America%2FSao_Paulo",
-              );
-              if (weatherRes.ok) {
-                const d = await weatherRes.json();
-                if (d && d.daily) {
-                  weatherCache.data = d.daily.time.map((time, i) => ({
-                    date: moment(time).format("DD/MM"),
-                    max: Math.round(d.daily.temperature_2m_max[i]),
-                    min: Math.round(d.daily.temperature_2m_min[i]),
-                    condition_code: d.daily.weather_code[i],
-                  }));
-                  weatherCache.lastUpdate = now;
+            await withRetry(
+              async () => {
+                const weatherRes = await fetch(
+                  "https://api.open-meteo.com/v1/forecast?latitude=-28.6775&longitude=-49.3703&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=America%2FSao_Paulo",
+                );
+                if (weatherRes.ok) {
+                  const d = await weatherRes.json();
+                  if (d && d.daily) {
+                    weatherCache.data = d.daily.time.map((time, i) => ({
+                      date: moment(time).format("DD/MM"),
+                      max: Math.round(d.daily.temperature_2m_max[i]),
+                      min: Math.round(d.daily.temperature_2m_min[i]),
+                      condition_code: d.daily.weather_code[i],
+                    }));
+                    weatherCache.lastUpdate = now;
+                  }
+                } else {
+                  throw new Error(`HTTP ${weatherRes.status}`);
                 }
-              } else {
-                throw new Error(`HTTP ${weatherRes.status}`);
-              }
-            }, 5, 1000, "Clima");
+              },
+              5,
+              1000,
+              "Clima",
+            );
           } catch (we) {
-            dashboard.addLog(`Erro ao buscar clima no Open-Meteo: ${we.message}`);
+            dashboard.addLog(
+              `Erro ao buscar clima no Open-Meteo: ${we.message}`,
+            );
           }
         }
 
@@ -78,7 +88,7 @@ const startServer = () => {
             aliases: config.groupAliases || {},
             weather: weatherCache.data,
             weatherLastUpdate: weatherCache.lastUpdate,
-            pollTime: config.pollTime || '06:00'
+            pollTime: config.pollTime || "05:30",
           }),
         );
       } catch (err) {
@@ -95,7 +105,7 @@ const startServer = () => {
 
   server.listen(port, "0.0.0.0", () => {
     dashboard.setServerUrl(`http://0.0.0.0:${port}`);
-    dashboard.addLog(`[Server] API rodando na porta ${port}`);
+    dashboard.addLog(`API rodando na porta ${port}`);
   });
 };
 

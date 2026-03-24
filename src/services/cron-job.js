@@ -76,7 +76,7 @@ const sendPolls = async (sock) => {
     // Verifica no Supabase se já foi enviado hoje
     const alreadySent = await hasSentToday(todayStr);
     if (alreadySent && !forceNow) {
-      dashboard.addLog(`Enquete já enviada hoje (${todayStr}). Pulando...`);
+      dashboard.addLog(`Enquete já enviada hoje (${todayStr}). Pulando.`);
       return;
     }
 
@@ -226,7 +226,7 @@ const checkMissedSends = async (sock) => {
     .seconds(0);
 
   if (now.isAfter(targetTime)) {
-    dashboard.addLog("Verificando se houve envio pendente para hoje...");
+    dashboard.addLog("Verificando se houve envio pendente para hoje.");
     await sendPolls(sock);
   }
 };
