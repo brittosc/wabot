@@ -11,6 +11,7 @@ class Dashboard {
     this.occupancyData = [];
     this.renderTimeout = null;
     this.initialized = false;
+    this.lastHeight = 0;
   }
 
   // Calcula quantas linhas o dashboard ocupa com base nos dados atuais
@@ -77,6 +78,13 @@ class Dashboard {
     this.requestRender();
   }
 
+  // Método para limpar a tela totalmente em caso de erro grave (opcional)
+  clearScreen() {
+    process.stdout.write("\x1b[2J\x1b[1;1H");
+    this.initialized = false;
+    this.requestRender();
+  }
+
   addLog(message) {
     const time = moment().tz("America/Sao_Paulo").format("HH:mm:ss");
     if (!this.initialized) {
@@ -96,15 +104,30 @@ class Dashboard {
   }
 
   render() {
+    const h = this.getDashHeight();
+
     if (!this.initialized) {
       this.setupScrollRegion();
+    } else if (this.lastHeight && h !== this.lastHeight) {
+      // Se a altura mudou, precisamos ajustar o espaço para não deixar logs presos
+      if (h > this.lastHeight) {
+        // Expandiu: insere linhas no topo para empurrar logs para baixo
+        const diff = h - this.lastHeight;
+        process.stdout.write(`\x1b[s\x1b[1;1H\x1b[${diff}L\x1b[u`);
+      } else {
+        // Contraiu: remove linhas do topo para puxar logs para cima
+        const diff = this.lastHeight - h;
+        process.stdout.write(`\x1b[s\x1b[1;1H\x1b[${diff}M\x1b[u`);
+      }
+      this.setupScrollRegion();
     }
+    this.lastHeight = h;
 
     const padding = "  ";
-    const formatLine = (str) => "\x1b[2K" + padding + str;
+    const formatLine = (str) => padding + str;
 
     const header = chalk.white.bold(
-      "🤖 WhatsApp Bot Enquetes - Painel de Controle",
+      "  🤖 WhatsApp Bot Enquetes - Painel de Controle",
     );
     let statusColor = chalk.yellow;
     if (this.status.includes("Conectado")) statusColor = chalk.green;
@@ -140,21 +163,22 @@ class Dashboard {
       }
     }
 
+    // Monta todas as linhas do painel
+    const allLines = ["", header, ...infoLines, ...occupancyLines];
+
     // Salva cursor, vai para o topo e reescreve o painel
-    const allLines = [
-      "\x1b[2K",
-      formatLine(header),
-      ...infoLines,
-      ...occupancyLines,
-    ];
-    const dashOutput =
+    let dashOutput =
       "\x1b[s" + // Salva posição do cursor
       "\x1b[1;1H" + // Move para Home (topo)
-      "\x1b[?6l" + // Desabilita origin mode para não ficar preso na scroll region
-      allLines.map((line) => `\x1b[2K${line}`).join("\n") +
-      "\n" +
-      "\n" +
-      "\n" +
+      "\x1b[?6l"; // Desabilita origin mode para não ficar preso na scroll region
+
+    // Renderiza cada linha limpando-a primeiro
+    for (let i = 0; i < h; i++) {
+      const line = allLines[i] || "";
+      dashOutput += `\x1b[2K${line}\n`;
+    }
+
+    dashOutput +=
       "\x1b[?6h" + // Reabilita origin mode
       "\x1b[u"; // Restaura posição do cursor
 
