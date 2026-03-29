@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Roboto:ital,wght@0,100..900;1,100..900&display=swap"
       rel="stylesheet"
     />
     <script
@@ -41,7 +41,7 @@
       }
       body {
         font-family:
-          "Inter",
+          "Roboto",
           -apple-system,
           BlinkMacSystemFont,
           "Segoe UI",
@@ -112,15 +112,18 @@
         text-align: center;
         position: relative;
         overflow: hidden;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
       }
-      .highlight-card::after {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 4px;
-        height: 100%;
-        background: var(--accent);
+      .highlight-card:hover {
+        transform: translateY(-3px);
+      }
+      .card-vivid-green {
+        background: linear-gradient(145deg, #162416, #121212) !important;
+        border-color: rgba(76, 175, 80, 0.2) !important;
+      }
+      .card-vivid-red {
+        background: linear-gradient(145deg, #241616, #121212) !important;
+        border-color: rgba(244, 67, 54, 0.2) !important;
       }
       .card-title h3 {
         margin: 0 0 15px 0;
@@ -638,7 +641,7 @@
 
       <!-- Cards de MAXs e MININ.s agora abaixo da Proporção Diária -->
       <div class="highlights">
-        <div class="highlight-card">
+        <div class="highlight-card card-vivid-green">
           <div class="card-title"><h3>Ida/Volta</h3></div>
           <div class="split-container">
             <div class="split-half split-peak">
@@ -653,7 +656,7 @@
             </div>
           </div>
         </div>
-        <div class="highlight-card">
+        <div class="highlight-card card-vivid-red">
           <div class="card-title"><h3>Ausência</h3></div>
           <div class="split-container">
             <div class="split-half split-peak">
@@ -668,7 +671,7 @@
             </div>
           </div>
         </div>
-        <div class="highlight-card">
+        <div class="highlight-card card-vivid-green">
           <div class="card-title"><h3>Só Ida</h3></div>
           <div class="split-container">
             <div class="split-half split-peak">
@@ -683,7 +686,7 @@
             </div>
           </div>
         </div>
-        <div class="highlight-card">
+        <div class="highlight-card card-vivid-green">
           <div class="card-title"><h3>Só Volta</h3></div>
           <div class="split-container">
             <div class="split-half split-peak">
@@ -698,65 +701,49 @@
             </div>
           </div>
         </div>
-        <div
-          class="highlight-card"
-          style="background: linear-gradient(145deg, #1e1e1e, #1a2a1a)"
-        >
-          <div class="card-title"><h3>Mais Presença</h3></div>
+        <div class="highlight-card card-vivid-green">
+          <div class="card-title"><h3>Maior Presença</h3></div>
           <div class="split-container">
             <div
               class="split-half split-peak"
               style="align-items: center; text-align: center"
             >
-              <span class="label" id="hlWeekdayPeakLabel">DIA DE PICO</span>
               <span class="value" id="hlWeekdayPeakVal">-</span>
               <span class="date" id="hlWeekdayPeakDate">Carregando...</span>
             </div>
           </div>
         </div>
-        <div
-          class="highlight-card"
-          style="background: linear-gradient(145deg, #1e1e1e, #2a1a1a)"
-        >
-          <div class="card-title"><h3>Menos Presença</h3></div>
+        <div class="highlight-card card-vivid-red">
+          <div class="card-title"><h3>Menor Presença</h3></div>
           <div class="split-container">
             <div
               class="split-half split-valley"
               style="align-items: center; text-align: center"
             >
-              <span class="label" id="hlWeekdayValleyLabel">DIA MÍNIMO</span>
               <span class="value" id="hlWeekdayValleyVal">-</span>
               <span class="date" id="hlWeekdayValleyDate">Carregando...</span>
             </div>
           </div>
         </div>
-        <div
-          class="highlight-card"
-          style="background: linear-gradient(145deg, #1e1e1e, #1a1a2a)"
-        >
+        <div class="highlight-card card-vivid-green">
           <div class="card-title"><h3>Horário de Pico</h3></div>
           <div class="split-container">
             <div
               class="split-half split-peak"
               style="align-items: center; text-align: center"
             >
-              <span class="label">MAIOR VOLUME</span>
               <span class="value" id="hlPeakHourVal">-</span>
               <span class="date" id="hlPeakHourLabel">05:30 - 18:00</span>
             </div>
           </div>
         </div>
-        <div
-          class="highlight-card"
-          style="background: linear-gradient(145deg, #1e1e1e, #2a2a1a)"
-        >
+        <div class="highlight-card card-vivid-red">
           <div class="card-title"><h3>Horário de Calma</h3></div>
           <div class="split-container">
             <div
               class="split-half split-valley"
               style="align-items: center; text-align: center"
             >
-              <span class="label">MENOR VOLUME</span>
               <span class="value" id="hlValleyHourVal">-</span>
               <span class="date" id="hlValleyHourLabel">05:30 - 18:00</span>
             </div>
@@ -808,22 +795,6 @@
             <div class="live-indicator">
               <div class="dot"></div>
               LIVE
-            </div>
-          </div>
-          <div class="feed-tabs">
-            <div
-              class="feed-tab active"
-              id="tabVotes"
-              onclick="switchFeedTab('votes')"
-            >
-              Votos do Dia
-            </div>
-            <div
-              class="feed-tab"
-              id="tabPending"
-              onclick="switchFeedTab('pending')"
-            >
-              Aguardando Resposta
             </div>
           </div>
         </div>
@@ -2216,7 +2187,8 @@
               isPollSentToday !== data.isPollSentToday ||
               JSON.stringify(weatherForecast) !==
                 JSON.stringify(data.weather) ||
-              JSON.stringify(passengers) !== JSON.stringify(data.passengers)
+              JSON.stringify(passengers) !== JSON.stringify(data.passengers) ||
+              JSON.stringify(skipDates) !== JSON.stringify(data.skipDates)
             ) {
               rawDB = data.votes || {};
               passengers = data.passengers || [];
@@ -2224,6 +2196,7 @@
               capacities = data.capacities || {};
               groupAliases = data.aliases || {};
               weatherForecast = data.weather || [];
+              skipDates = data.skipDates || {};
               if (data.pollTime) pollTime = data.pollTime;
               updateDash(); // Re-render dos gráficos e calendário
 

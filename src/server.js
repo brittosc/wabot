@@ -89,6 +89,7 @@ const startServer = () => {
             weather: weatherCache.data,
             weatherLastUpdate: weatherCache.lastUpdate,
             pollTime: config.pollTime || "05:30",
+            skipDates: config.skipDates || {},
           }),
         );
       } catch (err) {
