@@ -140,7 +140,9 @@ class Dashboard {
         `Total de Enquetes Enviadas: ${chalk.magenta(this.totalSent)}`,
       ),
       this.serverUrl
-        ? formatLine(`API Backend: ${chalk.cyan.underline(this.serverUrl)}`)
+        ? formatLine(
+            `API Backend: ${chalk.cyan("https://api.grupobritto.com.br/api/stats")}`,
+          )
         : "",
     ].filter(Boolean);
 
