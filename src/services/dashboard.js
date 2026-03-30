@@ -12,6 +12,7 @@ class Dashboard {
     this.renderTimeout = null;
     this.initialized = false;
     this.lastHeight = 0;
+    this.isFirstRender = true;
   }
 
   // Calcula quantas linhas o dashboard ocupa com base nos dados atuais
@@ -39,10 +40,21 @@ class Dashboard {
       process.exit();
     });
 
+    // Salva posição atual pois definir margens (\x1b[...r) move o cursor para 1,1
+    process.stdout.write("\x1b[s");
+
     // Zona de scroll: linha (h+1) até o fim da tela
     process.stdout.write(`\x1b[${h + 1};r`);
-    // Posiciona cursor na zona de logs
-    process.stdout.write(`\x1b[${h + 1};1H`);
+    
+    // Posiciona cursor na zona de logs APENAS no primeiro render
+    if (this.isFirstRender) {
+      process.stdout.write(`\x1b[${h + 1};1H`);
+      this.isFirstRender = false;
+    } else {
+      // Restaura a posição que estava antes de setar as margens
+      process.stdout.write("\x1b[u");
+    }
+    
     this.initialized = true;
   }
 
@@ -82,6 +94,7 @@ class Dashboard {
   clearScreen() {
     process.stdout.write("\x1b[2J\x1b[1;1H");
     this.initialized = false;
+    this.isFirstRender = true;
     this.requestRender();
   }
 
@@ -93,7 +106,7 @@ class Dashboard {
     // \x1b[2K: Limpa a linha atual
     // \x1b[G: Move o cursor para o começo da linha (0)
     process.stdout.write(
-      `\x1b[2K\x1b[G  ${chalk.gray(`[${time}] ${message}`)}\n`,
+      `\x1b[2K\x1b[G  ${chalk.gray(`[${time}]`)} ${message}\n`,
     );
     this.requestRender();
   }

@@ -3,6 +3,7 @@ process.removeAllListeners("warning");
 
 const { Client, LocalAuth } = require("whatsapp-web.js");
 const qrcode = require("qrcode-terminal");
+const chalk = require("chalk");
 const dashboard = require("./services/dashboard");
 const cronJob = require("./services/cron-job");
 const statistics = require("./services/statistics");
@@ -50,8 +51,10 @@ async function startBot() {
     await statistics.updateTerminalOccupancy(currentStats);
 
     // Sincroniza fotos de quem votou recentemente (últimos 7 dias)
-    syncRecentPhotos(client).catch(err => {
-      dashboard.addLog(`Erro na sincronização inicial de fotos: ${err.message}`);
+    syncRecentPhotos(client).catch((err) => {
+      dashboard.addLog(
+        `Erro na sincronização inicial de fotos: ${err.message}`,
+      );
     });
 
     if (process.argv.includes("--now")) {
@@ -79,18 +82,53 @@ async function startBot() {
               // Lê a URL do contato após o request
               const contact = Store.Contact.get(wid);
               if (contact && contact.profilePicThumbObj) {
-                return contact.profilePicThumbObj.eurl || contact.profilePicThumbObj.img || null;
+                return (
+                  contact.profilePicThumbObj.eurl ||
+                  contact.profilePicThumbObj.img ||
+                  null
+                );
               }
               return null;
-            } catch(e) { return null; }
+            } catch (e) {
+              return null;
+            }
           }, vote.voter);
-        } catch (e) { /* silencioso */ }
+        } catch (e) {
+          /* silencioso */
+        }
       } catch (e) {
-        dashboard.addLog(`Aviso: Não foi possível obter dados de ${vote.voter}`);
+        dashboard.addLog(
+          `Aviso: Não foi possível obter dados de ${vote.voter}`,
+        );
       }
 
       await statistics.registerVote(vote, voterName, photoUrl);
-      dashboard.addLog(`Voto computado de ${voterName || vote.voter}`);
+
+      const selectedOption =
+        vote.selectedOptions && vote.selectedOptions.length > 0
+          ? vote.selectedOptions[0].name
+          : null;
+
+      if (selectedOption) {
+        let coloredOption = selectedOption;
+        if (selectedOption === "Irei, ida e volta.") {
+          coloredOption = chalk.green(selectedOption);
+        } else if (selectedOption === "Irei, mas não retornarei.") {
+          coloredOption = chalk.blue(selectedOption);
+        } else if (selectedOption === "Não irei, apenas retornarei.") {
+          coloredOption = chalk.hex("#FFA500")(selectedOption);
+        } else if (selectedOption === "Não irei à faculdade hoje.") {
+          coloredOption = chalk.red(selectedOption);
+        }
+
+        dashboard.addLog(
+          `${chalk.gray(`${voterName || vote.voter} fez o seu registro:`)} ${coloredOption}`,
+        );
+      } else {
+        dashboard.addLog(
+          chalk.gray(`Registro de ${voterName || vote.voter} foi removido.`),
+        );
+      }
     } catch (error) {
       dashboard.addLog(`Erro ao computar voto: ${error.message}`);
     }
@@ -132,18 +170,18 @@ async function startBot() {
  */
 async function syncRecentPhotos(client) {
   // Delay de 5s para não brigar com as mensagens de inicialização
-  await new Promise(resolve => setTimeout(resolve, 5000));
-  
+  await new Promise((resolve) => setTimeout(resolve, 5000));
+
   const stats = await statistics.readStats();
   const rawDB = stats.rawDB || {};
-  
+
   // Coleta IDs únicos dos votos
   const voterIds = new Set();
-  Object.values(rawDB).forEach(day => {
+  Object.values(rawDB).forEach((day) => {
     if (day.grupos) {
-      Object.values(day.grupos).forEach(group => {
+      Object.values(day.grupos).forEach((group) => {
         if (group.votes) {
-          Object.keys(group.votes).forEach(id => voterIds.add(id));
+          Object.keys(group.votes).forEach((id) => voterIds.add(id));
         }
       });
     }
@@ -152,7 +190,7 @@ async function syncRecentPhotos(client) {
   let count = 0;
   let skipped = 0;
   let errors = 0;
-  
+
   for (const id of voterIds) {
     try {
       if (!id || !id.includes("@")) {
@@ -165,13 +203,14 @@ async function syncRecentPhotos(client) {
       try {
         const contact = await client.getContactById(id);
         name = contact.pushname || contact.name || "Desconhecido";
-        
+
         // Traduz LID para JID (@c.us) — client.getProfilePicUrl(@lid) retorna undefined
         if (contact.id && contact.id._serialized) {
           jid = contact.id._serialized;
         }
-      } catch (ce) { /* ignora */ }
-
+      } catch (ce) {
+        /* ignora */
+      }
 
       let photoUrl = null;
 
@@ -185,20 +224,27 @@ async function syncRecentPhotos(client) {
             // Lê a URL do contato após o request
             const contact = Store.Contact.get(wid);
             if (contact && contact.profilePicThumbObj) {
-              return contact.profilePicThumbObj.eurl || contact.profilePicThumbObj.img || null;
+              return (
+                contact.profilePicThumbObj.eurl ||
+                contact.profilePicThumbObj.img ||
+                null
+              );
             }
             return null;
-          } catch(e) { return null; }
+          } catch (e) {
+            return null;
+          }
         }, id);
-      } catch (pe) { /* silencioso */ }
+      } catch (pe) {
+        /* silencioso */
+      }
 
-      
       if (photoUrl) {
         await statistics.syncPassengerMetadata(id, name, photoUrl);
         count++;
       }
 
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 500));
     } catch (err) {
       errors++;
     }
