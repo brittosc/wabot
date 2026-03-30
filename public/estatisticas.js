@@ -248,13 +248,19 @@ const updateHourHighlights = (timestamps) => {
     if (!timestamps || timestamps.length === 0) { peakEl.innerText = "--"; calmEl.innerText = "--"; return; }
 
     const hourCounts = {};
+    const activeDaysSet = new Set();
+    
     timestamps.forEach(ts => {
-        const h = moment(ts).tz("America/Sao_Paulo").hour();
+        const m = moment(ts).tz("America/Sao_Paulo");
+        const h = m.hour();
+        activeDaysSet.add(m.format("YYYY-MM-DD"));
         hourCounts[h] = (hourCounts[h] || 0) + 1;
     });
 
     const hours = Object.entries(hourCounts).sort((a, b) => b[1] - a[1]);
     if (hours.length === 0) return;
+    
+    const divisor = activeDaysSet.size > 0 ? activeDaysSet.size : 1;
 
     const fmt = (h) => {
         const hInt = parseInt(h);
@@ -262,9 +268,9 @@ const updateHourHighlights = (timestamps) => {
         return String(hInt).padStart(2, '0') + ":00 a " + String(nextH).padStart(2, '0') + ":00";
     };
     peakEl.innerText = fmt(hours[0][0]);
-    if (peakCountEl) peakCountEl.innerText = hours[0][1] + " votos";
+    if (peakCountEl) peakCountEl.innerText = Math.round(hours[0][1] / divisor) + " votos/dia";
     calmEl.innerText = fmt(hours[hours.length - 1][0]);
-    if (calmCountEl) calmCountEl.innerText = hours[hours.length - 1][1] + " votos";
+    if (calmCountEl) calmCountEl.innerText = Math.round(hours[hours.length - 1][1] / divisor) + " votos/dia";
 };
 
 

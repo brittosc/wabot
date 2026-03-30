@@ -11,7 +11,7 @@
     margin-top: 20px;
 }
 .feed-table th {
-    text-align: center;
+    text-align: left;
     padding: 12px 15px;
     font-size: 0.75rem;
     text-transform: uppercase;
@@ -28,7 +28,7 @@
 }
 .feed-row td {
     padding: 15px;
-    text-align: center;
+    text-align: left;
     border-top: 1px solid var(--border-color);
     border-bottom: 1px solid var(--border-color);
 }
@@ -38,7 +38,7 @@
 .user-cell {
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     gap: 12px;
 }
 .user-avatar {

@@ -103,8 +103,9 @@ const fetchStats = async () => {
         const res = await fetch('/api/stats');
         if (res.ok) {
             const data = await res.json();
-            if (JSON.stringify(rawDB) !== JSON.stringify(data.votes) || isPollSentToday !== data.isPollSentToday || JSON.stringify(weatherForecast) !== JSON.stringify(data.weather)) {
+            if (JSON.stringify(rawDB) !== JSON.stringify(data.votes) || isPollSentToday !== data.isPollSentToday || JSON.stringify(weatherForecast) !== JSON.stringify(data.weather) || JSON.stringify(passengers) !== JSON.stringify(data.passengers)) {
                 rawDB = data.votes || {};
+                passengers = data.passengers || [];
                 isPollSentToday = !!data.isPollSentToday;
                 capacities = data.capacities || {};
                 groupAliases = data.aliases || {};
