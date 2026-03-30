@@ -1,0 +1,209 @@
+:root {
+    --bg-color: #121212;
+    --card-bg: #1e1e1e;
+    --text-color: #e0e0e0;
+    --accent: #2196f3;
+    --accent-glow: rgba(33, 150, 243, 0.3);
+    --title-color: #ffffff;
+    --border-color: #333333;
+    --peak-color: #4caf50;
+    --valley-color: #f44336;
+    --pending-color: #ff9800;
+}
+* {
+    box-sizing: border-box;
+    transition: background-color 0.3s, border-color 0.3s;
+}
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    margin: 0;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+h1 {
+    color: var(--title-color);
+    margin-bottom: 30px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+}
+.controls {
+    margin-bottom: 30px;
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 100%;
+    max-width: 1000px;
+}
+select {
+    padding: 12px 20px;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    background-color: var(--card-bg);
+    color: var(--text-color);
+    font-size: 0.95rem;
+    font-weight: 500;
+    cursor: pointer;
+    outline: none;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    min-width: 180px;
+}
+select:hover {
+    border-color: var(--accent);
+}
+.dashboard {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 25px;
+    width: 100%;
+    max-width: 1100px;
+    margin: 0 auto;
+    justify-content: center;
+}
+.highlights {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 20px;
+    width: 100%;
+    margin-bottom: 25px;
+}
+.highlight-card {
+    background: linear-gradient(145deg, #1e1e1e, #161616);
+    padding: 20px;
+    border-radius: 16px;
+    border: 1px solid var(--border-color);
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+.card-title h3 {
+    margin: 0 0 15px 0;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #888;
+}
+.split-container {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+}
+.split-half {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+.split-half .label {
+    font-size: 0.7rem;
+    font-weight: 800;
+    margin-bottom: 4px;
+}
+.split-peak .label { color: var(--peak-color); }
+.split-valley .label { color: var(--valley-color); }
+
+.split-half .value {
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: var(--title-color);
+    line-height: 1;
+}
+.split-half .date {
+    font-size: 0.75rem;
+    color: #666;
+    margin-top: 4px;
+}
+@media (max-width: 480px) {
+    .dashboard {
+        grid-template-columns: 1fr;
+    }
+    .split-half .value {
+        font-size: 1.4rem;
+    }
+}
+.summary-card {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    padding: 25px 40px;
+    background: linear-gradient(145deg, #1e1e1e, #161616);
+    border-radius: 16px;
+    border: 1px solid var(--border-color);
+    max-width: 1100px;
+    margin: 10px auto 30px auto;
+    width: 100%;
+    gap: 20px;
+}
+.summary-item {
+    flex: 1;
+    text-align: center;
+    position: relative;
+}
+.summary-item:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    right: -10px;
+    top: 20%;
+    height: 60%;
+    width: 1px;
+    background: rgba(255, 255, 255, 0.1);
+}
+.summary-item h3 {
+    margin: 0 0 8px 0;
+    color: #7f8c8d;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+.summary-item p {
+    margin: 0;
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--title-color);
+}
+.summary-item p.accent-val {
+    color: var(--accent);
+    text-shadow: 0 0 15px var(--accent-glow);
+}
+.card {
+    background-color: var(--card-bg);
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    border: 1px solid var(--border-color);
+    flex: 1 1 400px;
+    max-width: 100%;
+}
+.card.card-wide {
+    flex: 1 1 100%;
+}
+.card h2 {
+    font-size: 1.2rem;
+    margin-bottom: 20px;
+    color: var(--title-color);
+}
+.chart-container {
+    position: relative;
+    width: 100%;
+    height: 300px;
+}
+.footer {
+    margin-top: 40px;
+    font-size: 0.9rem;
+    color: #7f8c8d;
+    max-width: 1100px;
+    width: 100%;
+    margin: 40px auto;
+    text-align: center;
+    border-top: 1px solid var(--border-color);
+    padding-top: 30px;
+}
+

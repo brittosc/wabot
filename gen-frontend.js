@@ -14,7 +14,7 @@ if (startIdx === -1 || endIdx === -1) {
 const newDataBlock = `
         // === CONFIGURAÇÃO DO BACKEND ===
         // Altere este valor para o endereço da sua VPS antes do deploy no Cloudflare Pages
-        const BACKEND_URL = 'https://SEU_DOMINIO_OU_IP_AQUI';
+        const BACKEND_URL = 'https://api.grupobritto.com.br';
 
         let rawDB = {};
         let passengers = [];
@@ -42,3 +42,43 @@ if (!fs.existsSync('frontend')) {
 fs.writeFileSync('frontend/index.html', html, 'utf8');
 console.log('frontend/index.html criado com sucesso!');
 console.log('Tamanho:', html.length, 'chars');
+
+// Arquivos processados (substituição de URL aplicada)
+const jsFiles = [
+    'estatisticas.js',
+    'estatisticas-feed.js',
+    'estatisticas-capacity.js',
+    'estatisticas-charts.js',
+    'estatisticas-lifecycle.js',
+];
+
+// Arquivos copiados diretamente (sem processamento)
+const cssFiles = [
+    'estatisticas.css',
+    'estatisticas-feed.css',
+];
+
+jsFiles.forEach(file => {
+    const src = 'public/' + file;
+    const dest = 'frontend/' + file;
+    if (fs.existsSync(src)) {
+        let content = fs.readFileSync(src, 'utf8');
+        // Substitui fetch relativo pelo fetch com BACKEND_URL
+        content = content.split("fetch('/api/stats')").join("fetch(BACKEND_URL + '/api/stats')");
+        fs.writeFileSync(dest, content, 'utf8');
+        console.log('Processado:', dest);
+    } else {
+        console.warn('Arquivo não encontrado, ignorado:', src);
+    }
+});
+
+cssFiles.forEach(file => {
+    const src = 'public/' + file;
+    const dest = 'frontend/' + file;
+    if (fs.existsSync(src)) {
+        fs.copyFileSync(src, dest);
+        console.log('Copiado:', dest);
+    } else {
+        console.warn('Arquivo não encontrado, ignorado:', src);
+    }
+});

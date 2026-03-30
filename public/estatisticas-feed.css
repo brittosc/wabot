@@ -1,0 +1,248 @@
+/* Feed */
+.feed-container {
+    width: 100%;
+    max-width: 1100px;
+    margin: 30px auto;
+}
+.feed-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0 8px;
+    margin-top: 20px;
+}
+.feed-table th {
+    text-align: center;
+    padding: 12px 15px;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    color: #888;
+    letter-spacing: 0.05em;
+}
+.feed-row {
+    background-color: var(--card-bg);
+    transition: transform 0.2s, background-color 0.2s;
+}
+.feed-row:hover {
+    transform: scale(1.01);
+    background-color: #252525;
+}
+.feed-row td {
+    padding: 15px;
+    text-align: center;
+    border-top: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-color);
+}
+.feed-row td:first-child { border-left: 1px solid var(--border-color); border-radius: 12px 0 0 12px; }
+.feed-row td:last-child { border-right: 1px solid var(--border-color); border-radius: 0 12px 12px 0; }
+
+.user-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+}
+.user-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    object-fit: cover;
+    background-color: #333;
+}
+.user-name {
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+.tag {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+.tag-route { background: rgba(33, 150, 243, 0.15); color: var(--accent); }
+.tag-vote { background: rgba(76, 175, 80, 0.15); color: #4caf50; }
+.tag-waiting { background: rgba(255, 152, 0, 0.15); color: #ff9800; }
+.tag-absence { background: rgba(244, 67, 54, 0.15); color: #f44336; }
+.timestamp-cell {
+    font-size: 0.8rem;
+    color: #777;
+    font-family: monospace;
+}
+.live-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.7rem;
+    font-weight: 800;
+    color: #4caf50;
+}
+.dot {
+    width: 6px;
+    height: 6px;
+    background-color: #4caf50;
+    border-radius: 50%;
+    animation: pulse 1.5s infinite;
+}
+@keyframes pulse {
+    0% { opacity: 0.4; }
+    50% { opacity: 1; }
+    100% { opacity: 0.4; }
+}
+
+/* Paginação */
+.load-more-container {
+    text-align: center;
+    margin-top: 20px;
+    padding-bottom: 20px;
+}
+.btn-load-more {
+    background: rgba(33, 150, 243, 0.1);
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    padding: 10px 25px;
+    border-radius: 25px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.btn-load-more:hover {
+    background: var(--accent);
+    color: white;
+    box-shadow: 0 0 15px var(--accent-glow);
+}
+.btn-load-more:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    border-color: #555;
+    color: #777;
+    background: transparent;
+}
+
+/* Tabs */
+.feed-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+.feed-tab {
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+    background: #252525;
+    color: #888;
+    transition: all 0.2s;
+}
+.feed-tab.active {
+    background: var(--accent);
+    color: white;
+}
+
+/* Próximas Enquetes */
+#nextPollsList {
+    display: flex;
+    flex-direction: column;
+}
+.poll-item {
+    display: flex;
+    align-items: center;
+    padding: 14px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    gap: 15px;
+    transition: background 0.2s;
+}
+.poll-item:last-child {
+    border-bottom: none;
+}
+.calendar-box {
+    width: 52px;
+    height: 52px;
+    background: #161616;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    flex-shrink: 0;
+}
+.calendar-box .cal-icon {
+    color: #666;
+    margin-bottom: 4px;
+    width: 16px;
+    height: 16px;
+}
+.calendar-box .cal-date {
+    font-size: 9px;
+    font-weight: 600;
+    color: #ddd;
+    text-transform: uppercase;
+    line-height: 1.1;
+    text-align: center;
+}
+.poll-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+.poll-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #ffffff;
+    margin-bottom: 1px;
+}
+.poll-subtitle {
+    font-size: 0.8rem;
+    color: #888888;
+}
+.status-badge {
+    padding: 4px 14px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border: 1px solid transparent;
+    white-space: nowrap;
+}
+.status-agendada {
+    background: rgba(76, 175, 80, 0.1);
+    color: #4caf50;
+    border-color: rgba(76, 175, 80, 0.2);
+}
+.status-pendente {
+    background: rgba(255, 152, 0, 0.1);
+    color: #ff9800;
+    border-color: rgba(255, 152, 0, 0.2);
+}
+.status-rascunho {
+    background: rgba(158, 158, 158, 0.1);
+    color: #9e9e9e;
+    border-color: rgba(158, 158, 158, 0.2);
+}
+.status-bloqueada {
+    background: rgba(244, 67, 54, 0.05);
+    color: #f44336;
+    border-color: rgba(244, 67, 54, 0.1);
+    opacity: 0.6;
+}
+.weather-tag {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    color: #aaa;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    margin-right: 5px;
+}
+.weather-tag .temp-val {
+    font-weight: 700;
+    color: #fff;
+}
+.weather-icon {
+    width: 14px;
+    height: 14px;
+    color: var(--accent);
+}
