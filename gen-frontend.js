@@ -22,7 +22,7 @@ const newDataBlock = `
         let capacities = {};
         let groupAliases = {};
         let skipDates = {};
-        let pollTime = '06:00';
+        let pollTime = '05:30';
         let targetGroups = [];
 
 `;

@@ -144,7 +144,7 @@ const sendPolls = async (sock) => {
 
 const scheduleJob = (sock) => {
   const config = configService.getConfig();
-  const time = config.pollTime || "06:00";
+  const time = config.pollTime || "05:30";
   const [hour, minute] = time.split(":");
 
   // Executa a cada minuto e verifica se é o horário agendado
@@ -215,7 +215,7 @@ const updateNextPollDisplay = (targetHour, targetMinute) => {
  */
 const checkMissedSends = async (sock) => {
   const config = configService.getConfig();
-  const time = config.pollTime || "06:00";
+  const time = config.pollTime || "05:30";
   const [hour, minute] = time.split(":").map(Number);
 
   const now = moment().tz("America/Sao_Paulo");
