@@ -67,7 +67,7 @@ const renderCharts = (barLabels, barData, pieCountsMap, stackedData) => {
         } else {
             const ctxPie = document.getElementById('pieChart').getContext('2d');
             pieChartIns = new Chart(ctxPie, {
-                type: 'doughnut',
+                type: 'pie',
                 data: {
                     labels: pieLabels,
                     datasets: [{ data: pieData, backgroundColor: pieColors, borderWidth: 0, hoverOffset: 15 }]
@@ -76,7 +76,6 @@ const renderCharts = (barLabels, barData, pieCountsMap, stackedData) => {
                     responsive: true,
                     maintainAspectRatio: false,
                     animation: { animateRotate: true, animateScale: true, ...CHART_ANIMATION },
-                    cutout: '70%',
                     plugins: {
                         legend: { position: 'bottom', labels: { boxWidth: 12, usePointStyle: true, padding: 20, font: { size: 11, weight: 600 } } },
                         datalabels: {
