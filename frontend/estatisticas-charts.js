@@ -78,19 +78,7 @@ const renderCharts = (barLabels, barData, pieCountsMap, stackedData) => {
                     animation: { animateRotate: true, animateScale: true, ...CHART_ANIMATION },
                     plugins: {
                         legend: { position: 'bottom', labels: { boxWidth: 12, usePointStyle: true, padding: 20, font: { size: 11, weight: 600 } } },
-                        datalabels: {
-                            display: true,
-                            color: '#fff', anchor: 'center', align: 'center', offset: 0,
-                            font: { weight: '800', size: 12 },
-                            formatter: (value, ctx) => {
-                                let sum = 0;
-                                const dSet = ctx.chart.data.datasets[0].data;
-                                if (!dSet || !dSet.length) return "";
-                                dSet.forEach(d => { sum += d; });
-                                const pct = sum > 0 ? (value * 100 / sum) : 0;
-                                return pct >= 5 ? pct.toFixed(0) + "%" : "";
-                            }
-                        }
+                        datalabels: { display: false }
                     }
                 }
             });
