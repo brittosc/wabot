@@ -21,12 +21,19 @@ const makeGradient = (color) => (context) => {
 
 Chart.register(ChartDataLabels);
 
-// Variáveis para guardar a referência dos timeouts, assim se houver nova requisição cancelamos a pendente anterior
-let pieTimer, barTimer, stackedTimer;
+// Variável para guardar a referência do timeout
+let chartTimer;
 
 const safeDestroyCanvasChart = (id) => {
     const existingChart = Chart.getChart(id);
     if (existingChart) existingChart.destroy();
+    
+    const canvas = document.getElementById(id);
+    if (canvas && canvas.parentNode) {
+        const newCanvas = document.createElement('canvas');
+        newCanvas.id = id;
+        canvas.parentNode.replaceChild(newCanvas, canvas);
+    }
 };
 
 const renderCharts = (barLabels, barData, pieCountsMap, stackedData) => {
@@ -38,14 +45,13 @@ const renderCharts = (barLabels, barData, pieCountsMap, stackedData) => {
     Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.1)';
     Chart.defaults.font.family = "'Inter', sans-serif";
 
-    if (pieTimer) clearTimeout(pieTimer);
-    if (barTimer) clearTimeout(barTimer);
-    if (stackedTimer) clearTimeout(stackedTimer);
+    if (chartTimer) clearTimeout(chartTimer);
 
     // Timeout escalonado isola o Render de redimensionamentos massivos do Flexbox nas telas Desktop ao inicializar os gráficos, 
     // mas com limpeza segura e clearTimeout pra evitar colisão (Canvas Already in Use).
 
-    pieTimer = setTimeout(() => {
+    chartTimer = setTimeout(() => {
+        // Render Pie Chart
         safeDestroyCanvasChart('pieChart');
         pieChartIns = new Chart(document.getElementById('pieChart').getContext('2d'), {
             type: 'doughnut',
@@ -76,9 +82,8 @@ const renderCharts = (barLabels, barData, pieCountsMap, stackedData) => {
                 }
             }
         });
-    }, 50);
 
-    barTimer = setTimeout(() => {
+        // Render Bar Chart
         safeDestroyCanvasChart('barChart');
         barChartIns = new Chart(document.getElementById('barChart').getContext('2d'), {
             type: 'line',
@@ -111,9 +116,8 @@ const renderCharts = (barLabels, barData, pieCountsMap, stackedData) => {
                 }
             }
         });
-    }, 250);
 
-    stackedTimer = setTimeout(() => {
+        // Render Stacked Chart
         const stackedKeys = [
             "Não irei, apenas retornarei.",
             "Irei, mas não retornarei.",
@@ -149,5 +153,5 @@ const renderCharts = (barLabels, barData, pieCountsMap, stackedData) => {
                 }
             }
         });
-    }, 450);
+    }, 50);
 };
