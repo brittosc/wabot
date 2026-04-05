@@ -77,7 +77,6 @@ const initSelects = () => {
 
     gSelect.addEventListener("change", updateDash);
     document.getElementById("periodSelect").addEventListener("change", updateDash);
-    document.getElementById("chartTypeSelect").addEventListener("change", updateChartsOnly);
 
     document.getElementById("copyrightYear").innerText = new Date().getFullYear();
 };
@@ -217,7 +216,13 @@ const processData = (targetGroup, targetDaysStr) => {
     setHighlight("hlSoIdaMinVal", "hlSoIdaMinDate", valleySoIda);
     setHighlight("hlSoVoltaVal", "hlSoVoltaDate", peakSoVolta);
     setHighlight("hlSoVoltaMinVal", "hlSoVoltaMinDate", valleySoVolta);
-    document.getElementById("lblAverage").innerText = (accumTotalVotes / targetDays).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+    let businessDaysCount = 0;
+    for (let i = targetDays - 1; i >= 0; i--) {
+        const dow = todayMoment.clone().subtract(i, 'days').day();
+        if (dow >= 1 && dow <= 5) businessDaysCount++;
+    }
+    const avgPerBusinessDay = businessDaysCount > 0 ? accumTotalVotes / businessDaysCount : 0;
+    document.getElementById("lblAverage").innerText = avgPerBusinessDay.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
     updateCapacityCard(targetGroup);
     updateNextPollsCalendar();

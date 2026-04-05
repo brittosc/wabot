@@ -68,10 +68,6 @@
         <div class="card card-wide" style="position: relative;">
             <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
                 <h2 id="titleStackedBarChart" style="margin: 0;">Proporção Diária</h2>
-                <select id="chartTypeSelect" style="min-width: 150px; padding: 8px 12px; font-size: 0.85rem; border-radius: 8px;">
-                    <option value="line" selected>Linhas</option>
-                    <option value="bar">Barras</option>
-                </select>
             </div>
             <div class="chart-container">
                 <canvas id="stackedBarChart"></canvas>
@@ -213,11 +209,7 @@
                     <h2 style="margin: 0; font-size: 1.2rem;">Relatório de Respostas</h2>
                     <div class="live-indicator"><div class="dot"></div> LIVE</div>
                 </div>
-                <div class="feed-tabs">
-                    <div class="feed-tab active" id="tabVotes" onclick="switchFeedTab('votes')">Votos do Dia</div>
-                    <div class="feed-tab" id="tabPending" onclick="switchFeedTab('pending')">Aguardando Resposta</div>
-                </div>
-            </div>
+                    </div>
 
             <div class="card card-wide" style="padding: 0; border: none; background: transparent; box-shadow: none;">
                 <table class="feed-table">
