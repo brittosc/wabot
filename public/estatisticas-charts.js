@@ -59,7 +59,9 @@ const renderCharts = (barLabels, barData, pieCountsMap, stackedData) => {
     chartTimer = setTimeout(() => {
         // Pie Chart
         if (pieChartIns) {
-            pieChartIns.data.datasets[0].data = pieData;
+            const dataArr = pieChartIns.data.datasets[0].data;
+            for (let i = 0; i < pieData.length; i++) dataArr[i] = pieData[i];
+            dataArr.length = pieData.length;
             pieChartIns.update();
         } else {
             const ctxPie = document.getElementById('pieChart').getContext('2d');
@@ -97,7 +99,9 @@ const renderCharts = (barLabels, barData, pieCountsMap, stackedData) => {
         // Bar Chart
         if (barChartIns) {
             barChartIns.data.labels = barLabels;
-            barChartIns.data.datasets[0].data = barData;
+            const dataArr = barChartIns.data.datasets[0].data;
+            for (let i = 0; i < barData.length; i++) dataArr[i] = barData[i];
+            dataArr.length = barData.length;
             barChartIns.update();
         } else {
             const ctxBar = document.getElementById('barChart').getContext('2d');
@@ -138,7 +142,10 @@ const renderCharts = (barLabels, barData, pieCountsMap, stackedData) => {
         if (stackedChartIns) {
             stackedChartIns.data.labels = barLabels;
             stackedChartIns.data.datasets.forEach((ds, i) => {
-                ds.data = stackedData[stackedKeys[i]];
+                const srcData = stackedData[stackedKeys[i]];
+                const dsData = ds.data;
+                for (let j = 0; j < srcData.length; j++) dsData[j] = srcData[j];
+                dsData.length = srcData.length;
             });
             stackedChartIns.update();
         } else {
