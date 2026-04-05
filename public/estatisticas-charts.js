@@ -59,9 +59,7 @@ const renderCharts = (barLabels, barData, pieCountsMap, stackedData) => {
     chartTimer = setTimeout(() => {
         // Pie Chart
         if (pieChartIns) {
-            pieChartIns.data.labels = pieLabels;
             pieChartIns.data.datasets[0].data = pieData;
-            pieChartIns.data.datasets[0].backgroundColor = pieColors;
             pieChartIns.update();
         } else {
             const ctxPie = document.getElementById('pieChart').getContext('2d');
