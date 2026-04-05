@@ -7,7 +7,7 @@ const hexToRgba = (hex, alpha) => {
     return "rgba(" + r + ", " + g + ", " + b + ", " + alpha + ")";
 };
 
-const CHART_ANIMATION = { duration: 1500, easing: 'easeInOutQuart' };
+const CHART_ANIMATION = { duration: 3000, easing: 'easeInOutQuart' };
 
 const makeGradient = (color) => (context) => {
     const chart = context.chart;
@@ -19,6 +19,16 @@ const makeGradient = (color) => (context) => {
     return gradient;
 };
 
+Chart.register(ChartDataLabels);
+
+// Variáveis para guardar a referência dos timeouts, assim se houver nova requisição cancelamos a pendente anterior
+let pieTimer, barTimer, stackedTimer;
+
+const safeDestroyCanvasChart = (id) => {
+    const existingChart = Chart.getChart(id);
+    if (existingChart) existingChart.destroy();
+};
+
 const renderCharts = (barLabels, barData, pieCountsMap, stackedData) => {
     const pieLabels = Object.keys(pieCountsMap);
     const pieData = Object.values(pieCountsMap);
@@ -28,15 +38,16 @@ const renderCharts = (barLabels, barData, pieCountsMap, stackedData) => {
     Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.1)';
     Chart.defaults.font.family = "'Inter', sans-serif";
 
-    // --- Pie / Doughnut ---
-    if (pieChartIns) {
-        pieChartIns.data.labels = pieLabels;
-        pieChartIns.data.datasets[0].data = pieData;
-        pieChartIns.data.datasets[0].backgroundColor = pieColors;
-        pieChartIns.update();
-    } else {
-        const pieCtx = document.getElementById('pieChart').getContext('2d');
-        pieChartIns = new Chart(pieCtx, {
+    if (pieTimer) clearTimeout(pieTimer);
+    if (barTimer) clearTimeout(barTimer);
+    if (stackedTimer) clearTimeout(stackedTimer);
+
+    // Timeout escalonado isola o Render de redimensionamentos massivos do Flexbox nas telas Desktop ao inicializar os gráficos, 
+    // mas com limpeza segura e clearTimeout pra evitar colisão (Canvas Already in Use).
+
+    pieTimer = setTimeout(() => {
+        safeDestroyCanvasChart('pieChart');
+        pieChartIns = new Chart(document.getElementById('pieChart').getContext('2d'), {
             type: 'doughnut',
             data: {
                 labels: pieLabels,
@@ -45,47 +56,43 @@ const renderCharts = (barLabels, barData, pieCountsMap, stackedData) => {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                animation: CHART_ANIMATION,
+                animation: { animateRotate: true, animateScale: true, ...CHART_ANIMATION },
                 cutout: '70%',
                 plugins: {
                     legend: { position: 'bottom', labels: { boxWidth: 12, usePointStyle: true, padding: 20, font: { size: 11, weight: 600 } } },
                     datalabels: {
+                        display: true,
                         color: '#fff', anchor: 'center', align: 'center', offset: 0,
                         font: { weight: '800', size: 12 },
                         formatter: (value, ctx) => {
                             let sum = 0;
-                            ctx.chart.data.datasets[0].data.map(data => { sum += data; });
-                            let pctValue = (value * 100 / sum);
-                            return pctValue >= 5 ? pctValue.toFixed(0) + "%" : "";
+                            const dSet = ctx.chart.data.datasets[0].data;
+                            if (!dSet || !dSet.length) return "";
+                            dSet.forEach(d => { sum += d; });
+                            const pct = sum > 0 ? (value * 100 / sum) : 0;
+                            return pct >= 5 ? pct.toFixed(0) + "%" : "";
                         }
                     }
                 }
-            },
-            plugins: [ChartDataLabels]
+            }
         });
-    }
+    }, 50);
 
-    // --- Bar (line) de votos por dia ---
-    if (barChartIns) {
-        barChartIns.data.labels = barLabels;
-        barChartIns.data.datasets[0].data = barData;
-        barChartIns.update();
-    } else {
-        const barCtx = document.getElementById('barChart').getContext('2d');
-        barChartIns = new Chart(barCtx, {
+    barTimer = setTimeout(() => {
+        safeDestroyCanvasChart('barChart');
+        barChartIns = new Chart(document.getElementById('barChart').getContext('2d'), {
             type: 'line',
             data: {
                 labels: barLabels,
                 datasets: [{
                     label: 'Votos', data: barData, borderColor: '#2196f3',
                     backgroundColor: (context) => {
-                        const chart = context.chart;
-                        const { ctx, chartArea } = chart;
+                        const { ctx, chartArea } = context.chart;
                         if (!chartArea) return null;
-                        const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
-                        gradient.addColorStop(0, 'rgba(33, 150, 243, 0.3)');
-                        gradient.addColorStop(1, 'rgba(33, 150, 243, 0)');
-                        return gradient;
+                        const g = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+                        g.addColorStop(0, 'rgba(33, 150, 243, 0.3)');
+                        g.addColorStop(1, 'rgba(33, 150, 243, 0)');
+                        return g;
                     },
                     borderWidth: 3, fill: true, tension: 0.4,
                     pointRadius: 4, pointBackgroundColor: '#2196f3', pointBorderColor: '#fff', pointBorderWidth: 2
@@ -93,33 +100,28 @@ const renderCharts = (barLabels, barData, pieCountsMap, stackedData) => {
             },
             options: {
                 responsive: true, maintainAspectRatio: false,
-                animation: CHART_ANIMATION,
+                animation: { ...CHART_ANIMATION },
                 scales: {
                     y: { beginAtZero: true, grid: { drawTicks: false }, border: { display: false } },
                     x: { grid: { display: false }, border: { display: false } }
                 },
-                plugins: { legend: { display: false } }
+                plugins: { 
+                    legend: { display: false },
+                    datalabels: { display: false }
+                }
             }
         });
-    }
+    }, 250);
 
-    // --- Stacked / Proporção Diária ---
-    const stackedKeys = [
-        "Não irei, apenas retornarei.",
-        "Irei, mas não retornarei.",
-        "Não irei à faculdade hoje.",
-        "Irei, ida e volta."
-    ];
-    const stackedLabels = ['Só Volta', 'Só Ida', 'Ausente', 'Ida e Volta'];
+    stackedTimer = setTimeout(() => {
+        const stackedKeys = [
+            "Não irei, apenas retornarei.",
+            "Irei, mas não retornarei.",
+            "Não irei à faculdade hoje.",
+            "Irei, ida e volta."
+        ];
+        const stackedLabels = ['Só Volta', 'Só Ida', 'Ausente', 'Ida e Volta'];
 
-    if (stackedChartIns) {
-        stackedChartIns.data.labels = barLabels;
-        stackedKeys.forEach((key, i) => {
-            stackedChartIns.data.datasets[i].data = stackedData[key];
-        });
-        stackedChartIns.update();
-    } else {
-        const stackedCtx = document.getElementById('stackedBarChart').getContext('2d');
         const datasets = stackedKeys.map((key, i) => ({
             label: stackedLabels[i],
             data: stackedData[key],
@@ -128,12 +130,13 @@ const renderCharts = (barLabels, barData, pieCountsMap, stackedData) => {
             fill: true, tension: 0.4, pointRadius: 2, borderWidth: 2
         }));
 
-        stackedChartIns = new Chart(stackedCtx, {
+        safeDestroyCanvasChart('stackedBarChart');
+        stackedChartIns = new Chart(document.getElementById('stackedBarChart').getContext('2d'), {
             type: 'line',
             data: { labels: barLabels, datasets: datasets },
             options: {
                 responsive: true, maintainAspectRatio: false,
-                animation: CHART_ANIMATION,
+                animation: { ...CHART_ANIMATION },
                 interaction: { mode: 'index', intersect: false },
                 scales: {
                     x: { display: true },
@@ -141,9 +144,10 @@ const renderCharts = (barLabels, barData, pieCountsMap, stackedData) => {
                 },
                 plugins: {
                     legend: { position: 'bottom', labels: { boxWidth: 10, padding: 8, font: { size: window.innerWidth < 400 ? 8 : (window.innerWidth < 600 ? 9 : 12) } } },
-                    tooltip: { mode: 'index', intersect: false }
+                    tooltip: { mode: 'index', intersect: false },
+                    datalabels: { display: false }
                 }
             }
         });
-    }
+    }, 450);
 };
