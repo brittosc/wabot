@@ -22,6 +22,9 @@ class Dashboard {
     if (this.occupancyData && this.occupancyData.length > 0) {
       h += 1 + this.occupancyData.length; // Título + linhas de grupo
     }
+    if (this.qrCodeStr) {
+      h += this.qrCodeStr.split("\n").length + 1; // Título + linhas do QR
+    }
     return h + 1; // +1 de margem
   }
 
@@ -72,6 +75,7 @@ class Dashboard {
 
   setQrCode(qr) {
     this.qrCodeStr = qr;
+    this.initialized = false; // Força recriar a zona de scroll
     this.requestRender();
   }
 
@@ -178,8 +182,18 @@ class Dashboard {
       }
     }
 
+    let qrLines = [];
+    if (this.qrCodeStr) {
+      qrLines.push("");
+      qrLines.push(formatLine(chalk.bold.underline("Aguardando Leitura do QR Code:")));
+      const lines = this.qrCodeStr.split("\n");
+      for (const line of lines) {
+        qrLines.push(padding + line); // mantem padding para alinhar com o painel
+      }
+    }
+
     // Monta todas as linhas do painel
-    const allLines = ["", header, ...infoLines, ...occupancyLines];
+    const allLines = ["", header, ...infoLines, ...occupancyLines, ...qrLines];
 
     // Salva cursor, vai para o topo e reescreve o painel
     let dashOutput =
