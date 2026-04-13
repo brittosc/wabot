@@ -3,6 +3,8 @@
     width: 100%;
     max-width: 1100px;
     margin: 30px auto;
+    box-sizing: border-box;
+    overflow-x: hidden;
 }
 .feed-table {
     width: 100%;
@@ -53,11 +55,16 @@
     font-size: 0.9rem;
 }
 .tag {
-    padding: 4px 10px;
-    border-radius: 20px;
-    font-size: 0.7rem;
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 0.65rem;
     font-weight: 700;
     text-transform: uppercase;
+    white-space: nowrap;
+    max-width: 90px;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 .tag-route { background: rgba(33, 150, 243, 0.15); color: var(--accent); }
 .tag-vote { background: rgba(76, 175, 80, 0.15); color: #4caf50; }
@@ -147,10 +154,11 @@
 .poll-item {
     display: flex;
     align-items: center;
-    padding: 14px 0;
+    padding: 12px 0;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    gap: 15px;
+    gap: 12px;
     transition: background 0.2s;
+    flex-wrap: wrap;
 }
 .poll-item:last-child {
     border-bottom: none;
@@ -245,4 +253,64 @@
     width: 14px;
     height: 14px;
     color: var(--accent);
+}
+
+/* === Responsivo Mobile === */
+@media (max-width: 768px) {
+    .feed-container {
+        margin: 15px auto;
+    }
+    .feed-table th {
+        padding: 8px 6px;
+        font-size: 0.65rem;
+    }
+    .feed-row td {
+        padding: 10px 6px;
+        font-size: 0.8rem;
+    }
+    .user-name {
+        font-size: 0.8rem;
+    }
+    .user-avatar {
+        width: 30px;
+        height: 30px;
+    }
+    .user-cell {
+        gap: 8px;
+    }
+    .tag {
+        font-size: 0.6rem;
+        padding: 3px 6px;
+        max-width: 80px;
+    }
+    .timestamp-cell {
+        font-size: 0.7rem;
+    }
+    .poll-item {
+        gap: 8px;
+        flex-wrap: nowrap;
+    }
+    .poll-info {
+        min-width: 0;
+    }
+    .poll-title {
+        font-size: 0.85rem;
+        white-space: normal;
+    }
+    .poll-subtitle {
+        font-size: 0.7rem;
+    }
+    .status-badge {
+        font-size: 0.65rem;
+        padding: 3px 10px;
+        flex-shrink: 0;
+    }
+    .weather-tag {
+        display: none;
+    }
+    .calendar-box {
+        width: 44px;
+        height: 44px;
+        flex-shrink: 0;
+    }
 }
