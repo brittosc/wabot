@@ -84,6 +84,12 @@ const updateTerminalOccupancy = async (stats) => {
     const todayStr = moment().tz("America/Sao_Paulo").format("YYYY-MM-DD");
     const dayData = stats.rawDB ? stats.rawDB[todayStr] : stats[todayStr];
 
+    // Sem dados hoje: limpa a seção do header e não imprime votos
+    if (!dayData || !dayData.grupos) {
+      dashboard.setOccupancy([]);
+      return;
+    }
+
     const config = configService.getConfig();
     const capacities = config.groupCapacities || {};
     const aliases = config.groupAliases || {};
@@ -94,7 +100,7 @@ const updateTerminalOccupancy = async (stats) => {
     Object.keys(capacities).forEach((gName) => {
       const cap = capacities[gName];
       const displayName = aliases[gName] || gName;
-      const groupData = dayData && dayData.grupos ? dayData.grupos[gName] : null;
+      const groupData = dayData.grupos[gName] || null;
 
       let count = 0;
       let ida = 0, soIda = 0, soVolta = 0, nao = 0;
