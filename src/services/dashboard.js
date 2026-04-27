@@ -33,7 +33,7 @@ class Dashboard {
   // Altura do rodapé fixo (votos)
   getFooterHeight() {
     if (!this.votesFooterData || this.votesFooterData.length === 0) return 0;
-    return this.votesFooterData.length + 4; // branco + título + grupos + total + branco
+    return this.votesFooterData.length + 3; // título + grupos + total + 1 branco abaixo
   }
 
   setupScrollRegion() {
@@ -159,15 +159,14 @@ class Dashboard {
 
     // Sai da scroll region para posicionar absolutamente
     let out = "\x1b[s\x1b[?6l";
-    // Linha em branco antes do título (separador visual do histórico)
-    out += `\x1b[${startRow};1H\x1b[2K`;
-    out += `\x1b[${startRow + 1};1H\x1b[2K${padding}${chalk.bold.cyan("Votos de Hoje:")}`;
+    // Título diretamente (o espaço vazio da area de log já separa)
+    out += `\x1b[${startRow};1H\x1b[2K${padding}${chalk.bold.cyan("Votos de Hoje:")}`;
     groupLines.forEach((line, i) => {
-      out += `\x1b[${startRow + 2 + i};1H\x1b[2K${line}`;
+      out += `\x1b[${startRow + 1 + i};1H\x1b[2K${line}`;
     });
-    out += `\x1b[${startRow + 2 + data.length};1H\x1b[2K${totalLine}`;
-    // 1 linha em branco abaixo do total (igual ao espaço acima)
-    out += `\x1b[${startRow + 3 + data.length};1H\x1b[2K`;
+    out += `\x1b[${startRow + 1 + data.length};1H\x1b[2K${totalLine}`;
+    // 1 linha em branco abaixo do total
+    out += `\x1b[${startRow + 2 + data.length};1H\x1b[2K`;
     out += "\x1b[?6h\x1b[u";
 
     process.stdout.write(out);
