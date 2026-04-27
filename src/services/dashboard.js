@@ -44,8 +44,14 @@ class Dashboard {
     if (!this.resizeListenerAdded) {
       const restoreCursor = () => process.stdout.write("\x1b[?25h");
       process.on("exit", restoreCursor);
-      process.on("SIGINT", () => { restoreCursor(); process.exit(); });
-      process.on("SIGTERM", () => { restoreCursor(); process.exit(); });
+      process.on("SIGINT", () => {
+        restoreCursor();
+        process.exit();
+      });
+      process.on("SIGTERM", () => {
+        restoreCursor();
+        process.exit();
+      });
       // Re-renderiza ao redimensionar o terminal
       process.stdout.on("resize", () => {
         this.initialized = false;
@@ -142,11 +148,13 @@ class Dashboard {
     let totalVotes = 0;
     const groupLines = data.map((group) => {
       const namePart = chalk.white(group.name.substring(0, 22).padEnd(23));
-      const vIda    = chalk.green(`↑${String(group.ida).padStart(2)}`);
-      const vSoIda  = chalk.blue(`↑${String(group.soIda).padStart(2)}`);
-      const vSoVolta = chalk.hex("#FFA500")(`↓${String(group.soVolta).padStart(2)}`);
-      const vNao    = chalk.red(`✗${String(group.nao).padStart(2)}`);
-      totalVotes   += group.ida + group.soIda + group.soVolta + group.nao;
+      const vIda = chalk.green(`↑${String(group.ida).padStart(2)}`);
+      const vSoIda = chalk.blue(`↑${String(group.soIda).padStart(2)}`);
+      const vSoVolta = chalk.hex("#FFA500")(
+        `↓${String(group.soVolta).padStart(2)}`,
+      );
+      const vNao = chalk.red(`✗${String(group.nao).padStart(2)}`);
+      totalVotes += group.ida + group.soIda + group.soVolta + group.nao;
       return `${padding}${namePart} ${vIda} ${vSoIda} ${vSoVolta} ${vNao}`;
     });
 
@@ -159,9 +167,9 @@ class Dashboard {
     groupLines.forEach((line, i) => {
       out += `\x1b[${startRow + 1 + i};1H\x1b[2K${line}`;
     });
-    out += `\x1b[${startRow + 1 + data.length};1H\x1b[2K${totalLine}`;
+    //out += `\x1b[${startRow + 1 + data.length};1H\x1b[2K${totalLine}`;
     // 1 linha em branco abaixo do total
-    out += `\x1b[${startRow + 2 + data.length};1H\x1b[2K`;
+    out += `\x1b[${startRow + 1 + data.length};1H\x1b[2K`;
     out += "\x1b[?6h\x1b[u";
 
     process.stdout.write(out);
@@ -197,18 +205,22 @@ class Dashboard {
     const infoLines = [
       formatLine(`Status: ${statusColor(this.status)}`),
       formatLine(`Próxima Enquete: ${chalk.cyan(this.nextPollTime)}`),
-      formatLine(`Total de Enquetes Enviadas: ${chalk.magenta(this.totalSent)}`),
+      formatLine(
+        `Total de Enquetes Enviadas: ${chalk.magenta(this.totalSent)}`,
+      ),
       this.serverUrl
-        ? formatLine(`API Backend: ${chalk.cyan("https://api.grupobritto.com.br/api/stats")}`)
+        ? formatLine(
+            `API Backend: ${chalk.cyan("https://api.grupobritto.com.br/api/stats")}`,
+          )
         : "",
     ].filter(Boolean);
-
-
 
     let qrLines = [];
     if (this.qrCodeStr) {
       qrLines.push("");
-      qrLines.push(formatLine(chalk.bold.underline("Aguardando Leitura do QR Code:")));
+      qrLines.push(
+        formatLine(chalk.bold.underline("Aguardando Leitura do QR Code:")),
+      );
       const lines = this.qrCodeStr.split("\n");
       for (const line of lines) {
         qrLines.push(padding + line);
@@ -217,10 +229,7 @@ class Dashboard {
 
     const allLines = ["", header, ...infoLines, ...qrLines];
 
-    let dashOutput =
-      "\x1b[s" +
-      "\x1b[1;1H" +
-      "\x1b[?6l";
+    let dashOutput = "\x1b[s" + "\x1b[1;1H" + "\x1b[?6l";
 
     for (let i = 0; i < h; i++) {
       const line = allLines[i] || "";
