@@ -9,6 +9,7 @@ class Dashboard {
     this.totalSent = 0;
     this.serverUrl = "";
     this.occupancyData = [];
+    this.votesData = [];
     this.renderTimeout = null;
     this.initialized = false;
     this.lastHeight = 0;
@@ -21,6 +22,9 @@ class Dashboard {
     h += this.serverUrl ? 4 : 3; // Status, Próxima, Total, [API]
     if (this.occupancyData && this.occupancyData.length > 0) {
       h += 1 + this.occupancyData.length; // Título + linhas de grupo
+    }
+    if (this.votesData && this.votesData.length > 0) {
+      h += 2 + this.votesData.length; // Título + linhas de votos + total
     }
     if (this.qrCodeStr) {
       h += this.qrCodeStr.split("\n").length + 1; // Título + linhas do QR
@@ -64,6 +68,12 @@ class Dashboard {
   setOccupancy(data) {
     this.occupancyData = data;
     // Re-inicializa a região de scroll pois o tamanho mudou
+    this.initialized = false;
+    this.requestRender();
+  }
+
+  setVotes(data) {
+    this.votesData = data;
     this.initialized = false;
     this.requestRender();
   }
@@ -182,6 +192,31 @@ class Dashboard {
       }
     }
 
+    let votesLines = [];
+    if (this.votesData && this.votesData.length > 0) {
+      votesLines.push("");
+      votesLines.push(formatLine(chalk.bold.underline("Votos de Hoje:")));
+      let totalVotes = 0;
+      for (const group of this.votesData) {
+        const namePart = chalk.white(group.name.substring(0, 22).padEnd(23));
+        const vIda = chalk.green(`↑${group.ida}`);
+        const vSoIda = chalk.blue(`↑${group.soIda}`);
+        const vSoVolta = chalk.hex("#FFA500")(`↓${group.soVolta}`);
+        const vNao = chalk.red(`✗${group.nao}`);
+        const total = group.ida + group.soIda + group.soVolta + group.nao;
+        totalVotes += total;
+        const totalPart = chalk.magenta(`[${total}]`.padStart(5));
+        votesLines.push(
+          formatLine(`${namePart} ${vIda} ${vSoIda} ${vSoVolta} ${vNao} ${totalPart}`),
+        );
+      }
+      votesLines.push(
+        formatLine(
+          chalk.bold.white("Total de Votos: ") + chalk.bold.magenta(totalVotes),
+        ),
+      );
+    }
+
     let qrLines = [];
     if (this.qrCodeStr) {
       qrLines.push("");
@@ -193,7 +228,7 @@ class Dashboard {
     }
 
     // Monta todas as linhas do painel
-    const allLines = ["", header, ...infoLines, ...occupancyLines, ...qrLines];
+    const allLines = ["", header, ...infoLines, ...occupancyLines, ...votesLines, ...qrLines];
 
     // Salva cursor, vai para o topo e reescreve o painel
     let dashOutput =
