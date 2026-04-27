@@ -33,7 +33,7 @@ class Dashboard {
   // Altura do rodapé fixo (votos)
   getFooterHeight() {
     if (!this.votesFooterData || this.votesFooterData.length === 0) return 0;
-    return this.votesFooterData.length + 4; // título + grupos + total + 2 linhas de padding (mas reserva 4)
+    return this.votesFooterData.length + 5; // branco + título + grupos + total + 2 padding
   }
 
   setupScrollRegion() {
@@ -159,15 +159,16 @@ class Dashboard {
 
     // Sai da scroll region para posicionar absolutamente
     let out = "\x1b[s\x1b[?6l";
-    // Sem separador — começa direto com o título
-    out += `\x1b[${startRow};1H\x1b[2K${padding}${chalk.bold.cyan("Votos de Hoje:")}`;
+    // Linha em branco antes do título (separador visual do histórico)
+    out += `\x1b[${startRow};1H\x1b[2K`;
+    out += `\x1b[${startRow + 1};1H\x1b[2K${padding}${chalk.bold.cyan("Votos de Hoje:")}`;
     groupLines.forEach((line, i) => {
-      out += `\x1b[${startRow + 1 + i};1H\x1b[2K${line}`;
+      out += `\x1b[${startRow + 2 + i};1H\x1b[2K${line}`;
     });
-    out += `\x1b[${startRow + 1 + data.length};1H\x1b[2K${totalLine}`;
+    out += `\x1b[${startRow + 2 + data.length};1H\x1b[2K${totalLine}`;
     // Padding abaixo do total (2 linhas em branco)
-    out += `\x1b[${startRow + 2 + data.length};1H\x1b[2K`;
     out += `\x1b[${startRow + 3 + data.length};1H\x1b[2K`;
+    out += `\x1b[${startRow + 4 + data.length};1H\x1b[2K`;
     out += "\x1b[?6h\x1b[u";
 
     process.stdout.write(out);
