@@ -115,7 +115,7 @@ const updateTerminalOccupancy = async (stats) => {
     });
 
     dashboard.setOccupancy(occupancySummary);
-    dashboard.setVotes(votesSummary);
+    dashboard.printVotesSummary(votesSummary);
   } catch (e) {
     // Ignora erros de atualização do terminal
   }
