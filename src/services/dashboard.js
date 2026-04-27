@@ -21,9 +21,6 @@ class Dashboard {
   getDashHeight() {
     let h = 3; // header + linha separadora + linha em branco
     h += this.serverUrl ? 4 : 3; // Status, Próxima, Total, [API]
-    if (this.occupancyData && this.occupancyData.length > 0) {
-      h += 1 + this.occupancyData.length; // Título + linhas de grupo
-    }
     if (this.qrCodeStr) {
       h += this.qrCodeStr.split("\n").length + 1;
     }
@@ -149,10 +146,8 @@ class Dashboard {
       const vSoIda  = chalk.blue(`↑${String(group.soIda).padStart(2)}`);
       const vSoVolta = chalk.hex("#FFA500")(`↓${String(group.soVolta).padStart(2)}`);
       const vNao    = chalk.red(`✗${String(group.nao).padStart(2)}`);
-      const total   = group.ida + group.soIda + group.soVolta + group.nao;
-      totalVotes   += total;
-      const totalPart = chalk.magenta(`[${total}]`.padStart(5));
-      return `${padding}${namePart} ${vIda} ${vSoIda} ${vSoVolta} ${vNao} ${totalPart}`;
+      totalVotes   += group.ida + group.soIda + group.soVolta + group.nao;
+      return `${padding}${namePart} ${vIda} ${vSoIda} ${vSoVolta} ${vNao}`;
     });
 
     const totalLine = `${padding}${chalk.bold.white("Total de Votos:".padEnd(23))} ${chalk.bold.magenta(totalVotes)}`;
@@ -208,22 +203,7 @@ class Dashboard {
         : "",
     ].filter(Boolean);
 
-    let occupancyLines = [];
-    if (this.occupancyData && this.occupancyData.length > 0) {
-      occupancyLines.push("");
-      occupancyLines.push(formatLine(chalk.bold("Ocupação de Hoje:")));
-      for (const group of this.occupancyData) {
-        const percentage = (group.count / group.cap) * 100;
-        let color = chalk.green;
-        if (percentage > 85) color = chalk.yellow;
-        if (group.count >= group.cap) color = chalk.red;
-        const namePart = group.name.substring(0, 24).padEnd(25);
-        const statusPart = group.status.padStart(7);
-        occupancyLines.push(
-          formatLine(`${chalk.white(namePart)} ${color(statusPart)}`),
-        );
-      }
-    }
+
 
     let qrLines = [];
     if (this.qrCodeStr) {
@@ -235,7 +215,7 @@ class Dashboard {
       }
     }
 
-    const allLines = ["", header, ...infoLines, ...occupancyLines, ...qrLines];
+    const allLines = ["", header, ...infoLines, ...qrLines];
 
     let dashOutput =
       "\x1b[s" +
