@@ -82,44 +82,45 @@ const updateTerminalOccupancy = async (stats) => {
   try {
     if (!stats) stats = await readStats();
     const todayStr = moment().tz("America/Sao_Paulo").format("YYYY-MM-DD");
-    const dayEntry = stats[todayStr];
-    if (!dayEntry || !dayEntry.grupos) {
-      dashboard.setOccupancy([]);
-      return;
-    }
+    const dayData = stats.rawDB ? stats.rawDB[todayStr] : stats[todayStr];
 
     const config = configService.getConfig();
     const capacities = config.groupCapacities || {};
     const aliases = config.groupAliases || {};
 
     const occupancySummary = [];
+    const votesSummary = [];
+
     Object.keys(capacities).forEach((gName) => {
-      let count = 0;
       const cap = capacities[gName];
-      const groupData = dayEntry.grupos[gName];
+      const displayName = aliases[gName] || gName;
+      const groupData = dayData && dayData.grupos ? dayData.grupos[gName] : null;
+
+      let count = 0;
+      let ida = 0, soIda = 0, soVolta = 0, nao = 0;
+
       if (groupData && groupData.votes) {
         Object.values(groupData.votes).forEach((vData) => {
           const opt = typeof vData === "object" ? vData.option : vData;
-          if (
-            opt === "Irei, ida e volta." ||
-            opt === "Irei, mas não retornarei." ||
-            opt === "Não irei, apenas retornarei."
-          ) {
-            count++;
-          }
+          if (opt === "Irei, ida e volta.") { count++; ida++; }
+          else if (opt === "Irei, mas não retornarei.") { count++; soIda++; }
+          else if (opt === "Não irei, apenas retornarei.") { count++; soVolta++; }
+          else if (opt === "Não irei à faculdade hoje.") { nao++; }
         });
       }
 
-      const displayName = aliases[gName] || gName;
       const status = `${count}/${cap}`;
       occupancySummary.push({ name: displayName, count, cap, status });
+      votesSummary.push({ name: displayName, ida, soIda, soVolta, nao });
     });
 
     dashboard.setOccupancy(occupancySummary);
+    dashboard.setVotes(votesSummary);
   } catch (e) {
     // Ignora erros de atualização do terminal
   }
 };
+
 
 const registerVote = async (vote, voterName, photoUrl) => {
   const now = moment().tz("America/Sao_Paulo");
