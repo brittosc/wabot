@@ -92,6 +92,9 @@ class Dashboard {
       lines.push(`  ${namePart} ${vIda} ${vSoIda} ${vSoVolta} ${vNao} ${totalPart}`);
     }
 
+    // Só imprime se houver ao menos 1 voto real
+    if (totalVotes === 0) return;
+
     const totalLine = `  ${chalk.bold.white("Total de Votos:".padEnd(23))} ${chalk.bold.magenta(totalVotes)}`;
 
     process.stdout.write(`\x1b[2K\x1b[G  ${chalk.bold.cyan("Votos de Hoje:")}\n`);
@@ -201,7 +204,7 @@ class Dashboard {
     if (this.occupancyData && this.occupancyData.length > 0) {
       occupancyLines.push("");
       occupancyLines.push(
-        formatLine(chalk.bold("Ocupação de Hoje:")),
+        formatLine(chalk.bold.underline("Ocupação de Hoje (Ida):")),
       );
       for (const group of this.occupancyData) {
         const percentage = (group.count / group.cap) * 100;
