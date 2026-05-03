@@ -127,6 +127,9 @@ class Dashboard {
     process.stdout.write(
       `\x1b[2K\x1b[G  ${chalk.gray(`[${time}]`)} ${message}\n`,
     );
+    // Redesenha o footer fixo imediatamente após o log
+    // para evitar que o rodapó de votos apareça duplicado
+    this.renderVotesFooter();
     this.requestRender();
   }
 
