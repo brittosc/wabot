@@ -147,18 +147,17 @@ const scheduleJob = (sock) => {
   const time = config.pollTime || "05:30";
   const [hour, minute] = time.split(":");
 
-  // Executa a cada minuto e verifica se é o horário agendado
-  cron.schedule("* * * * *", () => {
-    const now = moment().tz("America/Sao_Paulo");
+  // Cron principal: dispara apenas no horário exato de envio
+  cron.schedule(`${minute} ${hour} * * *`, () => {
+    sendPolls(sock);
+  }, { timezone: "America/Sao_Paulo" });
 
-    updateNextPollDisplay(hour, minute);
-
-    if (now.hours() === parseInt(hour) && now.minutes() === parseInt(minute)) {
-      sendPolls(sock);
-    }
-  });
-
+  // Atualiza o display de próxima enquete a cada minuto via setInterval nativo
+  // (não usa node-cron para evitar o aviso de "Possible Blocking IO")
   updateNextPollDisplay(hour, minute);
+  setInterval(() => {
+    updateNextPollDisplay(hour, minute);
+  }, 60_000);
 };
 
 const updateNextPollDisplay = (targetHour, targetMinute) => {
