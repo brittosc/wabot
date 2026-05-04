@@ -403,30 +403,35 @@ async function syncConversationHistory(client) {
                 }
               } catch(e) { log.push('abrir chat erro: ' + e.message); }
               
-              // Procura o contêiner de rolagem de mensagens no DOM dinamicamente
+              // Procura o contêiner de rolagem de mensagens no DOM usando heurística de layout
               const getScrollPane = () => {
-                // Tenta achar uma mensagem visível e subir até o contêiner com rolagem
-                const msgEl = document.querySelector('div[data-id^="true_"]') || 
-                              document.querySelector('div[data-id^="false_"]') ||
-                              document.querySelector('div.message-in') || 
-                              document.querySelector('div.message-out');
-                              
-                if (msgEl) {
-                  let curr = msgEl.parentElement;
-                  while (curr && curr !== document.body) {
-                    const style = window.getComputedStyle(curr);
-                    if (style.overflowY === 'scroll' || style.overflowY === 'auto' || curr.getAttribute('tabindex') === '0' || curr.getAttribute('role') === 'region') {
-                      return curr;
-                    }
-                    curr = curr.parentElement;
-                  }
+                // Seleciona todos os divs
+                const allDivs = Array.from(document.querySelectorAll('div'));
+                
+                // Filtra apenas os que estão na metade direita da tela (painel de mensagens) e têm tamanho considerável
+                const rightDivs = allDivs.filter(el => {
+                   const rect = el.getBoundingClientRect();
+                   return rect.left > window.innerWidth / 3 && rect.width > 200 && rect.height > 100; 
+                });
+                
+                // Pega os elementos com rolagem vertical
+                const scrollable = rightDivs.filter(el => {
+                   const style = window.getComputedStyle(el);
+                   const canScroll = style.overflowY === 'scroll' || style.overflowY === 'auto' || el.getAttribute('tabindex') === '0' || el.getAttribute('role') === 'region';
+                   return canScroll && el.scrollHeight > el.clientHeight + 10; // Tem que ter algo para rolar
+                });
+                
+                if (scrollable.length > 0) {
+                   // O que tem maior conteudo é o container principal
+                   return scrollable.sort((a, b) => b.scrollHeight - a.scrollHeight)[0];
                 }
                 
-                // Fallbacks brutos
-                return document.querySelector('[data-testid="conversation-panel-messages"]') || 
-                       document.querySelector('[role="region"][aria-label*="Mensagen"]') ||
-                       document.querySelector('[role="region"][aria-label*="Message"]') ||
-                       Array.from(document.querySelectorAll('div')).find(el => el.scrollHeight > 1000 && el.scrollTop > 0);
+                // Se o chat for muito curto e não tiver rolagem, retorna qualquer coisa grande na direita
+                if (rightDivs.length > 0) {
+                   return rightDivs.sort((a, b) => b.scrollHeight - a.scrollHeight)[0];
+                }
+                
+                return null;
               };
               
               let scrollPane = getScrollPane();
