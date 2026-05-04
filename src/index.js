@@ -339,17 +339,26 @@ async function syncConversationHistory(client) {
         if (chat) {
           let messages = [];
           try {
-            // Tenta trazer histórico longo (pode falhar no WhatsApp Web mais recente)
-            messages = await chat.fetchMessages({ limit: 1000 });
+            // Devido a atualizações do WhatsApp Web, chat.fetchMessages() está quebrado.
+            // Solução alternativa: ler as mensagens que já estão no cache inicial do sistema.
+            messages = await client.pupPage.evaluate((cId) => {
+              try {
+                const Store = window.Store;
+                const chatObj = Store.Chat.get(cId);
+                if (!chatObj || !chatObj.msgs) return [];
+                
+                return chatObj.msgs.getModelsArray().map(m => ({
+                  timestamp: m.t,
+                  fromMe: m.id.fromMe,
+                  body: m.body || m.text || "",
+                  hasMedia: m.isMedia
+                }));
+              } catch (err) {
+                return [];
+              }
+            }, chatId);
           } catch (e) {
-            dashboard.addLog(`Aviso ao buscar histórico longo: ${e.message}. Tentando menor quantidade...`);
-            try {
-              // Fallback para limite menor
-              messages = await chat.fetchMessages({ limit: 100 });
-            } catch (err2) {
-              dashboard.addLog(`Aviso: falha no fallback. Tentando limite local...`);
-              messages = await chat.fetchMessages({ limit: 20 });
-            }
+            dashboard.addLog(`Erro ao extrair mensagens da memória: ${e.message}`);
           }
 
           let historyContent = "";
