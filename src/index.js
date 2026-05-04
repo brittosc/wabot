@@ -376,10 +376,14 @@ async function syncConversationHistory(client) {
             // Patch para corrigir o erro 'waitForChatLoading' nas versoes recentes do WhatsApp Web
             await client.pupPage.evaluate(() => {
               try {
+                // Cria Store.Msg se nao existir (foi removido em versoes recentes)
+                if (window.Store && !window.Store.Msg) {
+                  window.Store.Msg = {};
+                }
                 if (window.Store && window.Store.Msg && !window.Store.Msg.waitForChatLoading) {
                   window.Store.Msg.waitForChatLoading = () => Promise.resolve();
                 }
-              } catch(_) {}
+              } catch(e) {}
             });
             
             // Agora usa o fetchMessages da biblioteca normalmente
