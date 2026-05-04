@@ -455,9 +455,23 @@ async function syncConversationHistory(client) {
                 
                 const filtered = messages.filter(m => {
                   if (!m.id) return false;
-                  const remote = m.id.remote || m.chatId || m.remoteJid || '';
+                  // id can be a string or object. if string, it's something like "false_238796037713959@lid_3B..."
+                  if (typeof m.id === 'string') return m.id.includes(cId) || m.id.includes(cId.split('@')[0]);
+                  
+                  const remote = m.id.remote || m.chatId || m.remoteJid || m.remote || '';
                   return remote === cId || remote.includes(cId.split('@')[0]);
                 });
+                
+                if (filtered.length === 0 && messages.length > 0) {
+                  // Dump do formato da primeira mensagem para descobrirmos a estrutura
+                  const sample = messages[0];
+                  log.push('Exemplo msg: ' + JSON.stringify(sample).slice(0, 150));
+                  
+                  // Se houver um chat JID no proprio sample
+                  if (sample.id && typeof sample.id === 'string') {
+                     log.push('sample.id é string');
+                  }
+                }
                 
                 log.push('msgs filtradas para chat: ' + filtered.length);
                 
