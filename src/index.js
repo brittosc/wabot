@@ -410,13 +410,15 @@ async function syncConversationHistory(client) {
                 const chatObj = Store.Chat.get(cId);
                 if (!chatObj || !chatObj.msgs) return [];
                 
+                const loopLog = [];
+                
                 // Primeiro: tenta abrir o chat para garantir carregamento
                 try {
                   if (Store.Cmd && typeof Store.Cmd.openChatAt === "function") {
                     await Store.Cmd.openChatAt(chatObj);
                     await new Promise(r => setTimeout(r, 2000));
                   }
-                } catch(_) {}
+                } catch(e) { loopLog.push('openChatAt erro: ' + e.message); }
                 
                 // Loop: chama loadEarlierMsgs até não virem mais mensagens
                 let attempts = 0;
@@ -425,27 +427,37 @@ async function syncConversationHistory(client) {
                   try {
                     await Store.ConversationMsgs.loadEarlierMsgs(chatObj);
                   } catch(e) {
+                    loopLog.push('loop[' + attempts + '] erro: ' + e.message);
                     break;
                   }
                   await new Promise(r => setTimeout(r, 1200));
                   const after = chatObj.msgs.length;
-                  if (after <= before) break; // Sem novas mensagens, acabou o histórico
+                  loopLog.push('loop[' + attempts + ']: ' + before + ' -> ' + after);
+                  if (after <= before) break;
                   attempts++;
                 }
                 
                 // Extrai o que está na memória agora
                 try {
                   const models = chatObj.msgs.getModelsArray();
-                  return models.map(m => ({
+                  const result = models.map(m => ({
                     timestamp: m.t,
                     fromMe: m.id ? m.id.fromMe : false,
                     body: m.body || m.caption || m.text || "",
                     hasMedia: !!(m.isMedia || m.mediaData)
                   }));
+                  result._loopLog = loopLog;
+                  return result;
                 } catch(e) {
-                  return [{ _error: e.message }];
+                  return [{ _error: e.message, _loopLog: loopLog }];
                 }
               }, chatId);
+              
+              // Loga info do loop no dashboard
+              const loopInfo = messages._loopLog || (messages[0] && messages[0]._loopLog) || [];
+              if (loopInfo.length > 0) {
+                dashboard.addLog(`[Debug Loop] ${loopInfo.slice(0, 5).join(' | ')}`);
+              }
               
               // Filtra possível erro embutido
               if (messages.length === 1 && messages[0]._error) {
