@@ -373,60 +373,71 @@ async function syncConversationHistory(client) {
           const chatId = chat.id._serialized;
           let messages = [];
           try {
-            // Solução alternativa profunda: chama as funções internas nativas 
-            // do WhatsApp para baixar o histórico ignorando a biblioteca.
-            messages = await client.pupPage.evaluate(async (cId) => {
-              try {
+            // Diagnóstico e extração via Store interno do WhatsApp Web
+            const debugInfo = await client.pupPage.evaluate(async (cId) => {
+              const Store = window.Store;
+              const chatObj = Store.Chat.get(cId);
+              
+              if (!chatObj) return { error: 'Chat nao encontrado no Store para ' + cId };
+              
+              const hasMsgs = !!chatObj.msgs;
+              const msgsLen = hasMsgs ? chatObj.msgs.length : 0;
+              const hasGetModels = hasMsgs && typeof chatObj.msgs.getModelsArray === 'function';
+              const hasConvMsgs = !!(Store.ConversationMsgs);
+              const hasLoadEarlier = hasConvMsgs && typeof Store.ConversationMsgs.loadEarlierMsgs === 'function';
+              const hasChatLoadEarlier = typeof chatObj.loadEarlierMsgs === 'function';
+              
+              return {
+                found: true,
+                chatId: cId,
+                msgsLen,
+                hasGetModels,
+                hasConvMsgs,
+                hasLoadEarlier,
+                hasChatLoadEarlier,
+                storeKeys: Object.keys(Store).slice(0, 30)
+              };
+            }, chatId);
+            
+            dashboard.addLog(`[Debug] Chat: ${JSON.stringify(debugInfo).slice(0, 200)}`);
+            
+            if (debugInfo.error) {
+              dashboard.addLog(`[Debug] ${debugInfo.error}`);
+            } else {
+              // Tenta extrair mensagens com as info do debug
+              messages = await client.pupPage.evaluate(async (cId) => {
                 const Store = window.Store;
                 const chatObj = Store.Chat.get(cId);
-                if (!chatObj) return [];
+                if (!chatObj || !chatObj.msgs) return [];
                 
-                // Abre o chat para instanciar a conversa
-                if (Store.Cmd && typeof Store.Cmd.openChatAt === "function") {
-                  await Store.Cmd.openChatAt(chatObj);
-                  await new Promise(resolve => setTimeout(resolve, 2000));
-                }
-                
-                // Loop de busca para descer no histórico, até um limite de ~1000 msgs
-                let attempts = 0;
-                let currentLength = chatObj.msgs ? chatObj.msgs.length : 0;
-                
-                while (currentLength < 1000 && attempts < 15) {
-                  const prevLength = currentLength;
-                  try {
-                    if (Store.ConversationMsgs && typeof Store.ConversationMsgs.loadEarlierMsgs === 'function') {
-                        await Store.ConversationMsgs.loadEarlierMsgs(chatObj);
-                    } else if (typeof chatObj.loadEarlierMsgs === 'function') {
-                        await chatObj.loadEarlierMsgs();
-                    } else {
-                        break; // Sem função de carregar histórico
-                    }
-                  } catch (e) {
-                      break; // Erro ao puxar mais antigas
+                // Primeiro: tenta abrir o chat para garantir carregamento
+                try {
+                  if (Store.Cmd && typeof Store.Cmd.openChatAt === "function") {
+                    await Store.Cmd.openChatAt(chatObj);
+                    await new Promise(r => setTimeout(r, 3000));
                   }
-                  
-                  await new Promise(resolve => setTimeout(resolve, 1000)); // Espera processar o lote no DB
-                  
-                  currentLength = chatObj.msgs ? chatObj.msgs.length : 0;
-                  if (currentLength <= prevLength) {
-                      break; // Não vieram mensagens novas, o histórico acabou
-                  }
-                  
-                  attempts++;
+                } catch(_) {}
+                
+                // Retorna o que tiver na memória agora
+                try {
+                  const models = chatObj.msgs.getModelsArray();
+                  return models.map(m => ({
+                    timestamp: m.t,
+                    fromMe: m.id ? m.id.fromMe : false,
+                    body: m.body || m.caption || m.text || "",
+                    hasMedia: !!(m.isMedia || m.mediaData)
+                  }));
+                } catch(e) {
+                  return [{ _error: e.message }];
                 }
-                
-                if (!chatObj.msgs) return [];
-                
-                return chatObj.msgs.getModelsArray().map(m => ({
-                  timestamp: m.t,
-                  fromMe: m.id.fromMe,
-                  body: m.body || m.text || "",
-                  hasMedia: m.isMedia
-                }));
-              } catch (err) {
-                return [];
+              }, chatId);
+              
+              // Filtra possível erro embutido
+              if (messages.length === 1 && messages[0]._error) {
+                dashboard.addLog(`[Debug] getModelsArray erro: ${messages[0]._error}`);
+                messages = [];
               }
-            }, chatId);
+            }
           } catch (e) {
             dashboard.addLog(`Erro ao extrair mensagens da memória: ${e.message}`);
           }
