@@ -453,7 +453,19 @@ async function syncConversationHistory(client) {
                   await new Promise(r => setTimeout(r, 800)); // Aguarda carregar
                   
                   // Verifica o total de mensagens carregadas globalmente para este chat
-                  const currentMsgs = Store.Msg.getModelsArray().filter(m => m.id && (m.id.remote === cId || m.id.remoteJid === cId || (m.chatId && m.chatId === cId) || (m.to === cId) || (m.from === cId)));
+                  const filterMsg = m => {
+                     if (!m) return false;
+                     if (typeof m.id === 'string' && m.id.includes(cId)) return true;
+                     if (m.id && typeof m.id === 'object' && m.id.remote === cId) return true;
+                     if (m.chatId === cId) return true;
+                     if (typeof m.from === 'string' && m.from.includes(cId)) return true;
+                     if (typeof m.to === 'string' && m.to.includes(cId)) return true;
+                     if (m.to && m.to._serialized && m.to._serialized.includes(cId)) return true;
+                     if (m.from && m.from._serialized && m.from._serialized.includes(cId)) return true;
+                     return false;
+                  };
+                  
+                  const currentMsgs = Store.Msg.getModelsArray().filter(filterMsg);
                   const currentCount = currentMsgs.length;
                   
                   if (currentCount > lastMsgCount) {
@@ -477,7 +489,7 @@ async function syncConversationHistory(client) {
               
               // Agora extraímos as mensagens do cache global (Store.Msg) em vez do chatObj
               try {
-                const rawMsgs = Store.Msg.getModelsArray().filter(m => m.id && (m.id.remote === cId || m.id.remoteJid === cId || (m.chatId && m.chatId === cId) || (m.to === cId) || (m.from === cId)));
+                const rawMsgs = Store.Msg.getModelsArray().filter(filterMsg);
                 log.push(`extraindo ${rawMsgs.length} msgs do Store.Msg global`);
                 
                 const msgs = rawMsgs.map(m => {
