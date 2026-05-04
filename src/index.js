@@ -408,22 +408,34 @@ async function syncConversationHistory(client) {
               try { if (!chatObj.waitForChatLoading) chatObj.waitForChatLoading = () => Promise.resolve(); } catch(_) {}
               try { if (!chatObj.msgs.waitForChatLoading) chatObj.msgs.waitForChatLoading = () => Promise.resolve(); } catch(_) {}
               
-              // Loga fonte da funcao e metodos disponíveis para diagnóstico
-              try {
-                const src = Store.ConversationMsgs.loadEarlierMsgs.toString();
-                log.push('fonte loadEarlierMsgs(200): ' + src.slice(0, 200));
-              } catch(e) { log.push('fonte erro: ' + e.message); }
-              
-              try {
-                const convKeys = Object.getOwnPropertyNames(Store.ConversationMsgs).filter(k => typeof Store.ConversationMsgs[k] === 'function');
-                log.push('ConvMsgs fns: ' + convKeys.join(','));
-              } catch(e) {}
-              
+              // Loga metodos do proto de chatObj.msgs
               try {
                 const proto = Object.getPrototypeOf(chatObj.msgs);
                 const protoKeys = Object.getOwnPropertyNames(proto).filter(k => typeof chatObj.msgs[k] === 'function');
-                log.push('msgs.proto fns: ' + protoKeys.slice(0, 15).join(','));
-              } catch(e) {}
+                log.push('msgs fns: ' + protoKeys.join(','));
+              } catch(e) { log.push('msgs fns erro: ' + e.message); }
+              
+              // Tenta loadMsgsPromiseLoop como alternativa
+              let attempts = 0;
+              while (attempts < 20) {
+                const before = chatObj.msgs.length;
+                try {
+                  if (typeof Store.ConversationMsgs.loadMsgsPromiseLoop === 'function') {
+                    await Store.ConversationMsgs.loadMsgsPromiseLoop(chatObj.msgs);
+                  } else {
+                    log.push('loadMsgsPromiseLoop nao encontrado');
+                    break;
+                  }
+                } catch(e) {
+                  log.push('loop[' + attempts + '] erro: ' + e.message);
+                  break;
+                }
+                await new Promise(r => setTimeout(r, 1000));
+                const after = chatObj.msgs.length;
+                log.push('loop[' + attempts + ']: ' + before + ' -> ' + after);
+                if (after <= before) break;
+                attempts++;
+              }
               
               // Extrai mensagens
               try {
@@ -439,9 +451,9 @@ async function syncConversationHistory(client) {
               }
             }, chatId);
             
-            // Exibe log do evaluate no dashboard
+            // Exibe log do evaluate no dashboard (uma linha por entrada)
             if (result.log && result.log.length > 0) {
-              dashboard.addLog(`[Debug] ${result.log.join(' | ').slice(0, 250)}`);
+              result.log.forEach(entry => dashboard.addLog(`[Debug] ${entry.slice(0, 300)}`));
             }
             
             messages = result.msgs || [];
