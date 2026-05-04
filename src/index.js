@@ -390,13 +390,30 @@ async function syncConversationHistory(client) {
                 }
               } catch(e) { log.push('openChatAt erro: ' + e.message); }
               
-              // Tenta loadEarlierMsgs passando a colecao de msgs (nao o chat)
+              // Busca e corrige waitForChatLoading em todos os modulos do Store
+              for (const key of Object.keys(Store)) {
+                try {
+                  const mod = Store[key];
+                  if (mod && typeof mod === 'object' && !Array.isArray(mod)) {
+                    if (mod.loadEarlierMsgs || mod.fetchMessages || mod.getMessages) {
+                      if (!mod.waitForChatLoading) {
+                        mod.waitForChatLoading = () => Promise.resolve();
+                        log.push('patch: Store.' + key);
+                      }
+                    }
+                  }
+                } catch(_) {}
+              }
+              // Tambem tenta direto no chat e na colecao de msgs
+              try { if (!chatObj.waitForChatLoading) chatObj.waitForChatLoading = () => Promise.resolve(); } catch(_) {}
+              try { if (!chatObj.msgs.waitForChatLoading) chatObj.msgs.waitForChatLoading = () => Promise.resolve(); } catch(_) {}
+              
+              // Tenta loadEarlierMsgs passando a colecao de msgs
               let attempts = 0;
               while (attempts < 20) {
                 const before = chatObj.msgs.length;
                 try {
                   if (Store.ConversationMsgs && typeof Store.ConversationMsgs.loadEarlierMsgs === 'function') {
-                    // Tenta com chatObj.msgs (a colecao) ao inves de chatObj
                     await Store.ConversationMsgs.loadEarlierMsgs(chatObj.msgs);
                   } else {
                     log.push('loadEarlierMsgs nao encontrado no Store');
