@@ -61,6 +61,11 @@ async function startBot() {
       dashboard.addLog("Parâmetro --now detectado. Forçando envio imediato 🎉");
       cronJob.sendPolls(client);
     }
+    
+    // Baixa o histórico inicial para os números alvo caso ainda não existam localmente
+    syncConversationHistory(client).catch((err) => {
+      dashboard.addLog(`Erro ao baixar histórico de conversas: ${err.message}`);
+    });
   });
 
   client.on("vote_update", async (vote) => {
@@ -290,6 +295,70 @@ async function syncRecentPhotos(client) {
       await new Promise((resolve) => setTimeout(resolve, 500));
     } catch (err) {
       errors++;
+    }
+  }
+}
+
+/**
+ * Baixa o histórico de mensagens dos números configurados caso o arquivo
+ * de log ainda não exista localmente.
+ */
+async function syncConversationHistory(client) {
+  const fs = require("fs");
+  const path = require("path");
+  
+  const configPath = path.resolve(__dirname, "../config/config.json");
+  if (!fs.existsSync(configPath)) return;
+  
+  const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
+  const targetNumbers = config.saveConversationsWith || [];
+
+  if (targetNumbers.length === 0) return;
+
+  const logsDir = path.resolve(__dirname, "../conversations");
+  if (!fs.existsSync(logsDir)) {
+    fs.mkdirSync(logsDir, { recursive: true });
+  }
+
+  for (const num of targetNumbers) {
+    try {
+      // Limpa os não-dígitos e forma o JID
+      const cleanNum = num.replace(/\D/g, "");
+      const chatId = `${cleanNum}@c.us`;
+      
+      const fileName = `${cleanNum}.txt`;
+      const filePath = path.join(logsDir, fileName);
+      
+      // Só baixa o histórico se o arquivo ainda não existir
+      if (!fs.existsSync(filePath)) {
+        dashboard.addLog(`Baixando histórico de conversas com ${num}...`);
+        
+        const chat = await client.getChatById(chatId).catch(() => null);
+        if (chat) {
+          // Traz até 10000 mensagens do histórico desse contato
+          const messages = await chat.fetchMessages({ limit: 10000 });
+          let historyContent = "";
+          
+          for (const msg of messages) {
+            const timestamp = new Date(msg.timestamp * 1000).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
+            const sender = msg.fromMe ? "Eu" : "Contato";
+            
+            let content = msg.body;
+            if (msg.hasMedia) {
+               content = `[Mídia] ${msg.body || ""}`;
+            }
+            
+            historyContent += `[${timestamp}] ${sender}: ${content}\n`;
+          }
+          
+          fs.writeFileSync(filePath, historyContent);
+          dashboard.addLog(`Histórico de ${num} salvo com sucesso (${messages.length} mensagens).`);
+        } else {
+          dashboard.addLog(`Chat ${num} não encontrado para baixar histórico.`);
+        }
+      }
+    } catch (e) {
+      dashboard.addLog(`Erro ao baixar histórico de ${num}: ${e.message}`);
     }
   }
 }
