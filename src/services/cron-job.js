@@ -146,14 +146,21 @@ const scheduleJob = (sock) => {
   const config = configService.getConfig();
   const time = config.pollTime || "05:30";
   const [hour, minute] = time.split(":");
+  const targetHour = parseInt(hour, 10);
+  const targetMinute = parseInt(minute, 10);
 
-  // Cron principal: dispara apenas no horário exato de envio
-  cron.schedule(`${minute} ${hour} * * *`, () => {
-    sendPolls(sock);
-  }, { timezone: "America/Sao_Paulo" });
+  // Cron "* * * * *" com verificação manual de horário via moment-timezone.
+  // Mais confiável que a opção { timezone } do node-cron, que depende de luxon.
+  // O callback é mínimo (apenas comparação) — não causa "Possible Blocking IO".
+  cron.schedule("* * * * *", () => {
+    const now = moment().tz("America/Sao_Paulo");
+    if (now.hours() === targetHour && now.minutes() === targetMinute) {
+      sendPolls(sock);
+    }
+  });
 
   // Atualiza o display de próxima enquete a cada minuto via setInterval nativo
-  // (não usa node-cron para evitar o aviso de "Possible Blocking IO")
+  // (separado do cron para manter o callback do cron absolutamente leve)
   updateNextPollDisplay(hour, minute);
   setInterval(() => {
     updateNextPollDisplay(hour, minute);
