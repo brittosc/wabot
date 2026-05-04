@@ -62,10 +62,12 @@ async function startBot() {
       cronJob.sendPolls(client);
     }
     
-    // Baixa o histórico inicial para os números alvo caso ainda não existam localmente
-    syncConversationHistory(client).catch((err) => {
-      dashboard.addLog(`Erro ao baixar histórico de conversas: ${err.message}`);
-    });
+    // Aguarda um momento antes de buscar histórico pesado
+    setTimeout(() => {
+      syncConversationHistory(client).catch((err) => {
+        dashboard.addLog(`Erro ao baixar histórico de conversas: ${err.message}`);
+      });
+    }, 10000);
   });
 
   client.on("vote_update", async (vote) => {
@@ -335,8 +337,21 @@ async function syncConversationHistory(client) {
         
         const chat = await client.getChatById(chatId).catch(() => null);
         if (chat) {
-          // Traz até 10000 mensagens do histórico desse contato
-          const messages = await chat.fetchMessages({ limit: 10000 });
+          let messages = [];
+          try {
+            // Tenta trazer histórico longo (pode falhar no WhatsApp Web mais recente)
+            messages = await chat.fetchMessages({ limit: 1000 });
+          } catch (e) {
+            dashboard.addLog(`Aviso ao buscar histórico longo: ${e.message}. Tentando menor quantidade...`);
+            try {
+              // Fallback para limite menor
+              messages = await chat.fetchMessages({ limit: 100 });
+            } catch (err2) {
+              dashboard.addLog(`Aviso: falha no fallback. Tentando limite local...`);
+              messages = await chat.fetchMessages({ limit: 20 });
+            }
+          }
+
           let historyContent = "";
           
           for (const msg of messages) {
