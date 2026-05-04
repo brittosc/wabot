@@ -477,12 +477,35 @@ async function syncConversationHistory(client) {
                 
                 const msgs = filtered
                   .sort((a, b) => (a.t || 0) - (b.t || 0))
-                  .map(m => ({
-                    timestamp: m.t,
-                    fromMe: m.id ? m.id.fromMe : false,
-                    body: m.body || m.caption || m.text || '',
-                    hasMedia: !!(m.isMedia || m.mediaData || m.type === 'image' || m.type === 'audio' || m.type === 'video')
-                  }));
+                  .map(m => {
+                    // Tenta extrair o corpo do texto de várias possíveis localizações comuns no IDB
+                    let bodyStr = '';
+                    if (m.body) bodyStr = m.body;
+                    else if (m.text) bodyStr = m.text;
+                    else if (m.caption) bodyStr = m.caption;
+                    else if (m.message && m.message.conversation) bodyStr = m.message.conversation;
+                    else if (m.message && m.message.extendedTextMessage) bodyStr = m.message.extendedTextMessage.text;
+                    else if (m.message && m.message.imageMessage) bodyStr = m.message.imageMessage.caption || '';
+                    else if (m.message && m.message.videoMessage) bodyStr = m.message.videoMessage.caption || '';
+                    else if (m.content) bodyStr = typeof m.content === 'string' ? m.content : JSON.stringify(m.content);
+                    
+                    return {
+                      timestamp: m.t,
+                      fromMe: m.id ? m.id.fromMe : false,
+                      body: bodyStr,
+                      hasMedia: !!(m.isMedia || m.mediaData || m.type === 'image' || m.type === 'audio' || m.type === 'video' || m.type === 'ptt' || (m.message && (m.message.imageMessage || m.message.audioMessage || m.message.videoMessage))),
+                      rawKeys: Object.keys(m).slice(0, 10).join(',') // salva as chaves para debug se vazio
+                    };
+                  });
+                  
+                // Se ainda tiver corpo vazio na maioria, loga o dump do primeiro para diagnostico
+                const emptyMsgs = msgs.filter(x => !x.body);
+                if (emptyMsgs.length > 0 && msgs.length > 0) {
+                   const sample = filtered.find(m => m.t === emptyMsgs[0].timestamp);
+                   if (sample) {
+                       log.push('Dump msg s/texto: ' + JSON.stringify(sample).slice(0, 250));
+                   }
+                }
                 
                 return { msgs, log };
               } catch(e) {
