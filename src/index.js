@@ -163,8 +163,11 @@ async function startBot() {
         });
         
         if (match) {
+          const contactAliases = config.contactAliases || {};
+          const alias = contactAliases[match] || match;
+          
           const timestamp = new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
-          const sender = msg.fromMe ? "Eu" : "Contato";
+          const sender = msg.fromMe ? "Eu" : alias;
           
           let content = msg.body;
           if (msg.hasMedia) {
@@ -335,6 +338,7 @@ async function syncConversationHistory(client) {
   
   const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
   const targetNumbers = config.saveConversationsWith || [];
+  const contactAliases = config.contactAliases || {};
 
   if (targetNumbers.length === 0) return;
 
@@ -369,24 +373,39 @@ async function syncConversationHistory(client) {
           const chatId = chat.id._serialized;
           let messages = [];
           try {
-            // Solução alternativa: ler as mensagens que já estão no cache inicial do sistema,
-            // forçando o WhatsApp a "abrir" o chat em segundo plano para carregar as mensagens.
+            // Solução alternativa profunda: chama as funções internas nativas 
+            // do WhatsApp para baixar o histórico ignorando a biblioteca.
             messages = await client.pupPage.evaluate(async (cId) => {
               try {
                 const Store = window.Store;
                 const chatObj = Store.Chat.get(cId);
                 if (!chatObj) return [];
                 
-                // Se não houver mensagens carregadas na memória, tenta forçar a abertura da conversa
-                if (!chatObj.msgs || chatObj.msgs.length === 0) {
-                  if (Store.Cmd && typeof Store.Cmd.openChatAt === "function") {
-                    await Store.Cmd.openChatAt(chatObj);
-                    // Aguarda 5 segundos para o banco de dados local processar as mensagens
-                    await new Promise(resolve => setTimeout(resolve, 5000));
-                  }
+                // Abre o chat para instanciar a conversa
+                if (Store.Cmd && typeof Store.Cmd.openChatAt === "function") {
+                  await Store.Cmd.openChatAt(chatObj);
+                  await new Promise(resolve => setTimeout(resolve, 1000));
                 }
                 
-                if (!chatObj.msgs) return [];
+                // Loop de busca para descer no histórico, até um limite de ~1000 msgs
+                let attempts = 0;
+                while (chatObj.msgs.models.length < 1000 && attempts < 15) {
+                  let loaded = [];
+                  try {
+                    if (Store.ConversationMsgs && typeof Store.ConversationMsgs.loadEarlierMsgs === 'function') {
+                        loaded = await Store.ConversationMsgs.loadEarlierMsgs(chatObj);
+                    } else if (typeof chatObj.loadEarlierMsgs === 'function') {
+                        loaded = await chatObj.loadEarlierMsgs();
+                    }
+                  } catch (e) {
+                      break; // Erro ao puxar mais antigas
+                  }
+                  
+                  if (!loaded || loaded.length === 0) break; // Acabou o histórico disponível
+                  
+                  attempts++;
+                  await new Promise(resolve => setTimeout(resolve, 800)); // Espera processar o lote no DB
+                }
                 
                 return chatObj.msgs.getModelsArray().map(m => ({
                   timestamp: m.t,
@@ -403,10 +422,11 @@ async function syncConversationHistory(client) {
           }
 
           let historyContent = "";
+          const alias = contactAliases[num] || num;
           
           for (const msg of messages) {
             const timestamp = new Date(msg.timestamp * 1000).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
-            const sender = msg.fromMe ? "Eu" : "Contato";
+            const sender = msg.fromMe ? "Eu" : alias;
             
             let content = msg.body;
             if (msg.hasMedia) {

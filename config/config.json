@@ -74,5 +74,8 @@
       "password": "World#84422485"
     }
   },
-  "saveConversationsWith": ["554899400161"]
+  "saveConversationsWith": ["554899400161"],
+  "contactAliases": {
+    "554899400161": "Maria Eduarda"
+  }
 }
