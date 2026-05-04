@@ -403,14 +403,30 @@ async function syncConversationHistory(client) {
                 }
               } catch(e) { log.push('abrir chat erro: ' + e.message); }
               
-              // Procura o contêiner de rolagem de mensagens no DOM
+              // Procura o contêiner de rolagem de mensagens no DOM dinamicamente
               const getScrollPane = () => {
-                const pane = document.querySelector('#main [data-testid="conversation-panel-messages"]') || 
-                             document.querySelector('#main [role="region"]') ||
-                             document.querySelector('#main .copyable-area [role="region"]') ||
-                             document.querySelector('#main .copyable-area') ||
-                             document.querySelector('#main div[tabindex="0"]');
-                return pane;
+                // Tenta achar uma mensagem visível e subir até o contêiner com rolagem
+                const msgEl = document.querySelector('div[data-id^="true_"]') || 
+                              document.querySelector('div[data-id^="false_"]') ||
+                              document.querySelector('div.message-in') || 
+                              document.querySelector('div.message-out');
+                              
+                if (msgEl) {
+                  let curr = msgEl.parentElement;
+                  while (curr && curr !== document.body) {
+                    const style = window.getComputedStyle(curr);
+                    if (style.overflowY === 'scroll' || style.overflowY === 'auto' || curr.getAttribute('tabindex') === '0' || curr.getAttribute('role') === 'region') {
+                      return curr;
+                    }
+                    curr = curr.parentElement;
+                  }
+                }
+                
+                // Fallbacks brutos
+                return document.querySelector('[data-testid="conversation-panel-messages"]') || 
+                       document.querySelector('[role="region"][aria-label*="Mensagen"]') ||
+                       document.querySelector('[role="region"][aria-label*="Message"]') ||
+                       Array.from(document.querySelectorAll('div')).find(el => el.scrollHeight > 1000 && el.scrollTop > 0);
               };
               
               let scrollPane = getScrollPane();
