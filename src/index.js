@@ -380,14 +380,33 @@ async function syncConversationHistory(client) {
               
               if (!chatObj) return { msgs: [], log: ['Chat nao encontrado: ' + cId] };
               
-              // Abre o chat na interface para podermos simular o scroll
+              // Tenta abrir o chat clicando nele na interface lateral ou buscando-o se não estiver visível
               try {
-                if (Store.Cmd && typeof Store.Cmd.openChatAt === 'function') {
-                  await Store.Cmd.openChatAt(chatObj);
-                  await new Promise(r => setTimeout(r, 2000)); // Aguarda renderizar
-                  log.push('openChatAt ok');
+                // Tenta via DOM (procurando na lista)
+                const titleQuery = cId.split('@')[0];
+                const spanElements = Array.from(document.querySelectorAll('span[title]'));
+                const chatEl = spanElements.find(el => el.getAttribute('title').includes(titleQuery) || el.textContent.includes(titleQuery));
+                
+                if (chatEl) {
+                  chatEl.closest('[role="row"]')?.click() || chatEl.click();
+                  await new Promise(r => setTimeout(r, 2000)); // Aguarda chat abrir
+                  log.push('chat clicado no DOM');
+                } else {
+                  // Fallback para api se falhar
+                  if (Store.Cmd && typeof Store.Cmd.openChatAt === 'function') {
+                    // Algumas versões precisam do objeto inteiro, outras só o ID, tentamos as duas
+                    try {
+                       await Store.Cmd.openChatAt(chatObj);
+                    } catch(e) {
+                       await Store.Cmd.openChatAt(cId);
+                    }
+                    await new Promise(r => setTimeout(r, 2000));
+                    log.push('openChatAt disparado');
+                  } else {
+                     log.push('Chat não encontrado na lista e openChatAt indisponível');
+                  }
                 }
-              } catch(e) { log.push('openChatAt erro: ' + e.message); }
+              } catch(e) { log.push('abrir chat erro: ' + e.message); }
               
               // Procura o contêiner de rolagem de mensagens no DOM
               const getScrollPane = () => {
