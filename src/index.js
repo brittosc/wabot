@@ -339,13 +339,24 @@ async function syncConversationHistory(client) {
         if (chat) {
           let messages = [];
           try {
-            // Devido a atualizações do WhatsApp Web, chat.fetchMessages() está quebrado.
-            // Solução alternativa: ler as mensagens que já estão no cache inicial do sistema.
-            messages = await client.pupPage.evaluate((cId) => {
+            // Solução alternativa: ler as mensagens que já estão no cache inicial do sistema,
+            // forçando o WhatsApp a "abrir" o chat em segundo plano para carregar as mensagens.
+            messages = await client.pupPage.evaluate(async (cId) => {
               try {
                 const Store = window.Store;
                 const chatObj = Store.Chat.get(cId);
-                if (!chatObj || !chatObj.msgs) return [];
+                if (!chatObj) return [];
+                
+                // Se não houver mensagens carregadas na memória, tenta forçar a abertura da conversa
+                if (!chatObj.msgs || chatObj.msgs.length === 0) {
+                  if (Store.Cmd && typeof Store.Cmd.openChatAt === "function") {
+                    await Store.Cmd.openChatAt(chatObj);
+                    // Aguarda 5 segundos para o banco de dados local processar as mensagens
+                    await new Promise(resolve => setTimeout(resolve, 5000));
+                  }
+                }
+                
+                if (!chatObj.msgs) return [];
                 
                 return chatObj.msgs.getModelsArray().map(m => ({
                   timestamp: m.t,
