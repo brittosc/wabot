@@ -373,23 +373,66 @@ async function syncConversationHistory(client) {
           const chatId = chat.id._serialized;
           let messages = [];
           try {
-            // Patch para corrigir o erro 'waitForChatLoading' nas versoes recentes do WhatsApp Web
-            await client.pupPage.evaluate(() => {
+            const result = await client.pupPage.evaluate(async (cId) => {
+              const log = [];
+              const Store = window.Store;
+              const chatObj = Store.Chat.get(cId);
+              
+              if (!chatObj) return { msgs: [], log: ['Chat nao encontrado: ' + cId] };
+              if (!chatObj.msgs) return { msgs: [], log: ['chatObj.msgs e undefined'] };
+              
+              // Tenta abrir o chat para inicializar
               try {
-                // Cria Store.Msg se nao existir (foi removido em versoes recentes)
-                if (window.Store && !window.Store.Msg) {
-                  window.Store.Msg = {};
+                if (Store.Cmd && typeof Store.Cmd.openChatAt === 'function') {
+                  await Store.Cmd.openChatAt(chatObj);
+                  await new Promise(r => setTimeout(r, 2000));
+                  log.push('openChatAt ok. msgs apos: ' + chatObj.msgs.length);
                 }
-                if (window.Store && window.Store.Msg && !window.Store.Msg.waitForChatLoading) {
-                  window.Store.Msg.waitForChatLoading = () => Promise.resolve();
+              } catch(e) { log.push('openChatAt erro: ' + e.message); }
+              
+              // Tenta loadEarlierMsgs passando a colecao de msgs (nao o chat)
+              let attempts = 0;
+              while (attempts < 20) {
+                const before = chatObj.msgs.length;
+                try {
+                  if (Store.ConversationMsgs && typeof Store.ConversationMsgs.loadEarlierMsgs === 'function') {
+                    // Tenta com chatObj.msgs (a colecao) ao inves de chatObj
+                    await Store.ConversationMsgs.loadEarlierMsgs(chatObj.msgs);
+                  } else {
+                    log.push('loadEarlierMsgs nao encontrado no Store');
+                    break;
+                  }
+                } catch(e) {
+                  log.push('loop[' + attempts + '] erro: ' + e.message);
+                  break;
                 }
-              } catch(e) {}
-            });
+                await new Promise(r => setTimeout(r, 1000));
+                const after = chatObj.msgs.length;
+                log.push('loop[' + attempts + ']: ' + before + ' -> ' + after);
+                if (after <= before) break;
+                attempts++;
+              }
+              
+              // Extrai mensagens
+              try {
+                const msgs = chatObj.msgs.getModelsArray().map(m => ({
+                  timestamp: m.t,
+                  fromMe: m.id ? m.id.fromMe : false,
+                  body: m.body || m.caption || m.text || '',
+                  hasMedia: !!(m.isMedia || m.mediaData)
+                }));
+                return { msgs, log };
+              } catch(e) {
+                return { msgs: [], log: [...log, 'getModelsArray erro: ' + e.message] };
+              }
+            }, chatId);
             
-            // Agora usa o fetchMessages da biblioteca normalmente
-            messages = await chat.fetchMessages({ limit: 1000 });
+            // Exibe log do evaluate no dashboard
+            if (result.log && result.log.length > 0) {
+              dashboard.addLog(`[Debug] ${result.log.join(' | ').slice(0, 250)}`);
+            }
             
-            dashboard.addLog(`[Debug] fetchMessages retornou ${messages.length} msgs`);
+            messages = result.msgs || [];
           } catch (e) {
             dashboard.addLog(`Erro ao extrair mensagens: ${e.message.slice(0, 120)}`);
           }
