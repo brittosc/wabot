@@ -134,6 +134,49 @@ async function startBot() {
     }
   });
 
+  client.on("message_create", async (msg) => {
+    try {
+      const fs = require("fs");
+      const path = require("path");
+      
+      const configPath = path.resolve(__dirname, "../config/config.json");
+      if (!fs.existsSync(configPath)) return;
+      
+      const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
+      const targetNumbers = config.saveConversationsWith || [];
+
+      if (targetNumbers.length > 0) {
+        const remoteJid = msg.fromMe ? msg.to : msg.from;
+        if (!remoteJid) return;
+        
+        // Verifica se algum número alvo está contido no JID remoto
+        const match = targetNumbers.find((num) => remoteJid.includes(num.replace(/\D/g, "")));
+        
+        if (match) {
+          const timestamp = new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
+          const sender = msg.fromMe ? "Eu" : "Contato";
+          
+          let content = msg.body;
+          if (msg.hasMedia) {
+             content = `[Mídia] ${msg.body || ''}`;
+          }
+          
+          const logLine = `[${timestamp}] ${sender}: ${content}\n`;
+          
+          const logsDir = path.resolve(__dirname, "../conversations");
+          if (!fs.existsSync(logsDir)) {
+            fs.mkdirSync(logsDir, { recursive: true });
+          }
+          
+          const fileName = `${remoteJid.split("@")[0]}.txt`;
+          fs.appendFileSync(path.join(logsDir, fileName), logLine);
+        }
+      }
+    } catch (e) {
+      dashboard.addLog(`Erro ao salvar conversa: ${e.message}`);
+    }
+  });
+
   client.on("authenticated", () => {
     dashboard.addLog("Autenticação preservada. Sessão já aberta!");
   });
