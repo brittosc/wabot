@@ -434,6 +434,7 @@ async function syncConversationHistory(client) {
                 });
                 
                 const messages = await new Promise((resolve, reject) => {
+                  log.push('model-storage stores: ' + Array.from(db.objectStoreNames).join(','));
                   const tx = db.transaction([msgStoreName], 'readonly');
                   const store = tx.objectStore(msgStoreName);
                   const indexNames = Array.from(store.indexNames);
@@ -480,17 +481,31 @@ async function syncConversationHistory(client) {
                   .map(m => {
                     // Tenta extrair o corpo do texto de várias possíveis localizações comuns no IDB
                     let bodyStr = '';
-                    if (m.body) bodyStr = m.body;
-                    else if (m.text) bodyStr = m.text;
-                    else if (m.caption) bodyStr = m.caption;
-                    else if (m.message && m.message.conversation) bodyStr = m.message.conversation;
-                    else if (m.message && m.message.extendedTextMessage) bodyStr = m.message.extendedTextMessage.text;
-                    else if (m.message && m.message.imageMessage) bodyStr = m.message.imageMessage.caption || '';
-                    else if (m.message && m.message.videoMessage) bodyStr = m.message.videoMessage.caption || '';
-                    else if (m.content) bodyStr = typeof m.content === 'string' ? m.content : JSON.stringify(m.content);
-                    // Novas heuristicas:
-                    else if (m.msgChunk) bodyStr = m.msgChunk.text || m.msgChunk.body || '';
-                    else if (m.plaintext) bodyStr = m.plaintext;
+                    
+                    // Tenta recuperar do cache de memoria do WhatsApp usando o ID
+                    try {
+                      if (window.Store && window.Store.Msg) {
+                        const msgObj = window.Store.Msg.get(m.id);
+                        if (msgObj) {
+                          bodyStr = msgObj.body || msgObj.text || msgObj.caption || '';
+                          if (!bodyStr && msgObj.message && msgObj.message.conversation) bodyStr = msgObj.message.conversation;
+                        }
+                      }
+                    } catch(e) {}
+                    
+                    if (!bodyStr) {
+                      if (m.body) bodyStr = m.body;
+                      else if (m.text) bodyStr = m.text;
+                      else if (m.caption) bodyStr = m.caption;
+                      else if (m.message && m.message.conversation) bodyStr = m.message.conversation;
+                      else if (m.message && m.message.extendedTextMessage) bodyStr = m.message.extendedTextMessage.text;
+                      else if (m.message && m.message.imageMessage) bodyStr = m.message.imageMessage.caption || '';
+                      else if (m.message && m.message.videoMessage) bodyStr = m.message.videoMessage.caption || '';
+                      else if (m.content) bodyStr = typeof m.content === 'string' ? m.content : JSON.stringify(m.content);
+                      // Novas heuristicas:
+                      else if (m.msgChunk) bodyStr = m.msgChunk.text || m.msgChunk.body || '';
+                      else if (m.plaintext) bodyStr = m.plaintext;
+                    }
                     
                     let fromMe = false;
                     if (m.id && typeof m.id === 'string') {
