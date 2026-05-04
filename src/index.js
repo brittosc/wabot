@@ -454,15 +454,20 @@ async function syncConversationHistory(client) {
                 let unchangedCount = 0;
                 
                 // Rola para cima repetidamente para forçar o carregamento retroativo
-                for (let i = 0; i < 30; i++) {
-                  // Oscila o scroll para garantir que o evento 'scroll' seja detectado pelo React
-                  scrollPane.scrollTop = 50;
-                  scrollPane.dispatchEvent(new Event('scroll'));
-                  await new Promise(r => setTimeout(r, 100));
+                for (let i = 0; i < 40; i++) {
+                  // Abordagem orgânica: encontra a mensagem mais antiga na tela e rola até ela
+                  const msgsDOM = document.querySelectorAll('div[data-id^="true_"], div[data-id^="false_"], div.message-in, div.message-out');
+                  if (msgsDOM.length > 0) {
+                     msgsDOM[0].scrollIntoView({ block: 'start', behavior: 'auto' });
+                  }
                   
-                  scrollPane.scrollTop = 0;
-                  scrollPane.dispatchEvent(new Event('scroll'));
-                  await new Promise(r => setTimeout(r, 800)); // Aguarda carregar
+                  // Força bruta no painel se existir
+                  if (scrollPane) {
+                     scrollPane.scrollTop = 0;
+                     scrollPane.dispatchEvent(new Event('scroll', { bubbles: true }));
+                  }
+                  
+                  await new Promise(r => setTimeout(r, 1500)); // Espera mais tempo para a descriptografia do SQLite
                   
                   // Verifica o total de mensagens carregadas globalmente para este chat
                   const currentMsgs = Store.Msg.getModelsArray().filter(filterMsg);
@@ -474,13 +479,11 @@ async function syncConversationHistory(client) {
                     unchangedCount = 0;
                   } else {
                     unchangedCount++;
-                    // Se tentar 4 vezes e não carregar mais nada, atingiu o topo
-                    if (unchangedCount >= 4) {
+                    if (unchangedCount >= 5) {
                       log.push('topo atingido no scroll ' + i);
                       break;
                     }
                   }
-                  // Precisa buscar o painel de novo pois o React pode recriar o elemento DOM
                   scrollPane = getScrollPane() || scrollPane;
                 }
               } else {
@@ -496,6 +499,11 @@ async function syncConversationHistory(client) {
                   let bodyStr = m.body || m.text || m.caption || '';
                   if (!bodyStr && m.message && m.message.conversation) bodyStr = m.message.conversation;
                   if (!bodyStr && m.message && m.message.extendedTextMessage) bodyStr = m.message.extendedTextMessage.text;
+                  
+                  // Limpa base64 gigante do log para não poluir o arquivo de texto se for imagem thumbnail
+                  if (bodyStr.length > 500 && bodyStr.startsWith('/9j/')) {
+                      bodyStr = '[Imagem Thumbnail Oculta]';
+                  }
                   
                   return {
                     timestamp: m.t,
