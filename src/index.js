@@ -156,8 +156,11 @@ async function startBot() {
         const remoteJid = msg.fromMe ? msg.to : msg.from;
         if (!remoteJid) return;
         
-        // Verifica se algum número alvo está contido no JID remoto
-        const match = targetNumbers.find((num) => remoteJid.includes(num.replace(/\D/g, "")));
+        // Verifica se o número (com ou sem o 9º dígito) bate com a mensagem
+        const match = targetNumbers.find((num) => {
+          const possibleJids = getPossibleJids(num);
+          return possibleJids.includes(remoteJid);
+        });
         
         if (match) {
           const timestamp = new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
@@ -175,7 +178,8 @@ async function startBot() {
             fs.mkdirSync(logsDir, { recursive: true });
           }
           
-          const fileName = `${remoteJid.split("@")[0]}.txt`;
+          const cleanMatch = match.replace(/\D/g, "");
+          const fileName = `${cleanMatch}.txt`;
           fs.appendFileSync(path.join(logsDir, fileName), logLine);
         }
       }
@@ -302,6 +306,23 @@ async function syncRecentPhotos(client) {
 }
 
 /**
+ * Função utilitária para lidar com a ausência/presença do 9º dígito 
+ * em números brasileiros. Retorna possíveis JIDs.
+ */
+function getPossibleJids(numStr) {
+  const clean = numStr.replace(/\D/g, "");
+  let jids = [`${clean}@c.us`];
+  if (clean.startsWith("55") && clean.length === 13) {
+    const without9 = clean.slice(0, 4) + clean.slice(5);
+    jids.push(`${without9}@c.us`);
+  } else if (clean.startsWith("55") && clean.length === 12) {
+    const with9 = clean.slice(0, 4) + "9" + clean.slice(4);
+    jids.push(`${with9}@c.us`);
+  }
+  return jids;
+}
+
+/**
  * Baixa o histórico de mensagens dos números configurados caso o arquivo
  * de log ainda não exista localmente.
  */
@@ -322,12 +343,11 @@ async function syncConversationHistory(client) {
     fs.mkdirSync(logsDir, { recursive: true });
   }
 
+  const allChats = await client.getChats().catch(() => []);
+
   for (const num of targetNumbers) {
     try {
-      // Limpa os não-dígitos e forma o JID
       const cleanNum = num.replace(/\D/g, "");
-      const chatId = `${cleanNum}@c.us`;
-      
       const fileName = `${cleanNum}.txt`;
       const filePath = path.join(logsDir, fileName);
       
@@ -335,8 +355,18 @@ async function syncConversationHistory(client) {
       if (!fs.existsSync(filePath)) {
         dashboard.addLog(`Baixando histórico de conversas com ${num}...`);
         
-        const chat = await client.getChatById(chatId).catch(() => null);
+        const possibleJids = getPossibleJids(num);
+        let chat = allChats.find(c => possibleJids.includes(c.id._serialized));
+        
+        if (!chat) {
+          for (const pJid of possibleJids) {
+            chat = await client.getChatById(pJid).catch(() => null);
+            if (chat && chat.timestamp) break; // achou um chat válido (não fantasma)
+          }
+        }
+
         if (chat) {
+          const chatId = chat.id._serialized;
           let messages = [];
           try {
             // Solução alternativa: ler as mensagens que já estão no cache inicial do sistema,
