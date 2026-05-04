@@ -380,39 +380,37 @@ async function syncConversationHistory(client) {
               
               if (!chatObj) return { msgs: [], log: ['Chat nao encontrado: ' + cId] };
               
-              // Tenta abrir o chat clicando nele na interface lateral ou buscando-o se não estiver visível
+              // Tenta abrir o chat clicando nele na interface lateral
               try {
-                // Tenta via DOM (procurando na lista)
-                const titleQuery = cId.split('@')[0];
+                const contactName = chatObj.name || chatObj.formattedTitle || cId.split('@')[0];
+                log.push('Buscando no DOM: ' + contactName);
+                
+                // Procurar na lista de contatos recentes visiveis
                 const spanElements = Array.from(document.querySelectorAll('span[title]'));
-                const chatEl = spanElements.find(el => el.getAttribute('title').includes(titleQuery) || el.textContent.includes(titleQuery));
+                const chatEl = spanElements.find(el => el.getAttribute('title') === contactName || el.getAttribute('title').includes(contactName) || el.textContent.includes(contactName));
                 
                 if (chatEl) {
-                  chatEl.closest('[role="row"]')?.click() || chatEl.click();
+                  // Sobe na árvore DOM até achar a linha clicável
+                  const clickable = chatEl.closest('[role="row"]') || chatEl.closest('[tabindex="-1"]') || chatEl;
+                  clickable.click();
                   await new Promise(r => setTimeout(r, 2000)); // Aguarda chat abrir
-                  log.push('chat clicado no DOM');
+                  log.push('chat aberto via clique no DOM');
                 } else {
-                  // Fallback para api se falhar
-                  if (Store.Cmd && typeof Store.Cmd.openChatAt === 'function') {
-                    // Algumas versões precisam do objeto inteiro, outras só o ID, tentamos as duas
-                    try {
-                       await Store.Cmd.openChatAt(chatObj);
-                    } catch(e) {
-                       await Store.Cmd.openChatAt(cId);
-                    }
-                    await new Promise(r => setTimeout(r, 2000));
-                    log.push('openChatAt disparado');
-                  } else {
-                     log.push('Chat não encontrado na lista e openChatAt indisponível');
-                  }
+                  log.push('Contato nao visivel na lista lateral');
+                  // Tenta abrir via comando interno (pode quebrar)
+                  try { if (Store.Cmd) Store.Cmd.openChatAt(chatObj); } catch(e) {}
+                  await new Promise(r => setTimeout(r, 1500));
                 }
               } catch(e) { log.push('abrir chat erro: ' + e.message); }
               
               // Procura o contêiner de rolagem de mensagens no DOM
               const getScrollPane = () => {
-                return document.querySelector('#main [data-testid="conversation-panel-messages"]') || 
-                       document.querySelector('#main .copyable-area [role="region"]') ||
-                       document.querySelector('#main .copyable-area');
+                const pane = document.querySelector('#main [data-testid="conversation-panel-messages"]') || 
+                             document.querySelector('#main [role="region"]') ||
+                             document.querySelector('#main .copyable-area [role="region"]') ||
+                             document.querySelector('#main .copyable-area') ||
+                             document.querySelector('#main div[tabindex="0"]');
+                return pane;
               };
               
               let scrollPane = getScrollPane();
