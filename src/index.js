@@ -488,13 +488,25 @@ async function syncConversationHistory(client) {
                     else if (m.message && m.message.imageMessage) bodyStr = m.message.imageMessage.caption || '';
                     else if (m.message && m.message.videoMessage) bodyStr = m.message.videoMessage.caption || '';
                     else if (m.content) bodyStr = typeof m.content === 'string' ? m.content : JSON.stringify(m.content);
+                    // Novas heuristicas:
+                    else if (m.msgChunk) bodyStr = m.msgChunk.text || m.msgChunk.body || '';
+                    else if (m.plaintext) bodyStr = m.plaintext;
+                    
+                    let fromMe = false;
+                    if (m.id && typeof m.id === 'string') {
+                       fromMe = m.id.startsWith('true_');
+                    } else if (m.id && typeof m.id === 'object') {
+                       fromMe = !!m.id.fromMe;
+                    } else if (m.fromMe !== undefined) {
+                       fromMe = m.fromMe;
+                    }
                     
                     return {
                       timestamp: m.t,
-                      fromMe: m.id ? m.id.fromMe : false,
+                      fromMe: fromMe,
                       body: bodyStr,
                       hasMedia: !!(m.isMedia || m.mediaData || m.type === 'image' || m.type === 'audio' || m.type === 'video' || m.type === 'ptt' || (m.message && (m.message.imageMessage || m.message.audioMessage || m.message.videoMessage))),
-                      rawKeys: Object.keys(m).slice(0, 10).join(',') // salva as chaves para debug se vazio
+                      rawKeys: Object.keys(m).join(',') // salva as chaves para debug se vazio
                     };
                   });
                   
@@ -503,7 +515,8 @@ async function syncConversationHistory(client) {
                 if (emptyMsgs.length > 0 && msgs.length > 0) {
                    const sample = filtered.find(m => m.t === emptyMsgs[0].timestamp);
                    if (sample) {
-                       log.push('Dump msg s/texto: ' + JSON.stringify(sample).slice(0, 250));
+                       log.push('Chaves da msg: ' + Object.keys(sample).join(','));
+                       log.push('Dump json completo: ' + JSON.stringify(sample).slice(0, 1000));
                    }
                 }
                 
