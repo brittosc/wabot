@@ -375,169 +375,81 @@ async function syncConversationHistory(client) {
           try {
             const result = await client.pupPage.evaluate(async (cId) => {
               const log = [];
+              const Store = window.Store;
+              const chatObj = Store.Chat.get(cId);
               
+              if (!chatObj) return { msgs: [], log: ['Chat nao encontrado: ' + cId] };
+              
+              // Abre o chat na interface para podermos simular o scroll
               try {
-                // Lista todos os bancos IndexedDB disponíveis
-                const allDbs = await indexedDB.databases();
-                log.push('todos IDBs: ' + allDbs.map(d => d.name).join(','));
+                if (Store.Cmd && typeof Store.Cmd.openChatAt === 'function') {
+                  await Store.Cmd.openChatAt(chatObj);
+                  await new Promise(r => setTimeout(r, 2000)); // Aguarda renderizar
+                  log.push('openChatAt ok');
+                }
+              } catch(e) { log.push('openChatAt erro: ' + e.message); }
+              
+              // Procura o contêiner de rolagem de mensagens no DOM
+              const getScrollPane = () => {
+                return document.querySelector('#main [data-testid="conversation-panel-messages"]') || 
+                       document.querySelector('#main .copyable-area [role="region"]') ||
+                       document.querySelector('#main .copyable-area');
+              };
+              
+              let scrollPane = getScrollPane();
+              
+              if (scrollPane) {
+                log.push('scrollPane encontrado, iniciando scroll...');
+                let lastMsgCount = chatObj.msgs.length;
+                let unchangedCount = 0;
                 
-                // Abre cada banco e verifica se tem store de mensagens
-                let msgDbName = null;
-                let msgStoreName = null;
-                
-                for (const dbInfo of allDbs) {
-                  try {
-                    const db = await new Promise((resolve, reject) => {
-                      const req = indexedDB.open(dbInfo.name);
-                      req.onsuccess = e => resolve(e.target.result);
-                      req.onerror = () => resolve(null);
-                    });
-                    if (!db) continue;
-                    
-                    const stores = Array.from(db.objectStoreNames);
-                    const found = stores.find(s => s === 'messages' || s === 'msg' || s === 'msgs' || s === 'message' || s === 'chat_messages');
-                    db.close();
-                    
-                    if (found) {
-                      msgDbName = dbInfo.name;
-                      msgStoreName = found;
+                // Rola para cima repetidamente para forçar o carregamento retroativo
+                for (let i = 0; i < 30; i++) {
+                  scrollPane.scrollTop = 0;
+                  scrollPane.dispatchEvent(new Event('scroll'));
+                  await new Promise(r => setTimeout(r, 800)); // Aguarda carregar
+                  
+                  const currentCount = chatObj.msgs.length;
+                  if (currentCount > lastMsgCount) {
+                    log.push(`scroll ${i}: ${lastMsgCount} -> ${currentCount}`);
+                    lastMsgCount = currentCount;
+                    unchangedCount = 0;
+                  } else {
+                    unchangedCount++;
+                    // Se tentar 4 vezes e não carregar mais nada, atingiu o topo
+                    if (unchangedCount >= 4) {
+                      log.push('topo atingido no scroll ' + i);
                       break;
                     }
-                  } catch(_) {}
-                }
-                
-                if (!msgDbName) {
-                  // Exibe stores de todos os bancos para diagnóstico
-                  for (const dbInfo of allDbs.slice(0, 5)) {
-                    try {
-                      const db = await new Promise((resolve, reject) => {
-                        const req = indexedDB.open(dbInfo.name);
-                        req.onsuccess = e => resolve(e.target.result);
-                        req.onerror = () => resolve(null);
-                      });
-                      if (db) {
-                        log.push(dbInfo.name + ' stores: ' + Array.from(db.objectStoreNames).join(','));
-                        db.close();
-                      }
-                    } catch(_) {}
                   }
-                  return { msgs: [], log: [...log, 'nenhum banco com store de msgs encontrado'] };
+                  // Precisa buscar o painel de novo pois o React pode recriar o elemento DOM
+                  scrollPane = getScrollPane() || scrollPane;
                 }
+              } else {
+                log.push('scrollPane DOM NAO encontrado');
+              }
+              
+              // Agora extraímos as mensagens do objeto de chat em memória
+              try {
+                const rawMsgs = chatObj.msgs.getModelsArray ? chatObj.msgs.getModelsArray() : Array.from(chatObj.msgs);
+                log.push(`extraindo ${rawMsgs.length} msgs da memoria`);
                 
-                log.push('banco encontrado: ' + msgDbName + ' / ' + msgStoreName);
-                
-                // Abre o banco correto e busca as mensagens
-                const db = await new Promise((resolve, reject) => {
-                  const req = indexedDB.open(msgDbName);
-                  req.onsuccess = e => resolve(e.target.result);
-                  req.onerror = e => reject(e.target.error);
+                const msgs = rawMsgs.map(m => {
+                  let bodyStr = m.body || m.text || m.caption || '';
+                  if (!bodyStr && m.message && m.message.conversation) bodyStr = m.message.conversation;
+                  if (!bodyStr && m.message && m.message.extendedTextMessage) bodyStr = m.message.extendedTextMessage.text;
+                  
+                  return {
+                    timestamp: m.t,
+                    fromMe: m.id ? m.id.fromMe : false,
+                    body: bodyStr,
+                    hasMedia: !!(m.isMedia || m.mediaData || m.type === 'image' || m.type === 'audio' || m.type === 'video' || m.type === 'ptt')
+                  };
                 });
-                
-                const messages = await new Promise((resolve, reject) => {
-                  log.push('model-storage stores: ' + Array.from(db.objectStoreNames).join(','));
-                  const tx = db.transaction([msgStoreName], 'readonly');
-                  const store = tx.objectStore(msgStoreName);
-                  const indexNames = Array.from(store.indexNames);
-                  const chatIndex = indexNames.find(i => i.includes('chat') || i.includes('Chat') || i.includes('remote'));
-                  
-                  let req;
-                  if (chatIndex) {
-                    req = store.index(chatIndex).getAll(cId);
-                    log.push('usando index: ' + chatIndex);
-                  } else {
-                    req = store.getAll();
-                  }
-                  
-                  req.onsuccess = e => resolve(e.target.result);
-                  req.onerror = e => reject(e.target.error);
-                });
-                
-                db.close();
-                
-                const filtered = messages.filter(m => {
-                  if (!m.id) return false;
-                  // id can be a string or object. if string, it's something like "false_238796037713959@lid_3B..."
-                  if (typeof m.id === 'string') return m.id.includes(cId) || m.id.includes(cId.split('@')[0]);
-                  
-                  const remote = m.id.remote || m.chatId || m.remoteJid || m.remote || '';
-                  return remote === cId || remote.includes(cId.split('@')[0]);
-                });
-                
-                if (filtered.length === 0 && messages.length > 0) {
-                  // Dump do formato da primeira mensagem para descobrirmos a estrutura
-                  const sample = messages[0];
-                  log.push('Exemplo msg: ' + JSON.stringify(sample).slice(0, 150));
-                  
-                  // Se houver um chat JID no proprio sample
-                  if (sample.id && typeof sample.id === 'string') {
-                     log.push('sample.id é string');
-                  }
-                }
-                
-                log.push('msgs filtradas para chat: ' + filtered.length);
-                
-                const msgs = filtered
-                  .sort((a, b) => (a.t || 0) - (b.t || 0))
-                  .map(m => {
-                    // Tenta extrair o corpo do texto de várias possíveis localizações comuns no IDB
-                    let bodyStr = '';
-                    
-                    // Tenta recuperar do cache de memoria do WhatsApp usando o ID
-                    try {
-                      if (window.Store && window.Store.Msg) {
-                        const msgObj = window.Store.Msg.get(m.id);
-                        if (msgObj) {
-                          bodyStr = msgObj.body || msgObj.text || msgObj.caption || '';
-                          if (!bodyStr && msgObj.message && msgObj.message.conversation) bodyStr = msgObj.message.conversation;
-                        }
-                      }
-                    } catch(e) {}
-                    
-                    if (!bodyStr) {
-                      if (m.body) bodyStr = m.body;
-                      else if (m.text) bodyStr = m.text;
-                      else if (m.caption) bodyStr = m.caption;
-                      else if (m.message && m.message.conversation) bodyStr = m.message.conversation;
-                      else if (m.message && m.message.extendedTextMessage) bodyStr = m.message.extendedTextMessage.text;
-                      else if (m.message && m.message.imageMessage) bodyStr = m.message.imageMessage.caption || '';
-                      else if (m.message && m.message.videoMessage) bodyStr = m.message.videoMessage.caption || '';
-                      else if (m.content) bodyStr = typeof m.content === 'string' ? m.content : JSON.stringify(m.content);
-                      // Novas heuristicas:
-                      else if (m.msgChunk) bodyStr = m.msgChunk.text || m.msgChunk.body || '';
-                      else if (m.plaintext) bodyStr = m.plaintext;
-                    }
-                    
-                    let fromMe = false;
-                    if (m.id && typeof m.id === 'string') {
-                       fromMe = m.id.startsWith('true_');
-                    } else if (m.id && typeof m.id === 'object') {
-                       fromMe = !!m.id.fromMe;
-                    } else if (m.fromMe !== undefined) {
-                       fromMe = m.fromMe;
-                    }
-                    
-                    return {
-                      timestamp: m.t,
-                      fromMe: fromMe,
-                      body: bodyStr,
-                      hasMedia: !!(m.isMedia || m.mediaData || m.type === 'image' || m.type === 'audio' || m.type === 'video' || m.type === 'ptt' || (m.message && (m.message.imageMessage || m.message.audioMessage || m.message.videoMessage))),
-                      rawKeys: Object.keys(m).join(',') // salva as chaves para debug se vazio
-                    };
-                  });
-                  
-                // Se ainda tiver corpo vazio na maioria, loga o dump do primeiro para diagnostico
-                const emptyMsgs = msgs.filter(x => !x.body);
-                if (emptyMsgs.length > 0 && msgs.length > 0) {
-                   const sample = filtered.find(m => m.t === emptyMsgs[0].timestamp);
-                   if (sample) {
-                       log.push('Chaves da msg: ' + Object.keys(sample).join(','));
-                       log.push('Dump json completo: ' + JSON.stringify(sample).slice(0, 1000));
-                   }
-                }
                 
                 return { msgs, log };
               } catch(e) {
-                return { msgs: [], log: [...log, 'IDB erro: ' + e.message] };
+                return { msgs: [], log: [...log, 'erro extração memoria: ' + e.message] };
               }
             }, chatId);
             
