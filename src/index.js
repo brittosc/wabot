@@ -384,28 +384,38 @@ async function syncConversationHistory(client) {
                 // Abre o chat para instanciar a conversa
                 if (Store.Cmd && typeof Store.Cmd.openChatAt === "function") {
                   await Store.Cmd.openChatAt(chatObj);
-                  await new Promise(resolve => setTimeout(resolve, 1000));
+                  await new Promise(resolve => setTimeout(resolve, 2000));
                 }
                 
                 // Loop de busca para descer no histórico, até um limite de ~1000 msgs
                 let attempts = 0;
-                while (chatObj.msgs.models.length < 1000 && attempts < 15) {
-                  let loaded = [];
+                let currentLength = chatObj.msgs ? chatObj.msgs.length : 0;
+                
+                while (currentLength < 1000 && attempts < 15) {
+                  const prevLength = currentLength;
                   try {
                     if (Store.ConversationMsgs && typeof Store.ConversationMsgs.loadEarlierMsgs === 'function') {
-                        loaded = await Store.ConversationMsgs.loadEarlierMsgs(chatObj);
+                        await Store.ConversationMsgs.loadEarlierMsgs(chatObj);
                     } else if (typeof chatObj.loadEarlierMsgs === 'function') {
-                        loaded = await chatObj.loadEarlierMsgs();
+                        await chatObj.loadEarlierMsgs();
+                    } else {
+                        break; // Sem função de carregar histórico
                     }
                   } catch (e) {
                       break; // Erro ao puxar mais antigas
                   }
                   
-                  if (!loaded || loaded.length === 0) break; // Acabou o histórico disponível
+                  await new Promise(resolve => setTimeout(resolve, 1000)); // Espera processar o lote no DB
+                  
+                  currentLength = chatObj.msgs ? chatObj.msgs.length : 0;
+                  if (currentLength <= prevLength) {
+                      break; // Não vieram mensagens novas, o histórico acabou
+                  }
                   
                   attempts++;
-                  await new Promise(resolve => setTimeout(resolve, 800)); // Espera processar o lote no DB
                 }
+                
+                if (!chatObj.msgs) return [];
                 
                 return chatObj.msgs.getModelsArray().map(m => ({
                   timestamp: m.t,
