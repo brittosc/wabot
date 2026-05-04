@@ -414,11 +414,26 @@ async function syncConversationHistory(client) {
                 try {
                   if (Store.Cmd && typeof Store.Cmd.openChatAt === "function") {
                     await Store.Cmd.openChatAt(chatObj);
-                    await new Promise(r => setTimeout(r, 3000));
+                    await new Promise(r => setTimeout(r, 2000));
                   }
                 } catch(_) {}
                 
-                // Retorna o que tiver na memória agora
+                // Loop: chama loadEarlierMsgs até não virem mais mensagens
+                let attempts = 0;
+                while (attempts < 20) {
+                  const before = chatObj.msgs.length;
+                  try {
+                    await Store.ConversationMsgs.loadEarlierMsgs(chatObj);
+                  } catch(e) {
+                    break;
+                  }
+                  await new Promise(r => setTimeout(r, 1200));
+                  const after = chatObj.msgs.length;
+                  if (after <= before) break; // Sem novas mensagens, acabou o histórico
+                  attempts++;
+                }
+                
+                // Extrai o que está na memória agora
                 try {
                   const models = chatObj.msgs.getModelsArray();
                   return models.map(m => ({
