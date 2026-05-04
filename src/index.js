@@ -375,79 +375,67 @@ async function syncConversationHistory(client) {
           try {
             const result = await client.pupPage.evaluate(async (cId) => {
               const log = [];
-              const Store = window.Store;
-              const chatObj = Store.Chat.get(cId);
               
-              if (!chatObj) return { msgs: [], log: ['Chat nao encontrado: ' + cId] };
-              if (!chatObj.msgs) return { msgs: [], log: ['chatObj.msgs e undefined'] };
-              
-              // Tenta abrir o chat para inicializar
               try {
-                if (Store.Cmd && typeof Store.Cmd.openChatAt === 'function') {
-                  await Store.Cmd.openChatAt(chatObj);
-                  await new Promise(r => setTimeout(r, 2000));
-                  log.push('openChatAt ok. msgs apos: ' + chatObj.msgs.length);
+                // Abre o banco de dados IndexedDB do WhatsApp Web
+                const db = await new Promise((resolve, reject) => {
+                  const req = indexedDB.open('wawc');
+                  req.onsuccess = e => resolve(e.target.result);
+                  req.onerror = e => reject(e.target.error);
+                });
+                
+                const storeNames = Array.from(db.objectStoreNames);
+                log.push('IDB stores: ' + storeNames.join(','));
+                
+                // Encontra o object store de mensagens
+                const msgStore = storeNames.find(s => s === 'messages' || s === 'msg' || s === 'msgs' || s === 'items');
+                
+                if (!msgStore) {
+                  db.close();
+                  return { msgs: [], log: [...log, 'store de mensagens nao encontrado'] };
                 }
-              } catch(e) { log.push('openChatAt erro: ' + e.message); }
-              
-              // Busca e corrige waitForChatLoading em todos os modulos do Store
-              for (const key of Object.keys(Store)) {
-                try {
-                  const mod = Store[key];
-                  if (mod && typeof mod === 'object' && !Array.isArray(mod)) {
-                    if (mod.loadEarlierMsgs || mod.fetchMessages || mod.getMessages) {
-                      if (!mod.waitForChatLoading) {
-                        mod.waitForChatLoading = () => Promise.resolve();
-                        log.push('patch: Store.' + key);
-                      }
-                    }
-                  }
-                } catch(_) {}
-              }
-              // Tambem tenta direto no chat e na colecao de msgs
-              try { if (!chatObj.waitForChatLoading) chatObj.waitForChatLoading = () => Promise.resolve(); } catch(_) {}
-              try { if (!chatObj.msgs.waitForChatLoading) chatObj.msgs.waitForChatLoading = () => Promise.resolve(); } catch(_) {}
-              
-              // Loga metodos do proto de chatObj.msgs
-              try {
-                const proto = Object.getPrototypeOf(chatObj.msgs);
-                const protoKeys = Object.getOwnPropertyNames(proto).filter(k => typeof chatObj.msgs[k] === 'function');
-                log.push('msgs fns: ' + protoKeys.join(','));
-              } catch(e) { log.push('msgs fns erro: ' + e.message); }
-              
-              // Tenta loadMsgsPromiseLoop como alternativa
-              let attempts = 0;
-              while (attempts < 20) {
-                const before = chatObj.msgs.length;
-                try {
-                  if (typeof Store.ConversationMsgs.loadMsgsPromiseLoop === 'function') {
-                    await Store.ConversationMsgs.loadMsgsPromiseLoop(chatObj.msgs);
+                
+                log.push('usando store: ' + msgStore);
+                
+                // Busca mensagens do chat via IndexedDB
+                const messages = await new Promise((resolve, reject) => {
+                  const tx = db.transaction([msgStore], 'readonly');
+                  const store = tx.objectStore(msgStore);
+                  
+                  // Tenta usar index por chat se existir
+                  const indexNames = Array.from(store.indexNames);
+                  const chatIndex = indexNames.find(i => i.includes('chat') || i.includes('Chat'));
+                  
+                  let req;
+                  if (chatIndex) {
+                    req = store.index(chatIndex).getAll(cId);
                   } else {
-                    log.push('loadMsgsPromiseLoop nao encontrado');
-                    break;
+                    // Sem index: busca tudo e filtra (pode ser lento)
+                    req = store.getAll();
                   }
-                } catch(e) {
-                  log.push('loop[' + attempts + '] erro: ' + e.message);
-                  break;
-                }
-                await new Promise(r => setTimeout(r, 1000));
-                const after = chatObj.msgs.length;
-                log.push('loop[' + attempts + ']: ' + before + ' -> ' + after);
-                if (after <= before) break;
-                attempts++;
-              }
-              
-              // Extrai mensagens
-              try {
-                const msgs = chatObj.msgs.getModelsArray().map(m => ({
-                  timestamp: m.t,
-                  fromMe: m.id ? m.id.fromMe : false,
-                  body: m.body || m.caption || m.text || '',
-                  hasMedia: !!(m.isMedia || m.mediaData)
-                }));
+                  
+                  req.onsuccess = e => resolve(e.target.result);
+                  req.onerror = e => reject(e.target.error);
+                  tx.onerror = e => reject(e.target.error);
+                });
+                
+                db.close();
+                
+                const filtered = chatIndex ? messages : messages.filter(m => m.id && m.id.remote === cId);
+                log.push('msgs no IDB para chat: ' + filtered.length);
+                
+                const msgs = filtered
+                  .sort((a, b) => (a.t || 0) - (b.t || 0))
+                  .map(m => ({
+                    timestamp: m.t,
+                    fromMe: m.id ? m.id.fromMe : false,
+                    body: m.body || m.caption || m.text || '',
+                    hasMedia: !!(m.isMedia || m.mediaData || m.type === 'image' || m.type === 'audio' || m.type === 'video')
+                  }));
+                
                 return { msgs, log };
               } catch(e) {
-                return { msgs: [], log: [...log, 'getModelsArray erro: ' + e.message] };
+                return { msgs: [], log: ['IDB erro: ' + e.message] };
               }
             }, chatId);
             
