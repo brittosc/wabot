@@ -378,6 +378,18 @@ async function syncConversationHistory(client) {
               const Store = window.Store;
               const chatObj = Store.Chat.get(cId);
               
+              const filterMsg = m => {
+                 if (!m) return false;
+                 if (typeof m.id === 'string' && m.id.includes(cId)) return true;
+                 if (m.id && typeof m.id === 'object' && m.id.remote === cId) return true;
+                 if (m.chatId === cId) return true;
+                 if (typeof m.from === 'string' && m.from.includes(cId)) return true;
+                 if (typeof m.to === 'string' && m.to.includes(cId)) return true;
+                 if (m.to && m.to._serialized && m.to._serialized.includes(cId)) return true;
+                 if (m.from && m.from._serialized && m.from._serialized.includes(cId)) return true;
+                 return false;
+              };
+              
               if (!chatObj) return { msgs: [], log: ['Chat nao encontrado: ' + cId] };
               
               // Tenta abrir o chat clicando nele na interface lateral
@@ -453,18 +465,6 @@ async function syncConversationHistory(client) {
                   await new Promise(r => setTimeout(r, 800)); // Aguarda carregar
                   
                   // Verifica o total de mensagens carregadas globalmente para este chat
-                  const filterMsg = m => {
-                     if (!m) return false;
-                     if (typeof m.id === 'string' && m.id.includes(cId)) return true;
-                     if (m.id && typeof m.id === 'object' && m.id.remote === cId) return true;
-                     if (m.chatId === cId) return true;
-                     if (typeof m.from === 'string' && m.from.includes(cId)) return true;
-                     if (typeof m.to === 'string' && m.to.includes(cId)) return true;
-                     if (m.to && m.to._serialized && m.to._serialized.includes(cId)) return true;
-                     if (m.from && m.from._serialized && m.from._serialized.includes(cId)) return true;
-                     return false;
-                  };
-                  
                   const currentMsgs = Store.Msg.getModelsArray().filter(filterMsg);
                   const currentCount = currentMsgs.length;
                   
