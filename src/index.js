@@ -438,16 +438,24 @@ async function syncConversationHistory(client) {
               
               if (scrollPane) {
                 log.push('scrollPane encontrado, iniciando scroll...');
-                let lastMsgCount = chatObj.msgs.length;
+                let lastMsgCount = 0;
                 let unchangedCount = 0;
                 
                 // Rola para cima repetidamente para forçar o carregamento retroativo
                 for (let i = 0; i < 30; i++) {
+                  // Oscila o scroll para garantir que o evento 'scroll' seja detectado pelo React
+                  scrollPane.scrollTop = 50;
+                  scrollPane.dispatchEvent(new Event('scroll'));
+                  await new Promise(r => setTimeout(r, 100));
+                  
                   scrollPane.scrollTop = 0;
                   scrollPane.dispatchEvent(new Event('scroll'));
                   await new Promise(r => setTimeout(r, 800)); // Aguarda carregar
                   
-                  const currentCount = chatObj.msgs.length;
+                  // Verifica o total de mensagens carregadas globalmente para este chat
+                  const currentMsgs = Store.Msg.getModelsArray().filter(m => m.id && (m.id.remote === cId || m.id.remoteJid === cId || (m.chatId && m.chatId === cId) || (m.to === cId) || (m.from === cId)));
+                  const currentCount = currentMsgs.length;
+                  
                   if (currentCount > lastMsgCount) {
                     log.push(`scroll ${i}: ${lastMsgCount} -> ${currentCount}`);
                     lastMsgCount = currentCount;
@@ -467,10 +475,10 @@ async function syncConversationHistory(client) {
                 log.push('scrollPane DOM NAO encontrado');
               }
               
-              // Agora extraímos as mensagens do objeto de chat em memória
+              // Agora extraímos as mensagens do cache global (Store.Msg) em vez do chatObj
               try {
-                const rawMsgs = chatObj.msgs.getModelsArray ? chatObj.msgs.getModelsArray() : Array.from(chatObj.msgs);
-                log.push(`extraindo ${rawMsgs.length} msgs da memoria`);
+                const rawMsgs = Store.Msg.getModelsArray().filter(m => m.id && (m.id.remote === cId || m.id.remoteJid === cId || (m.chatId && m.chatId === cId) || (m.to === cId) || (m.from === cId)));
+                log.push(`extraindo ${rawMsgs.length} msgs do Store.Msg global`);
                 
                 const msgs = rawMsgs.map(m => {
                   let bodyStr = m.body || m.text || m.caption || '';
