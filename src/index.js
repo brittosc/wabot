@@ -377,52 +377,89 @@ async function syncConversationHistory(client) {
               const log = [];
               
               try {
-                // Abre o banco de dados IndexedDB do WhatsApp Web
+                // Lista todos os bancos IndexedDB disponíveis
+                const allDbs = await indexedDB.databases();
+                log.push('todos IDBs: ' + allDbs.map(d => d.name).join(','));
+                
+                // Abre cada banco e verifica se tem store de mensagens
+                let msgDbName = null;
+                let msgStoreName = null;
+                
+                for (const dbInfo of allDbs) {
+                  try {
+                    const db = await new Promise((resolve, reject) => {
+                      const req = indexedDB.open(dbInfo.name);
+                      req.onsuccess = e => resolve(e.target.result);
+                      req.onerror = () => resolve(null);
+                    });
+                    if (!db) continue;
+                    
+                    const stores = Array.from(db.objectStoreNames);
+                    const found = stores.find(s => s === 'messages' || s === 'msg' || s === 'msgs' || s === 'message' || s === 'chat_messages');
+                    db.close();
+                    
+                    if (found) {
+                      msgDbName = dbInfo.name;
+                      msgStoreName = found;
+                      break;
+                    }
+                  } catch(_) {}
+                }
+                
+                if (!msgDbName) {
+                  // Exibe stores de todos os bancos para diagnóstico
+                  for (const dbInfo of allDbs.slice(0, 5)) {
+                    try {
+                      const db = await new Promise((resolve, reject) => {
+                        const req = indexedDB.open(dbInfo.name);
+                        req.onsuccess = e => resolve(e.target.result);
+                        req.onerror = () => resolve(null);
+                      });
+                      if (db) {
+                        log.push(dbInfo.name + ' stores: ' + Array.from(db.objectStoreNames).join(','));
+                        db.close();
+                      }
+                    } catch(_) {}
+                  }
+                  return { msgs: [], log: [...log, 'nenhum banco com store de msgs encontrado'] };
+                }
+                
+                log.push('banco encontrado: ' + msgDbName + ' / ' + msgStoreName);
+                
+                // Abre o banco correto e busca as mensagens
                 const db = await new Promise((resolve, reject) => {
-                  const req = indexedDB.open('wawc');
+                  const req = indexedDB.open(msgDbName);
                   req.onsuccess = e => resolve(e.target.result);
                   req.onerror = e => reject(e.target.error);
                 });
                 
-                const storeNames = Array.from(db.objectStoreNames);
-                log.push('IDB stores: ' + storeNames.join(','));
-                
-                // Encontra o object store de mensagens
-                const msgStore = storeNames.find(s => s === 'messages' || s === 'msg' || s === 'msgs' || s === 'items');
-                
-                if (!msgStore) {
-                  db.close();
-                  return { msgs: [], log: [...log, 'store de mensagens nao encontrado'] };
-                }
-                
-                log.push('usando store: ' + msgStore);
-                
-                // Busca mensagens do chat via IndexedDB
                 const messages = await new Promise((resolve, reject) => {
-                  const tx = db.transaction([msgStore], 'readonly');
-                  const store = tx.objectStore(msgStore);
-                  
-                  // Tenta usar index por chat se existir
+                  const tx = db.transaction([msgStoreName], 'readonly');
+                  const store = tx.objectStore(msgStoreName);
                   const indexNames = Array.from(store.indexNames);
-                  const chatIndex = indexNames.find(i => i.includes('chat') || i.includes('Chat'));
+                  const chatIndex = indexNames.find(i => i.includes('chat') || i.includes('Chat') || i.includes('remote'));
                   
                   let req;
                   if (chatIndex) {
                     req = store.index(chatIndex).getAll(cId);
+                    log.push('usando index: ' + chatIndex);
                   } else {
-                    // Sem index: busca tudo e filtra (pode ser lento)
                     req = store.getAll();
                   }
                   
                   req.onsuccess = e => resolve(e.target.result);
                   req.onerror = e => reject(e.target.error);
-                  tx.onerror = e => reject(e.target.error);
                 });
                 
                 db.close();
                 
-                const filtered = chatIndex ? messages : messages.filter(m => m.id && m.id.remote === cId);
-                log.push('msgs no IDB para chat: ' + filtered.length);
+                const filtered = messages.filter(m => {
+                  if (!m.id) return false;
+                  const remote = m.id.remote || m.chatId || m.remoteJid || '';
+                  return remote === cId || remote.includes(cId.split('@')[0]);
+                });
+                
+                log.push('msgs filtradas para chat: ' + filtered.length);
                 
                 const msgs = filtered
                   .sort((a, b) => (a.t || 0) - (b.t || 0))
@@ -435,7 +472,7 @@ async function syncConversationHistory(client) {
                 
                 return { msgs, log };
               } catch(e) {
-                return { msgs: [], log: ['IDB erro: ' + e.message] };
+                return { msgs: [], log: [...log, 'IDB erro: ' + e.message] };
               }
             }, chatId);
             
