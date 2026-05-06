@@ -5,6 +5,8 @@ const dashboard = require("./dashboard");
 const configService = require("./configService");
 const supabase = require("../database/supabaseClient");
 
+let isSending = false;
+
 const getDaysOfWeekDesc = (dayNumber) => {
   const days = [
     "domingo",
@@ -47,6 +49,11 @@ const markAsSent = async (dateStr) => {
 };
 
 const sendPolls = async (sock) => {
+  if (isSending) {
+    dashboard.addLog("Tentativa de envio ignorada: processo já em andamento.");
+    return;
+  }
+  isSending = true;
   try {
     const config = configService.getConfig();
 
@@ -139,6 +146,8 @@ const sendPolls = async (sock) => {
     }
   } catch (error) {
     dashboard.addLog(`Erro no cronJob: ${error.message}`);
+  } finally {
+    isSending = false;
   }
 };
 
@@ -146,14 +155,21 @@ const scheduleJob = (sock) => {
   const config = configService.getConfig();
   const time = config.pollTime || "05:30";
   const [hour, minute] = time.split(":");
+  const targetHour = parseInt(hour, 10);
+  const targetMinute = parseInt(minute, 10);
 
-  // Cron principal: dispara apenas no horário exato de envio
-  cron.schedule(`${minute} ${hour} * * *`, () => {
-    sendPolls(sock);
-  }, { timezone: "America/Sao_Paulo" });
+  // Cron "* * * * *" com verificação manual de horário via moment-timezone.
+  // Mais confiável que a opção { timezone } do node-cron, que depende de luxon.
+  // O callback é mínimo (apenas comparação) — não causa "Possible Blocking IO".
+  cron.schedule("* * * * *", () => {
+    const now = moment().tz("America/Sao_Paulo");
+    if (now.hours() === targetHour && now.minutes() === targetMinute) {
+      sendPolls(sock);
+    }
+  });
 
   // Atualiza o display de próxima enquete a cada minuto via setInterval nativo
-  // (não usa node-cron para evitar o aviso de "Possible Blocking IO")
+  // (separado do cron para manter o callback do cron absolutamente leve)
   updateNextPollDisplay(hour, minute);
   setInterval(() => {
     updateNextPollDisplay(hour, minute);
@@ -224,7 +240,9 @@ const checkMissedSends = async (sock) => {
     .minutes(minute)
     .seconds(0);
 
-  if (now.isAfter(targetTime)) {
+  // Só dispara se estivermos pelo menos 2 minutos atrasados.
+  // Isso evita corrida com o cron regular se o bot inicializar exatamente no minuto do envio.
+  if (now.isAfter(targetTime.clone().add(2, "minutes"))) {
     dashboard.addLog("Verificando se houve envio pendente para hoje.");
     await sendPolls(sock);
   }
