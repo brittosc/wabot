@@ -42,9 +42,15 @@ async function startBot() {
     dashboard.addLog("Bot conectado com sucesso!");
     dashboard.setQrCode(""); // Limpa QR
 
-    // Inicia o cronJob com a instância do client
-    cronJob.scheduleJob(client);
-    cronJob.checkMissedSends(client);
+    // Garante que o agendamento e o check só ocorram uma única vez
+    if (!global.isInitialized) {
+      dashboard.addLog("Iniciando serviços de agendamento...");
+      cronJob.scheduleJob(client);
+      cronJob.checkMissedSends(client);
+      global.isInitialized = true;
+    } else {
+      dashboard.addLog("Serviços já inicializados anteriormente.");
+    }
 
     // Atualiza ocupação inicial no terminal
     const currentStats = await statistics.readStats();
