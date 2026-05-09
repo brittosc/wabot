@@ -1,8 +1,8 @@
 const fs = require('fs');
 let html = fs.readFileSync('public/estatisticas.html', 'utf8');
 
-const dataBlockStart = '\n        let rawDB = ';
-const dataBlockEnd = '\n        \n        // Previsão do Tempo (Open-Meteo via Backend)';
+const dataBlockStart = '        // === CONFIGURAÇÃO DO BACKEND ===';
+const dataBlockEnd = '        // Previsão do Tempo (Open-Meteo via Backend)';
 const startIdx = html.indexOf(dataBlockStart);
 const endIdx = html.indexOf(dataBlockEnd);
 
