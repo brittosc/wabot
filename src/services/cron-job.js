@@ -5,6 +5,15 @@ const dashboard = require("./dashboard");
 const configService = require("./configService");
 const supabase = require("../database/supabaseClient");
 
+const INFO_MESSAGE = `Prezados alunos, 
+
+Informamos que o registro de participação na enquete disponibilizada no grupo é obrigatório, uma vez que ela constitui a relação oficial de passageiros do transporte.
+
+Solicitamos que a confirmação seja realizada impreterivelmente até as 18h. As manifestações efetuadas após esse horário não serão consideradas para fins de composição da lista de passageiros, em razão da necessidade de observância dos procedimentos administrativos e das exigências legais aplicáveis ao serviço de transporte.
+
+Contamos com a colaboração de todos para o adequado funcionamento do serviço.`;
+
+
 let isSending = false;
 
 const getDaysOfWeekDesc = (dayNumber) => {
@@ -115,6 +124,8 @@ const sendPolls = async (sock) => {
           );
 
           await group.sendMessage(poll);
+          await group.sendMessage(INFO_MESSAGE);
+
 
           if (dayOfWeek === 5) {
             await group.sendMessage(
