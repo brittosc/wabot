@@ -168,26 +168,46 @@ const processData = (targetGroup, targetDaysStr) => {
         barData.push(dayTotal);
         accumTotalVotes += dayTotal;
 
-        if (dayTotal > 0) {
-            const dow = day.day();
-            weekdayPresence[dow].presence += dayCounts["Irei, ida e volta."] + dayCounts["Irei, mas não retornarei."] + dayCounts["Não irei, apenas retornarei."];
-            weekdayPresence[dow].absence += dayCounts["Não irei à faculdade hoje."];
-            weekdayPresence[dow].days += 1;
+    // Cálculo da Média de Presença Real (Apenas votos positivos / dias com dados)
+    let totalPresenceVotes = 0;
+    let daysWithData = 0;
+
+    for (let i = targetDays - 1; i >= 0; i--) {
+        const day = todayMoment.clone().subtract(i, 'days');
+        const dateStr = day.format('YYYY-MM-DD');
+        
+        if (rawDB[dateStr]) {
+            const dayEntry = rawDB[dateStr];
+            let dailyPresence = 0;
+            
+            // Extrai grupos do dia
+            let groupsToProcess = [];
+            if (dayEntry.Version2 && dayEntry.grupos) {
+                if (targetGroup === "Todos") groupsToProcess = Object.values(dayEntry.grupos);
+                else if (dayEntry.grupos[targetGroup]) groupsToProcess = [dayEntry.grupos[targetGroup]];
+            } else if (!dayEntry.Version2) {
+                if (targetGroup === "Todos" || targetGroup === "Grupo Geral (Legado)") groupsToProcess = [dayEntry];
+            }
+
+            groupsToProcess.forEach(groupPayload => {
+                if (!groupPayload.votes) return;
+                Object.values(groupPayload.votes).forEach(v => {
+                    const opt = typeof v === 'object' ? v.option : v;
+                    if (opt === "Irei, ida e volta." || opt === "Irei, mas não retornarei." || opt === "Não irei, apenas retornarei.") {
+                        dailyPresence++;
+                    }
+                });
+            });
+
+            if (dailyPresence > 0) {
+                totalPresenceVotes += dailyPresence;
+                daysWithData++;
+            }
         }
     }
 
-    let bestDay = { dow: -1, avg: -1 }, worstDay = { dow: -1, avg: -1 };
-    for (let d = 1; d <= 5; d++) {
-        if (weekdayPresence[d].days > 0) {
-            const avgPresence = weekdayPresence[d].presence / weekdayPresence[d].days;
-            const avgAbsence = weekdayPresence[d].absence / weekdayPresence[d].days;
-            if (avgPresence > bestDay.avg) bestDay = { dow: d, avg: avgPresence };
-            if (avgAbsence > worstDay.avg) worstDay = { dow: d, avg: avgAbsence };
-        }
-    }
-
-    if (bestDay.dow !== -1) { document.getElementById("hlWeekdayPeakVal").innerText = daysOfWeekBR[bestDay.dow]; document.getElementById("hlWeekdayPeakDate").innerText = ""; }
-    if (worstDay.dow !== -1) { document.getElementById("hlWeekdayValleyVal").innerText = daysOfWeekBR[worstDay.dow]; document.getElementById("hlWeekdayValleyDate").innerText = ""; }
+    const avgPresence = daysWithData > 0 ? totalPresenceVotes / daysWithData : 0;
+    document.getElementById("lblAverage").innerText = avgPresence.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
     document.getElementById("lblTotalVotes").innerText = accumTotalVotes.toLocaleString('pt-BR');
     const totalTitle = document.getElementById("lblTotalVotesTitle");
@@ -216,13 +236,6 @@ const processData = (targetGroup, targetDaysStr) => {
     setHighlight("hlSoIdaMinVal", "hlSoIdaMinDate", valleySoIda);
     setHighlight("hlSoVoltaVal", "hlSoVoltaDate", peakSoVolta);
     setHighlight("hlSoVoltaMinVal", "hlSoVoltaMinDate", valleySoVolta);
-    let businessDaysCount = 0;
-    for (let i = targetDays - 1; i >= 0; i--) {
-        const dow = todayMoment.clone().subtract(i, 'days').day();
-        if (dow >= 1 && dow <= 5) businessDaysCount++;
-    }
-    const avgPerBusinessDay = businessDaysCount > 0 ? accumTotalVotes / businessDaysCount : 0;
-    document.getElementById("lblAverage").innerText = avgPerBusinessDay.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
     updateCapacityCard(targetGroup);
     updateNextPollsCalendar();

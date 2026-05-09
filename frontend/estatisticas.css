@@ -140,7 +140,9 @@ select:hover {
         gap: 15px;
     }
     .card {
-        flex: 1 1 100%;
+        flex: 1 1 100% !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
     }
     .card h2 {
         font-size: 1rem;
