@@ -106,6 +106,8 @@ const processData = (targetGroup, targetDaysStr) => {
         "Não irei à faculdade hoje.": 0
     };
     let accumTotalVotes = 0;
+    let accumTotalPresence = 0;
+    let daysWithData = 0;
     let weekdayPresence = {
         0: { presence: 0, absence: 0, days: 0 }, 1: { presence: 0, absence: 0, days: 0 },
         2: { presence: 0, absence: 0, days: 0 }, 3: { presence: 0, absence: 0, days: 0 },
@@ -168,9 +170,16 @@ const processData = (targetGroup, targetDaysStr) => {
         barData.push(dayTotal);
         accumTotalVotes += dayTotal;
 
+        // Soma apenas quem vai usar o ônibus (Ida/Volta, Só Ida ou Só Volta)
+        const dayPresence = dayCounts["Irei, ida e volta."] + 
+                           dayCounts["Irei, mas não retornarei."] + 
+                           dayCounts["Não irei, apenas retornarei."];
+        accumTotalPresence += dayPresence;
+
         if (dayTotal > 0) {
+            daysWithData++;
             const dow = day.day();
-            weekdayPresence[dow].presence += dayCounts["Irei, ida e volta."] + dayCounts["Irei, mas não retornarei."] + dayCounts["Não irei, apenas retornarei."];
+            weekdayPresence[dow].presence += dayPresence;
             weekdayPresence[dow].absence += dayCounts["Não irei à faculdade hoje."];
             weekdayPresence[dow].days += 1;
         }
@@ -216,13 +225,9 @@ const processData = (targetGroup, targetDaysStr) => {
     setHighlight("hlSoIdaMinVal", "hlSoIdaMinDate", valleySoIda);
     setHighlight("hlSoVoltaVal", "hlSoVoltaDate", peakSoVolta);
     setHighlight("hlSoVoltaMinVal", "hlSoVoltaMinDate", valleySoVolta);
-    let businessDaysCount = 0;
-    for (let i = targetDays - 1; i >= 0; i--) {
-        const dow = todayMoment.clone().subtract(i, 'days').day();
-        if (dow >= 1 && dow <= 5) businessDaysCount++;
-    }
-    const avgPerBusinessDay = businessDaysCount > 0 ? accumTotalVotes / businessDaysCount : 0;
-    document.getElementById("lblAverage").innerText = avgPerBusinessDay.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+    // Média baseada apenas em dias que tiveram votação e apenas em quem confirmou presença
+    const avgPresence = daysWithData > 0 ? accumTotalPresence / daysWithData : 0;
+    document.getElementById("lblAverage").innerText = avgPresence.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
     updateCapacityCard(targetGroup);
     updateNextPollsCalendar();
