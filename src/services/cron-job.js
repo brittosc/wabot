@@ -257,4 +257,28 @@ const checkMissedSends = async (sock) => {
   }
 };
 
-module.exports = { scheduleJob, sendPolls, checkMissedSends };
+/**
+ * Sincroniza o total de enquetes enviadas com o histórico do Supabase.
+ */
+const syncTotalSent = async () => {
+  try {
+    const config = configService.getConfig();
+    const targetGroups = config.targetGroups || [];
+    const numGroups = targetGroups.length;
+
+    // Conta quantos dias de enquetes temos no histórico
+    const { count, error } = await supabase
+      .from("poll_history")
+      .select("*", { count: "exact", head: true });
+
+    if (error) throw error;
+
+    const totalHistorical = (count || 0) * numGroups;
+    dashboard.setTotalSent(totalHistorical);
+    dashboard.addLog(`Sincronizado histórico de enquetes: ${totalHistorical} enviadas.`);
+  } catch (err) {
+    dashboard.addLog(`Erro ao sincronizar histórico: ${err.message}`);
+  }
+};
+
+module.exports = { scheduleJob, sendPolls, checkMissedSends, syncTotalSent };
