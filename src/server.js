@@ -5,11 +5,7 @@ const dashboard = require("./services/dashboard");
 const { withRetry } = require("./services/utils");
 const moment = require("moment-timezone");
 
-// Cache de Clima (1 hora)
-let weatherCache = {
-  data: [],
-  lastUpdate: null,
-};
+const weatherService = require("./services/weather");
 
 const startServer = () => {
   const port = process.env.PORT || 3001;
@@ -39,45 +35,7 @@ const startServer = () => {
         const stats = await readStats();
         const passengers = await readPassengers();
         const config = configService.getConfig();
-
-        // Busca clima via backend com cache de 1 hora
-        const oneHour = 60 * 60 * 1000;
-        const now = Date.now();
-        if (
-          !weatherCache.lastUpdate ||
-          now - weatherCache.lastUpdate > oneHour
-        ) {
-          try {
-            await withRetry(
-              async () => {
-                const weatherRes = await fetch(
-                  "https://api.open-meteo.com/v1/forecast?latitude=-28.6775&longitude=-49.3703&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=America%2FSao_Paulo",
-                );
-                if (weatherRes.ok) {
-                  const d = await weatherRes.json();
-                  if (d && d.daily) {
-                    weatherCache.data = d.daily.time.map((time, i) => ({
-                      date: moment(time).format("DD/MM"),
-                      max: Math.round(d.daily.temperature_2m_max[i]),
-                      min: Math.round(d.daily.temperature_2m_min[i]),
-                      condition_code: d.daily.weather_code[i],
-                    }));
-                    weatherCache.lastUpdate = now;
-                  }
-                } else {
-                  throw new Error(`HTTP ${weatherRes.status}`);
-                }
-              },
-              5,
-              1000,
-              "Clima",
-            );
-          } catch (we) {
-            dashboard.addLog(
-              `Erro ao buscar clima no Open-Meteo: ${we.message}`,
-            );
-          }
-        }
+        const weather = weatherService.getWeatherData();
 
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(
@@ -87,8 +45,8 @@ const startServer = () => {
             isPollSentToday: !!stats.isPollSentToday,
             capacities: config.groupCapacities || {},
             aliases: config.groupAliases || {},
-            weather: weatherCache.data,
-            weatherLastUpdate: weatherCache.lastUpdate,
+            weather: weather.data,
+            weatherLastUpdate: weather.lastUpdate,
             pollTime: config.pollTime || "05:30",
             skipDates: config.skipDates || {},
           }),
