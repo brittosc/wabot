@@ -31,13 +31,15 @@ const getDaysOfWeekDesc = (dayNumber) => {
 /**
  * Verifica no Supabase se as enquetes já foram enviadas na data informada.
  * @param {string} dateStr - Data no formato YYYY-MM-DD
+ * @param {string} groupName - Nome do grupo
  * @returns {Promise<boolean>}
  */
-const hasSentToday = async (dateStr) => {
+const hasSentToday = async (dateStr, groupName) => {
   const { data, error } = await supabase
     .from("poll_history")
     .select("poll_date")
     .eq("poll_date", dateStr)
+    .eq("group_name", groupName)
     .maybeSingle();
 
   if (error) throw error;
@@ -47,11 +49,15 @@ const hasSentToday = async (dateStr) => {
 /**
  * Registra no Supabase que as enquetes foram enviadas na data informada.
  * @param {string} dateStr - Data no formato YYYY-MM-DD
+ * @param {string} groupName - Nome do grupo
  */
-const markAsSent = async (dateStr) => {
+const markAsSent = async (dateStr, groupName) => {
   const { error } = await supabase
     .from("poll_history")
-    .upsert({ poll_date: dateStr }, { onConflict: "poll_date" });
+    .upsert(
+      { poll_date: dateStr, group_name: groupName },
+      { onConflict: "poll_date, group_name" },
+    );
 
   if (error) throw error;
 };
@@ -88,13 +94,6 @@ const sendPolls = async (sock) => {
       return;
     }
 
-    // Verifica no Supabase se já foi enviado hoje
-    const alreadySent = await hasSentToday(todayStr);
-    if (alreadySent && !forceNow) {
-      dashboard.addLog(`Enquete já enviada hoje (${todayStr}). Pulando.`);
-      return;
-    }
-
     dashboard.addLog("Iniciando o envio de enquetes...");
 
     const chats = await sock.getChats();
@@ -104,6 +103,13 @@ const sendPolls = async (sock) => {
     let sentCount = 0;
 
     for (const targetName of targetGroupNames) {
+      // Verifica no Supabase se já foi enviado para ESTE grupo hoje
+      const alreadySent = await hasSentToday(todayStr, targetName);
+      if (alreadySent && !forceNow) {
+        dashboard.addLog(`Enquete já enviada hoje para o grupo ${targetName}. Pulando.`);
+        continue;
+      }
+
       const group = allGroups.find((g) => g.name === targetName);
       if (group) {
         const ptDay = getDaysOfWeekDesc(dayOfWeek);
@@ -131,6 +137,9 @@ const sendPolls = async (sock) => {
             );
           }
 
+          // Registra no Supabase o envio individual para este grupo
+          await markAsSent(todayStr, targetName);
+
           dashboard.addLog(`Enquete enviada para o grupo: ${targetName}`);
           dashboard.incrementTotalSent();
           sentCount++;
@@ -145,12 +154,10 @@ const sendPolls = async (sock) => {
     }
 
     if (sentCount > 0) {
-      // Registra no Supabase que o envio foi realizado hoje
-      await markAsSent(todayStr);
-      dashboard.addLog(`Envios do dia ${todayStr} registrados com sucesso!`);
+      dashboard.addLog(`Envios do dia ${todayStr} concluídos com sucesso!`);
     } else {
       dashboard.addLog(
-        "Nenhuma enquete foi enviada (nenhum grupo válido encontrado).",
+        "Nenhuma enquete foi enviada (nenhum grupo válido encontrado ou já enviados hoje).",
       );
     }
   } catch (error) {
@@ -262,18 +269,14 @@ const checkMissedSends = async (sock) => {
  */
 const syncTotalSent = async () => {
   try {
-    const config = configService.getConfig();
-    const targetGroups = config.targetGroups || [];
-    const numGroups = targetGroups.length;
-
-    // Conta quantos dias de enquetes temos no histórico
+    // Agora cada linha em poll_history representa um envio individual para um grupo
     const { count, error } = await supabase
       .from("poll_history")
       .select("*", { count: "exact", head: true });
 
     if (error) throw error;
 
-    const totalHistorical = (count || 0) * numGroups;
+    const totalHistorical = count || 0;
     dashboard.setTotalSent(totalHistorical);
     dashboard.addLog(`Sincronizado histórico de enquetes: ${totalHistorical} enviadas.`);
   } catch (err) {
