@@ -116,7 +116,7 @@ const renderCharts = (barLabels, barData, pieCountsMap, stackedData) => {
                     responsive: true, maintainAspectRatio: false,
                     animation: { ...CHART_ANIMATION },
                     scales: {
-                        y: { beginAtZero: true, grid: { drawTicks: false }, border: { display: false } },
+                        y: { beginAtZero: true, grace: 10, grid: { drawTicks: false }, border: { display: false } },
                         x: { grid: { display: false }, border: { display: false } }
                     },
                     plugins: { 
