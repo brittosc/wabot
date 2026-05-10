@@ -112,6 +112,11 @@ class Dashboard {
     this.requestRender();
   }
 
+  setTotalSent(count) {
+    this.totalSent = count;
+    this.requestRender();
+  }
+
   clearScreen() {
     process.stdout.write("\x1b[2J\x1b[1;1H");
     this.initialized = false;
