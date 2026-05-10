@@ -90,6 +90,12 @@ const renderCharts = (barLabels, barData, pieCountsMap, stackedData) => {
             const dataArr = barChartIns.data.datasets[0].data;
             for (let i = 0; i < barData.length; i++) dataArr[i] = barData[i];
             dataArr.length = barData.length;
+            
+            // Garante que a margem de +10 seja aplicada na atualização
+            if (barChartIns.options.scales.y) {
+                barChartIns.options.scales.y.grace = 10;
+            }
+            
             barChartIns.reset(); // Força a animação de entrada novamente
             barChartIns.update();
         } else {
