@@ -11,7 +11,6 @@ const { startServer } = require("./server");
 
 async function startBot() {
   dashboard.setStatus("Processando inicialização...");
-  dashboard.addLog("Preparando cliente WhatsApp via whatsapp-web.js");
 
   const client = new Client({
     authStrategy: new LocalAuth({ dataPath: "./auth_info" }),
@@ -39,12 +38,10 @@ async function startBot() {
 
   client.on("ready", async () => {
     dashboard.setStatus("Conectado!");
-    dashboard.addLog("Bot conectado com sucesso!");
     dashboard.setQrCode(""); // Limpa QR
 
     // Garante que o agendamento e o check só ocorram uma única vez
     if (!global.isInitialized) {
-      dashboard.addLog("Iniciando serviços de agendamento...");
       cronJob.scheduleJob(client);
       cronJob.checkMissedSends(client);
       cronJob.syncTotalSent(); // Sincroniza total de enquetes do Supabase
@@ -142,7 +139,7 @@ async function startBot() {
   });
 
   client.on("authenticated", () => {
-    dashboard.addLog("Autenticação preservada. Sessão já aberta!");
+    // Autenticação preservada
   });
 
   client.on("auth_failure", (msg) => {

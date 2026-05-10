@@ -107,7 +107,6 @@ const startServer = () => {
 
   server.listen(port, "0.0.0.0", () => {
     dashboard.setServerUrl(`http://0.0.0.0:${port}`);
-    dashboard.addLog(`API rodando na porta ${port}`);
   });
 };
 

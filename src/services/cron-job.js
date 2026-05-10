@@ -278,7 +278,6 @@ const syncTotalSent = async () => {
 
     const totalHistorical = count || 0;
     dashboard.setTotalSent(totalHistorical);
-    dashboard.addLog(`Sincronizado histórico de enquetes: ${totalHistorical} enviadas.`);
   } catch (err) {
     dashboard.addLog(`Erro ao sincronizar histórico: ${err.message}`);
   }
