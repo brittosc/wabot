@@ -80,6 +80,7 @@ const initSelects = () => {
 
     document.getElementById("copyrightYear").innerText = new Date().getFullYear();
 };
+window.initSelects = initSelects;
 
 const updateChartsOnly = () => {
     const grp = document.getElementById("groupSelect").value;
@@ -167,6 +168,7 @@ const processData = (targetGroup, targetDaysStr) => {
         Object.keys(stackedData).forEach(k => stackedData[k].push(dayCounts[k]));
         barData.push(dayTotal);
         accumTotalVotes += dayTotal;
+    }
 
     // Cálculo da Média de Presença Real (Apenas votos positivos / dias com dados)
     let totalPresenceVotes = 0;
@@ -242,6 +244,7 @@ const processData = (targetGroup, targetDaysStr) => {
     updateVoteFeed(targetGroup);
     renderCharts(barLabels, barData, globalOptionCounts, stackedData);
 };
+window.processData = processData;
 
 const calculateAverageInterval = (timestamps) => {
     const label = document.getElementById("lblAvgVoteTime");
