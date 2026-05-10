@@ -12,18 +12,39 @@ const normalizePhone = (p) => {
 
 const readStats = async () => {
   try {
-    const { data: rows, error } = await withRetry(() => 
-      supabase
-        .from("votes")
-        .select("voter_id, group_name, vote_date, option, poll_name, voter_name, created_at")
-        .order("vote_date", { ascending: false })
-        .limit(10000)
-    , 5, 1000, "Supabase:Votes");
+    let allRows = [];
+    let from = 0;
+    const step = 1000;
+    let hasMore = true;
 
-    if (error) throw error;
+    while (hasMore) {
+      const { data: rows, error } = await withRetry(() => 
+        supabase
+          .from("votes")
+          .select("voter_id, group_name, vote_date, option, poll_name, voter_name, created_at")
+          .order("vote_date", { ascending: false })
+          .range(from, from + step - 1)
+      , 5, 1000, `Supabase:Votes:Batch:${from}`);
+
+      if (error) throw error;
+      
+      if (rows && rows.length > 0) {
+        allRows = allRows.concat(rows);
+        if (rows.length < step) {
+          hasMore = false;
+        } else {
+          from += step;
+        }
+      } else {
+        hasMore = false;
+      }
+      
+      // Limite de segurança para evitar loops infinitos
+      if (from > 100000) break;
+    }
 
     const stats = {};
-    rows.forEach((row) => {
+    allRows.forEach((row) => {
       const date = row.vote_date; // 'YYYY-MM-DD'
       if (!stats[date]) {
         stats[date] = { Version2: true, grupos: {} };
