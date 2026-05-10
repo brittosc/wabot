@@ -47,6 +47,7 @@ async function startBot() {
       dashboard.addLog("Iniciando serviços de agendamento...");
       cronJob.scheduleJob(client);
       cronJob.checkMissedSends(client);
+      cronJob.syncTotalSent(); // Sincroniza total de enquetes do Supabase
       global.isInitialized = true;
     } else {
       dashboard.addLog("Serviços já inicializados anteriormente.");
