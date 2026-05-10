@@ -167,6 +167,8 @@ const sendPolls = async (sock) => {
   }
 };
 
+const weatherService = require("./weather");
+
 const scheduleJob = (sock) => {
   const config = configService.getConfig();
   const time = config.pollTime || "05:30";
@@ -175,17 +177,23 @@ const scheduleJob = (sock) => {
   const targetMinute = parseInt(minute, 10);
 
   // Cron "* * * * *" com verificação manual de horário via moment-timezone.
-  // Mais confiável que a opção { timezone } do node-cron, que depende de luxon.
-  // O callback é mínimo (apenas comparação) — não causa "Possible Blocking IO".
   cron.schedule("* * * * *", () => {
     const now = moment().tz("America/Sao_Paulo");
+    
+    // Envio de enquetes
     if (now.hours() === targetHour && now.minutes() === targetMinute) {
       sendPolls(sock);
+    }
+
+    // Atualização de clima às 00:00, 06:00, 12:00, 18:00
+    const h = now.hours();
+    const m = now.minutes();
+    if (m === 0 && [0, 6, 12, 18].includes(h)) {
+      weatherService.updateWeather();
     }
   });
 
   // Atualiza o display de próxima enquete a cada minuto via setInterval nativo
-  // (separado do cron para manter o callback do cron absolutamente leve)
   updateNextPollDisplay(hour, minute);
   setInterval(() => {
     updateNextPollDisplay(hour, minute);
