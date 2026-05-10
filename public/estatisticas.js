@@ -204,12 +204,43 @@ const processData = (targetGroup, targetDaysStr) => {
             if (dailyPresence > 0) {
                 totalPresenceVotes += dailyPresence;
                 daysWithData++;
+
+                const dow = day.day();
+                weekdayPresence[dow].presence += dailyPresence;
+                weekdayPresence[dow].days++;
             }
         }
     }
 
     const avgPresence = daysWithData > 0 ? totalPresenceVotes / daysWithData : 0;
     document.getElementById("lblAverage").innerText = avgPresence.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
+    // Destaques de dias da semana
+    let peakWeekday = { val: -1, day: "" }, valleyWeekday = { val: Infinity, day: "" };
+    Object.keys(weekdayPresence).forEach(d => {
+        const wp = weekdayPresence[d];
+        if (wp.days > 0) {
+            const avg = wp.presence / wp.days;
+            if (avg > peakWeekday.val) { peakWeekday.val = avg; peakWeekday.day = daysOfWeekBR[d]; }
+            if (avg < valleyWeekday.val) { valleyWeekday.val = avg; valleyWeekday.day = daysOfWeekBR[d]; }
+        }
+    });
+
+    const setWkHighlight = (valId, dateId, obj) => {
+        const vEl = document.getElementById(valId);
+        const dEl = document.getElementById(dateId);
+        if (vEl && dEl) {
+            if (obj.val !== -1 && obj.val !== Infinity) {
+                vEl.innerText = obj.day;
+                dEl.innerText = "Média: " + obj.val.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + " presenças";
+            } else {
+                vEl.innerText = "-";
+                dEl.innerText = "Sem dados";
+            }
+        }
+    };
+    setWkHighlight("hlWeekdayPeakVal", "hlWeekdayPeakDate", peakWeekday);
+    setWkHighlight("hlWeekdayValleyVal", "hlWeekdayValleyDate", valleyWeekday);
 
     document.getElementById("lblTotalVotes").innerText = accumTotalVotes.toLocaleString('pt-BR');
     const totalTitle = document.getElementById("lblTotalVotesTitle");
