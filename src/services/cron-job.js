@@ -105,14 +105,11 @@ const sendPolls = async (sock) => {
     // Verifica no Supabase se já houve QUALQUER envio hoje (trava global)
     const alreadySentAny = await hasSentToday(todayStr);
     if (alreadySentAny && !forceNow) {
-      dashboard.addLog(
-        `Enquetes já foram enviadas hoje (${todayStr}). Pulando todos os grupos para evitar duplicidade.`,
-      );
+      dashboard.addLog(`Enquetes já foram enviadas hoje (${todayStr}).`);
       return;
     }
 
     for (const targetName of targetGroupNames) {
-
       const group = allGroups.find((g) => g.name === targetName);
       if (group) {
         const ptDay = getDaysOfWeekDesc(dayOfWeek);
@@ -182,7 +179,7 @@ const scheduleJob = (sock) => {
   // Cron "* * * * *" com verificação manual de horário via moment-timezone.
   cron.schedule("* * * * *", () => {
     const now = moment().tz("America/Sao_Paulo");
-    
+
     // Envio de enquetes
     if (now.hours() === targetHour && now.minutes() === targetMinute) {
       sendPolls(sock);
