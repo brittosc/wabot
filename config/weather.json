@@ -1,15 +1,9 @@
 {
   "data": [
     {
-      "date": "10/05",
-      "max": 17,
-      "min": 8,
-      "condition_code": 3
-    },
-    {
       "date": "11/05",
       "max": 19,
-      "min": 4,
+      "min": 5,
       "condition_code": 0
     },
     {
@@ -21,27 +15,33 @@
     {
       "date": "13/05",
       "max": 22,
-      "min": 6,
-      "condition_code": 1
-    },
-    {
-      "date": "14/05",
-      "max": 22,
-      "min": 10,
+      "min": 5,
       "condition_code": 3
     },
     {
+      "date": "14/05",
+      "max": 21,
+      "min": 10,
+      "condition_code": 51
+    },
+    {
       "date": "15/05",
-      "max": 20,
-      "min": 16,
+      "max": 19,
+      "min": 15,
       "condition_code": 51
     },
     {
       "date": "16/05",
-      "max": 24,
-      "min": 13,
+      "max": 23,
+      "min": 12,
+      "condition_code": 51
+    },
+    {
+      "date": "17/05",
+      "max": 17,
+      "min": 14,
       "condition_code": 53
     }
   ],
-  "lastUpdate": 1778449015159
+  "lastUpdate": 1778490015024
 }
