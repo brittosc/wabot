@@ -34,12 +34,12 @@ const getDaysOfWeekDesc = (dayNumber) => {
  * @param {string} groupName - Nome do grupo
  * @returns {Promise<boolean>}
  */
-const hasSentToday = async (dateStr, groupName) => {
+const hasSentToday = async (dateStr) => {
   const { data, error } = await supabase
     .from("poll_history")
     .select("poll_date")
     .eq("poll_date", dateStr)
-    .eq("group_name", groupName)
+    .limit(1)
     .maybeSingle();
 
   if (error) throw error;
@@ -102,13 +102,16 @@ const sendPolls = async (sock) => {
     const targetGroupNames = config.targetGroups || [];
     let sentCount = 0;
 
+    // Verifica no Supabase se já houve QUALQUER envio hoje (trava global)
+    const alreadySentAny = await hasSentToday(todayStr);
+    if (alreadySentAny && !forceNow) {
+      dashboard.addLog(
+        `Enquetes já foram enviadas hoje (${todayStr}). Pulando todos os grupos para evitar duplicidade.`,
+      );
+      return;
+    }
+
     for (const targetName of targetGroupNames) {
-      // Verifica no Supabase se já foi enviado para ESTE grupo hoje
-      const alreadySent = await hasSentToday(todayStr, targetName);
-      if (alreadySent && !forceNow) {
-        dashboard.addLog(`Enquete já enviada hoje para o grupo ${targetName}. Pulando.`);
-        continue;
-      }
 
       const group = allGroups.find((g) => g.name === targetName);
       if (group) {
