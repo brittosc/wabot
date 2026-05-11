@@ -126,12 +126,25 @@ class Dashboard {
 
   addLog(message) {
     const time = moment().tz("America/Sao_Paulo").format("HH:mm:ss");
+    const date = moment().tz("America/Sao_Paulo").format("DD/MM/YYYY");
+    
     if (!this.initialized) {
       this.setupScrollRegion();
     }
     process.stdout.write(
       `\x1b[2K\x1b[G  ${chalk.gray(`[${time}]`)} ${message}\n`,
     );
+    
+    try {
+      const fs = require("fs");
+      const path = require("path");
+      const cleanMessage = message.replace(/\x1b\[[0-9;]*m/g, "");
+      const logLine = `[${date} ${time}] ${cleanMessage}\n`;
+      fs.appendFileSync(path.join(process.cwd(), "logs.txt"), logLine, "utf8");
+    } catch (e) {
+      // Falha silenciosa para não quebrar a aplicação caso haja erro de permissão
+    }
+
     // Redesenha o footer fixo imediatamente após o log
     // para evitar que o rodapó de votos apareça duplicado
     this.renderVotesFooter();
