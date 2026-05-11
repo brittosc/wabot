@@ -6,6 +6,7 @@ const updateDash = () => {
     processData(grp, per);
     updateNextPollsCalendar(per);
 };
+window.updateDash = updateDash;
 
 const initNotification = () => {
     if (!("Notification" in window)) return;
@@ -84,6 +85,7 @@ const updateNextPollsCalendar = (limitDays = 7) => {
 
     if (window.lucide) { lucide.createIcons(); }
 };
+window.updateNextPollsCalendar = updateNextPollsCalendar;
 
 let lastDay = moment().format('YYYY-MM-DD');
 

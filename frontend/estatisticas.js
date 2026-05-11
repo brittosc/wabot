@@ -80,6 +80,7 @@ const initSelects = () => {
 
     document.getElementById("copyrightYear").innerText = new Date().getFullYear();
 };
+window.initSelects = initSelects;
 
 const updateChartsOnly = () => {
     const grp = document.getElementById("groupSelect").value;
@@ -119,11 +120,15 @@ const processData = (targetGroup, targetDaysStr) => {
     const daysOfWeekBR = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
     let voteTimestamps = [];
 
+    let totalPresenceVotes = 0;
+    let daysWithData = 0;
+
     for (let i = targetDays - 1; i >= 0; i--) {
         const day = todayMoment.clone().subtract(i, 'days');
         const dateStr = day.format('YYYY-MM-DD');
         const displayDate = day.format('DD/MM');
         barLabels.push(displayDate);
+        
         let dayTotal = 0;
         let dayCounts = {
             "Irei, ida e volta.": 0, "Irei, mas não retornarei.": 0,
@@ -140,19 +145,39 @@ const processData = (targetGroup, targetDaysStr) => {
                 if (targetGroup === "Todos" || targetGroup === "Grupo Geral (Legado)") groupsToProcess = [dayEntry];
             }
 
+            // Deduplicação por JID
+            const dayUniqueVoters = new Map();
             groupsToProcess.forEach(groupPayload => {
                 if (!groupPayload.votes) return;
-                const voters = Object.keys(groupPayload.votes);
-                dayTotal += voters.length;
-                voters.forEach(v => {
-                    const vData = groupPayload.votes[v];
+                Object.entries(groupPayload.votes).forEach(([jid, vData]) => {
                     const opt = typeof vData === 'object' ? vData.option : vData;
-                    if (globalOptionCounts[opt] !== undefined) globalOptionCounts[opt]++;
-                    else globalOptionCounts[opt] = 1;
-                    if (dayCounts[opt] !== undefined) dayCounts[opt]++;
-                    if (typeof vData === 'object' && vData.timestamp) voteTimestamps.push(moment(vData.timestamp));
+                    const ts = typeof vData === 'object' ? vData.timestamp : null;
+                    if (!dayUniqueVoters.has(jid)) {
+                        dayUniqueVoters.set(jid, { opt, ts });
+                    }
                 });
             });
+
+            let dailyPresence = 0;
+            dayUniqueVoters.forEach((vData) => {
+                const opt = vData.opt;
+                dayTotal++;
+                if (globalOptionCounts[opt] !== undefined) globalOptionCounts[opt]++;
+                if (dayCounts[opt] !== undefined) dayCounts[opt]++;
+                if (vData.ts) voteTimestamps.push(moment(vData.ts));
+
+                if (opt === "Irei, ida e volta." || opt === "Irei, mas não retornarei." || opt === "Não irei, apenas retornarei.") {
+                    dailyPresence++;
+                }
+            });
+
+            if (dailyPresence > 0) {
+                totalPresenceVotes += dailyPresence;
+                daysWithData++;
+                const dow = day.day();
+                weekdayPresence[dow].presence += dailyPresence;
+                weekdayPresence[dow].days++;
+            }
         }
 
         const updatePeak = (val, peak, valley, date, total) => {
@@ -167,47 +192,37 @@ const processData = (targetGroup, targetDaysStr) => {
         Object.keys(stackedData).forEach(k => stackedData[k].push(dayCounts[k]));
         barData.push(dayTotal);
         accumTotalVotes += dayTotal;
-
-    // Cálculo da Média de Presença Real (Apenas votos positivos / dias com dados)
-    let totalPresenceVotes = 0;
-    let daysWithData = 0;
-
-    for (let i = targetDays - 1; i >= 0; i--) {
-        const day = todayMoment.clone().subtract(i, 'days');
-        const dateStr = day.format('YYYY-MM-DD');
-        
-        if (rawDB[dateStr]) {
-            const dayEntry = rawDB[dateStr];
-            let dailyPresence = 0;
-            
-            // Extrai grupos do dia
-            let groupsToProcess = [];
-            if (dayEntry.Version2 && dayEntry.grupos) {
-                if (targetGroup === "Todos") groupsToProcess = Object.values(dayEntry.grupos);
-                else if (dayEntry.grupos[targetGroup]) groupsToProcess = [dayEntry.grupos[targetGroup]];
-            } else if (!dayEntry.Version2) {
-                if (targetGroup === "Todos" || targetGroup === "Grupo Geral (Legado)") groupsToProcess = [dayEntry];
-            }
-
-            groupsToProcess.forEach(groupPayload => {
-                if (!groupPayload.votes) return;
-                Object.values(groupPayload.votes).forEach(v => {
-                    const opt = typeof v === 'object' ? v.option : v;
-                    if (opt === "Irei, ida e volta." || opt === "Irei, mas não retornarei." || opt === "Não irei, apenas retornarei.") {
-                        dailyPresence++;
-                    }
-                });
-            });
-
-            if (dailyPresence > 0) {
-                totalPresenceVotes += dailyPresence;
-                daysWithData++;
-            }
-        }
     }
 
     const avgPresence = daysWithData > 0 ? totalPresenceVotes / daysWithData : 0;
     document.getElementById("lblAverage").innerText = avgPresence.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
+    // Destaques de dias da semana
+    let peakWeekday = { val: -1, day: "" }, valleyWeekday = { val: Infinity, day: "" };
+    Object.keys(weekdayPresence).forEach(d => {
+        const wp = weekdayPresence[d];
+        if (wp.days > 0) {
+            const avg = wp.presence / wp.days;
+            if (avg > peakWeekday.val) { peakWeekday.val = avg; peakWeekday.day = daysOfWeekBR[d]; }
+            if (avg < valleyWeekday.val) { valleyWeekday.val = avg; valleyWeekday.day = daysOfWeekBR[d]; }
+        }
+    });
+
+    const setWkHighlight = (valId, dateId, obj) => {
+        const vEl = document.getElementById(valId);
+        const dEl = document.getElementById(dateId);
+        if (vEl && dEl) {
+            if (obj.val !== -1 && obj.val !== Infinity) {
+                vEl.innerText = obj.day;
+                dEl.innerText = "Média: " + obj.val.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + " presenças";
+            } else {
+                vEl.innerText = "-";
+                dEl.innerText = "Sem dados";
+            }
+        }
+    };
+    setWkHighlight("hlWeekdayPeakVal", "hlWeekdayPeakDate", peakWeekday);
+    setWkHighlight("hlWeekdayValleyVal", "hlWeekdayValleyDate", valleyWeekday);
 
     document.getElementById("lblTotalVotes").innerText = accumTotalVotes.toLocaleString('pt-BR');
     const totalTitle = document.getElementById("lblTotalVotesTitle");
@@ -242,6 +257,7 @@ const processData = (targetGroup, targetDaysStr) => {
     updateVoteFeed(targetGroup);
     renderCharts(barLabels, barData, globalOptionCounts, stackedData);
 };
+window.processData = processData;
 
 const calculateAverageInterval = (timestamps) => {
     const label = document.getElementById("lblAvgVoteTime");
