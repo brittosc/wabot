@@ -108,6 +108,14 @@ async function startBot() {
 
       await statistics.registerVote(vote, voterName, photoUrl);
 
+      let groupName = "Desconhecida";
+      try {
+        if (vote.parentMessage) {
+          const chat = await vote.parentMessage.getChat();
+          if (chat && chat.name) groupName = chat.name;
+        }
+      } catch (e) {}
+
       const selectedOption =
         vote.selectedOptions && vote.selectedOptions.length > 0
           ? vote.selectedOptions[0].name
@@ -125,8 +133,9 @@ async function startBot() {
           coloredOption = chalk.red(selectedOption);
         }
 
+        const firstName = voterName ? voterName.split(' ')[0] : 'Alguém';
         dashboard.addLog(
-          `${chalk.gray(`${voterName || vote.voter} fez o seu registro:`)} ${coloredOption}`,
+          `${chalk.gray(`${voterName || vote.voter} fez o seu registro.`)} ${coloredOption} ${chalk.gray(`${firstName} pertence a ${groupName} linha.`)}`
         );
       } else {
         dashboard.addLog(
