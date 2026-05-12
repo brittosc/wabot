@@ -67,10 +67,10 @@ const updateVoteFeed = (targetGroup) => {
                 row.className = "feed-row";
                 const timeStr = vote.timestamp ? moment(vote.timestamp).tz("America/Sao_Paulo").format("HH:mm") : "--:--";
                 const maskedPhone = formatPhone(vote.voter_id.split('@')[0]);
-                let firstName = "Ext";
-                if (vote.voter_name) firstName = vote.voter_name.split(' ')[0];
-                else if (pass && pass.name) firstName = pass.name.split(' ')[0];
-                const displayName = firstName;
+                let fullName = "Ext";
+                if (vote.voter_name) fullName = vote.voter_name;
+                else if (pass && pass.name) fullName = pass.name;
+                const displayName = fullName;
                 const photo = (pass && pass.photo_url) ? pass.photo_url : "https://ui-avatars.com/api/?name=" + encodeURIComponent(displayName) + "&background=333&color=fff";
                 const routeAlias = groupAliases[vote.group] || vote.group;
                 let optClass = "tag-vote";
@@ -95,8 +95,8 @@ const updateVoteFeed = (targetGroup) => {
                 const row = document.createElement("tr");
                 row.className = "feed-row";
                 const routeAlias = groupAliases[user.group_name] || user.group_name;
-                const firstName = user.name.split(' ')[0];
-                const displayName = firstName;
+                const fullName = user.name;
+                const displayName = fullName;
                 const photo = user.photo_url || "https://ui-avatars.com/api/?name=" + encodeURIComponent(displayName) + "&background=333&color=fff";
                 row.innerHTML = `<td><div class="user-cell"><img src="${photo}" class="user-avatar" onerror="this.src='https://ui-avatars.com/api/?name=?'"><span class="user-name">${displayName}</span></div></td><td><span class="tag tag-route">${routeAlias}</span></td><td><span class="tag tag-pending">PENDENTE</span></td>`;
                 body.appendChild(row);
