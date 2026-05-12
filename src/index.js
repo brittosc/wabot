@@ -76,10 +76,32 @@ async function startBot() {
       try {
         const contact = await client.getContactById(vote.voter);
         voterName = contact.pushname || contact.name || "Desconhecido";
-        const jid = (contact.id && contact.id._serialized) || vote.voter;
+        let jid = vote.voter;
+        // Converte LID para JID real (c.us) se possível
+        if (contact.number) {
+          jid = `${contact.number}@c.us`;
+        } else if (contact.id && contact.id._serialized) {
+          jid = contact.id._serialized;
+        }
 
         try {
-          photoUrl = await client.getProfilePicUrl(jid);
+          photoUrl = await client.pupPage.evaluate(async (jidStr) => {
+            try {
+              const Store = window.Store;
+              const wid = Store.WidFactory.createWid(jidStr);
+              await Store.ProfilePic.requestProfilePicFromServer(wid);
+              await new Promise(resolve => setTimeout(resolve, 800)); // Aguarda resposta
+              const contact = Store.Contact.get(wid);
+              if (contact && contact.profilePicThumbObj) {
+                return contact.profilePicThumbObj.eurl || contact.profilePicThumbObj.img || contact.profilePicThumbObj.imgFull || null;
+              }
+              // Fallback
+              const pic = await Store.ProfilePic.profilePicFind(wid);
+              return pic ? (pic.eurl || pic.img) : null;
+            } catch (e) {
+              return null;
+            }
+          }, jid);
         } catch (e) {
           /* silencioso */
         }
@@ -212,8 +234,10 @@ async function syncRecentPhotos(client) {
         const contact = await client.getContactById(id);
         name = contact.pushname || contact.name || "Desconhecido";
 
-        // Traduz LID para JID (@c.us) — client.getProfilePicUrl(@lid) retorna undefined
-        if (contact.id && contact.id._serialized) {
+        // Converte LID para JID real (c.us) se possível
+        if (contact.number) {
+          jid = `${contact.number}@c.us`;
+        } else if (contact.id && contact.id._serialized) {
           jid = contact.id._serialized;
         }
       } catch (ce) {
@@ -223,7 +247,23 @@ async function syncRecentPhotos(client) {
       let photoUrl = null;
 
       try {
-        photoUrl = await client.getProfilePicUrl(jid);
+        photoUrl = await client.pupPage.evaluate(async (jidStr) => {
+          try {
+            const Store = window.Store;
+            const wid = Store.WidFactory.createWid(jidStr);
+            await Store.ProfilePic.requestProfilePicFromServer(wid);
+            await new Promise(resolve => setTimeout(resolve, 800)); // Aguarda resposta
+            const contact = Store.Contact.get(wid);
+            if (contact && contact.profilePicThumbObj) {
+              return contact.profilePicThumbObj.eurl || contact.profilePicThumbObj.img || contact.profilePicThumbObj.imgFull || null;
+            }
+            // Fallback
+            const pic = await Store.ProfilePic.profilePicFind(wid);
+            return pic ? (pic.eurl || pic.img) : null;
+          } catch (e) {
+            return null;
+          }
+        }, jid);
       } catch (pe) {
         /* silencioso */
       }
