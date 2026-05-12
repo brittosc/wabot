@@ -1,5 +1,14 @@
 // Feed de Votos e Pendências
 
+let currentFeedSearch = '';
+
+window.handleSearchFeed = (val) => {
+    currentFeedSearch = val.toLowerCase().trim();
+    // Reset limit on search
+    feedLimit = 10;
+    updateVoteFeed(currentTargetGroup);
+};
+
 const switchFeedTab = (tab) => {
     currentFeedTab = tab;
     feedLimit = 10;
@@ -55,6 +64,18 @@ const updateVoteFeed = (targetGroup) => {
             });
         });
         allTodayVotes.sort((a, b) => moment(b.timestamp).valueOf() - moment(a.timestamp).valueOf());
+        
+        if (currentFeedSearch) {
+            allTodayVotes = allTodayVotes.filter(vote => {
+                const pass = getPassengerByJid(vote.voter_id);
+                let fullName = vote.voter_name || (pass ? pass.name : "Ext");
+                const routeAlias = groupAliases[vote.group] || vote.group;
+                return fullName.toLowerCase().includes(currentFeedSearch) ||
+                       routeAlias.toLowerCase().includes(currentFeedSearch) ||
+                       vote.option.toLowerCase().includes(currentFeedSearch);
+            });
+        }
+
         body.innerHTML = "";
         const visibleVotes = allTodayVotes.slice(0, feedLimit);
         if (visibleVotes.length === 0) {
@@ -86,7 +107,17 @@ const updateVoteFeed = (targetGroup) => {
         const votersToday = [];
         Object.keys(dayEntry.grupos).forEach(gName => { Object.keys(dayEntry.grupos[gName].votes).forEach(vId => votersToday.push(vId)); });
         const tGroup = (targetGroup === "Todos") ? null : targetGroup;
-        const pendingUsers = passengers.filter(p => { if (tGroup && p.group_name !== tGroup) return false; return !votersToday.includes(p.jid); });
+        let pendingUsers = passengers.filter(p => { if (tGroup && p.group_name !== tGroup) return false; return !votersToday.includes(p.jid); });
+        
+        if (currentFeedSearch) {
+            pendingUsers = pendingUsers.filter(p => {
+                const routeAlias = groupAliases[p.group_name] || p.group_name;
+                return p.name.toLowerCase().includes(currentFeedSearch) ||
+                       routeAlias.toLowerCase().includes(currentFeedSearch) ||
+                       "pendente".includes(currentFeedSearch);
+            });
+        }
+
         body.innerHTML = "";
         if (pendingUsers.length === 0) {
             body.innerHTML = '<tr><td colspan="3" style="text-align: center; color: #4caf50; padding: 30px;">✅ Todos os passageiros votaram hoje!</td></tr>';
