@@ -113,6 +113,11 @@ const fetchStats = async () => {
                 groupAliases = data.aliases || {};
                 skipDates = data.skipDates || {};
                 weatherForecast = data.weather || [];
+                
+                if (window.populateGroupSelect) {
+                    window.populateGroupSelect();
+                }
+
                 updateDash();
 
                 const now = new Date();
