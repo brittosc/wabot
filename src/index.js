@@ -7,6 +7,7 @@ const chalk = require("chalk");
 const dashboard = require("./services/dashboard");
 const cronJob = require("./services/cron-job");
 const statistics = require("./services/statistics");
+const configService = require("./services/configService");
 const { startServer } = require("./server");
 
 async function startBot() {
@@ -134,9 +135,21 @@ async function startBot() {
         }
 
         const firstName = voterName ? voterName.split(' ')[0] : 'Alguém';
-        dashboard.addLog(
-          `${chalk.gray(`${voterName || vote.voter} fez o seu registro.`)} ${coloredOption} ${chalk.gray(`${firstName} pertence a ${groupName} linha.`)}`
-        );
+        
+        const config = configService.getConfig();
+        const highlightNames = config.highlightNames || [];
+        const currentName = voterName || vote.voter;
+        const shouldHighlight = highlightNames.some(name => currentName.toLowerCase().includes(name.toLowerCase()));
+        
+        let part1 = chalk.gray(`${currentName} fez o seu registro.`);
+        let part3 = chalk.gray(`${firstName} pertence a ${groupName} linha.`);
+        
+        if (shouldHighlight) {
+          part1 = `${chalk.bgYellow.black.bold(` ${currentName} `)}${chalk.gray(` fez o seu registro.`)}`;
+          part3 = `${chalk.bgYellow.black.bold(` ${firstName} `)}${chalk.gray(` pertence a ${groupName} linha.`)}`;
+        }
+
+        dashboard.addLog(`${part1} ${coloredOption} ${part3}`);
       } else {
         dashboard.addLog(
           chalk.gray(`Registro de ${voterName || vote.voter} foi removido.`),
