@@ -66,21 +66,31 @@ const extractGroups = () => {
     return Array.from(groups).sort();
 };
 
-const initSelects = () => {
+const populateGroupSelect = () => {
     const gSelect = document.getElementById("groupSelect");
+    const currentVal = gSelect.value;
+    gSelect.innerHTML = '<option value="Todos">Todos os Grupos</option>';
     extractGroups().forEach(g => {
         const opt = document.createElement("option");
         opt.value = g;
         opt.textContent = groupAliases[g] || g;
         gSelect.appendChild(opt);
     });
+    if (gSelect.querySelector(`option[value="${currentVal}"]`)) {
+        gSelect.value = currentVal;
+    }
+};
 
+const initSelects = () => {
+    populateGroupSelect();
+    const gSelect = document.getElementById("groupSelect");
     gSelect.addEventListener("change", updateDash);
     document.getElementById("periodSelect").addEventListener("change", updateDash);
 
     document.getElementById("copyrightYear").innerText = new Date().getFullYear();
 };
 window.initSelects = initSelects;
+window.populateGroupSelect = populateGroupSelect;
 
 const updateChartsOnly = () => {
     const grp = document.getElementById("groupSelect").value;
