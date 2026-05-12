@@ -61,10 +61,7 @@
     font-size: 0.65rem;
     font-weight: 700;
     text-transform: uppercase;
-    white-space: nowrap;
-    max-width: 90px;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: normal;
 }
 .tag-route { background: rgba(33, 150, 243, 0.15); color: var(--accent); }
 .tag-vote { background: rgba(76, 175, 80, 0.15); color: #4caf50; }
@@ -74,6 +71,8 @@
     font-size: 0.8rem;
     color: #777;
     font-family: monospace;
+    width: 1%;
+    white-space: nowrap;
 }
 .live-indicator {
     display: inline-flex;
@@ -281,7 +280,6 @@
     .tag {
         font-size: 0.6rem;
         padding: 3px 6px;
-        max-width: 80px;
     }
     .timestamp-cell {
         font-size: 0.7rem;
