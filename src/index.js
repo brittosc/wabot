@@ -79,25 +79,7 @@ async function startBot() {
         const jid = (contact.id && contact.id._serialized) || vote.voter;
 
         try {
-          photoUrl = await client.pupPage.evaluate(async (lid) => {
-            try {
-              const Store = window.Store;
-              const wid = Store.WidFactory.createWid(lid);
-              await Store.ProfilePic.requestProfilePicFromServer(wid);
-              // Lê a URL do contato após o request
-              const contact = Store.Contact.get(wid);
-              if (contact && contact.profilePicThumbObj) {
-                return (
-                  contact.profilePicThumbObj.eurl ||
-                  contact.profilePicThumbObj.img ||
-                  null
-                );
-              }
-              return null;
-            } catch (e) {
-              return null;
-            }
-          }, vote.voter);
+          photoUrl = await client.getProfilePicUrl(jid);
         } catch (e) {
           /* silencioso */
         }
@@ -241,26 +223,7 @@ async function syncRecentPhotos(client) {
       let photoUrl = null;
 
       try {
-        photoUrl = await client.pupPage.evaluate(async (lid) => {
-          try {
-            const Store = window.Store;
-            const wid = Store.WidFactory.createWid(lid);
-            // Método correto: busca foto do servidor
-            await Store.ProfilePic.requestProfilePicFromServer(wid);
-            // Lê a URL do contato após o request
-            const contact = Store.Contact.get(wid);
-            if (contact && contact.profilePicThumbObj) {
-              return (
-                contact.profilePicThumbObj.eurl ||
-                contact.profilePicThumbObj.img ||
-                null
-              );
-            }
-            return null;
-          } catch (e) {
-            return null;
-          }
-        }, id);
+        photoUrl = await client.getProfilePicUrl(jid);
       } catch (pe) {
         /* silencioso */
       }
