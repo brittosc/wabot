@@ -18,17 +18,11 @@ window.handleSearchRanking = (val) => {
     updateRanking(currentTargetGroup, document.getElementById("periodSelect").value);
 };
 
-const updateRanking = (targetGroup, targetDaysStr) => {
-    const targetDays = parseInt(targetDaysStr, 10);
-    const todayMoment = moment().startOf('day');
-
-    // jid -> { name, photo_url, group, presenceCount, totalSeconds, voteCountForAvg }
+const updateRanking = (targetGroup, _targetDaysStr) => {
+    // O ranking sempre usa o histórico completo, ignorando o filtro de período
     const userStats = new Map();
 
-    for (let i = targetDays - 1; i >= 0; i--) {
-        const day = todayMoment.clone().subtract(i, 'days');
-        const dateStr = day.format('YYYY-MM-DD');
-        if (!rawDB[dateStr]) continue;
+    Object.keys(rawDB).forEach(dateStr => {
 
         const dayEntry = rawDB[dateStr];
         let groupsToProcess = [];
@@ -97,7 +91,7 @@ const updateRanking = (targetGroup, targetDaysStr) => {
                 stats.voteCountForAvg++;
             }
         });
-    }
+    });
 
     // Monta e ordena o ranking completo
     const fullRanking = [];
