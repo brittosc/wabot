@@ -93,22 +93,24 @@ const updateRanking = (targetGroup, targetDaysStr) => {
         }
     }
 
-    const rankingArray = Array.from(userStats.values()).map(stats => {
-        const avgSeconds = stats.voteCountForAvg > 0 ? (stats.totalSeconds / stats.voteCountForAvg) : Infinity;
-        return {
-            ...stats,
-            avgSeconds,
-            routeAlias: groupAliases[stats.group] || stats.group
-        };
-    });
+    const rankingArray = Array.from(userStats.values())
+        .filter(stats => stats.presenceCount > 0) // Exclui quem nunca foi presente
+        .map(stats => {
+            const avgSeconds = stats.voteCountForAvg > 0 ? (stats.totalSeconds / stats.voteCountForAvg) : Infinity;
+            return {
+                ...stats,
+                avgSeconds,
+                routeAlias: groupAliases[stats.group] || stats.group
+            };
+        });
 
     rankingArray.sort((a, b) => {
         if (rankingOrder === 'desc') {
-            if (b.presenceCount !== a.presenceCount) return b.presenceCount - a.presenceCount; // Most presence first
-            return a.avgSeconds - b.avgSeconds; // Then earliest avg vote time
+            if (b.presenceCount !== a.presenceCount) return b.presenceCount - a.presenceCount;
+            return a.avgSeconds - b.avgSeconds; // desempate: quem votou mais cedo
         } else {
-            if (a.presenceCount !== b.presenceCount) return a.presenceCount - b.presenceCount; // Least presence first
-            return a.avgSeconds - b.avgSeconds; // Then earliest avg vote time
+            if (a.presenceCount !== b.presenceCount) return a.presenceCount - b.presenceCount;
+            return b.avgSeconds - a.avgSeconds; // desempate: quem votou mais tarde
         }
     });
 
