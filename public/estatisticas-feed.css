@@ -267,6 +267,52 @@
     color: var(--accent);
 }
 
+/* Ranking Badges */
+.rank-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    background: rgba(255, 255, 255, 0.07);
+    color: #888;
+    gap: 3px;
+}
+.rank-gold {
+    background: rgba(255, 214, 0, 0.15);
+    color: #ffd600;
+    border: 1px solid rgba(255, 214, 0, 0.3);
+}
+.rank-silver {
+    background: rgba(192, 192, 192, 0.15);
+    color: #c0c0c0;
+    border: 1px solid rgba(192, 192, 192, 0.3);
+}
+.rank-bronze {
+    background: rgba(205, 127, 50, 0.15);
+    color: #cd7f32;
+    border: 1px solid rgba(205, 127, 50, 0.3);
+}
+
+.btn-load-more {
+    background: rgba(33, 150, 243, 0.1);
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    padding: 10px 25px;
+    border-radius: 25px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'Inter', sans-serif;
+}
+.btn-load-more:hover {
+    background: var(--accent);
+    color: white;
+    box-shadow: 0 0 15px var(--accent-glow);
+}
+
 /* === Responsivo Mobile === */
 @media (max-width: 768px) {
     .feed-container {

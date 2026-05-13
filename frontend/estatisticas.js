@@ -283,6 +283,7 @@ const processData = (targetGroup, targetDaysStr) => {
     updateCapacityCard(targetGroup);
     updateNextPollsCalendar();
     updateVoteFeed(targetGroup);
+    if (typeof updateRanking === "function") updateRanking(targetGroup, targetDaysStr);
     renderCharts(barLabels, barData, globalOptionCounts, stackedData);
 };
 window.processData = processData;

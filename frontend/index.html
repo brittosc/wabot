@@ -244,6 +244,31 @@
                     <!-- Preenchido via JS -->
                 </div>
             </div>
+            </div>
+        </div>
+
+        <div class="feed-container" style="margin-top: 40px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+                <h2 style="margin: 0; font-size: 1.2rem;">Ranking de Presença</h2>
+                <button id="btnToggleRanking" class="btn-load-more" style="padding: 6px 15px; font-size: 0.8rem; display: flex; align-items: center; gap: 6px; margin: 0; border-radius: 8px;" onclick="toggleRankingOrder()">
+                    <i data-lucide="arrow-down-up" style="width: 16px; height: 16px;"></i> Mais Presença
+                </button>
+            </div>
+            <div class="card card-wide" style="padding: 0; border: none; background: transparent; box-shadow: none;">
+                <table class="feed-table">
+                    <thead>
+                        <tr>
+                            <th style="text-align: center;">Posição</th>
+                            <th>Estudante</th>
+                            <th>Info</th>
+                            <th style="text-align: right;">Desempate</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rankingBody">
+                        <!-- Preenchido via JS -->
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
@@ -275,5 +300,6 @@
     <script src="/estatisticas-capacity.js?v=4"></script>
     <script src="/estatisticas-charts.js?v=4"></script>
     <script src="/estatisticas-lifecycle.js?v=4"></script>
+    <script src="/estatisticas-ranking.js?v=4"></script>
 </body>
 </html>

@@ -47,6 +47,7 @@ console.log('Tamanho:', html.length, 'chars');
 const jsFiles = [
     'estatisticas.js',
     'estatisticas-feed.js',
+    'estatisticas-ranking.js',
     'estatisticas-capacity.js',
     'estatisticas-charts.js',
     'estatisticas-lifecycle.js',
