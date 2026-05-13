@@ -206,12 +206,12 @@
         </div>
 
         <div class="feed-container">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+            <div style="display: flex; flex-direction: column; gap: 15px; margin-bottom: 15px;">
                 <div style="display: flex; align-items: center; gap: 15px;">
                     <h2 style="margin: 0; font-size: 1.2rem;">Relatório de Respostas</h2>
                     <div class="live-indicator"><div class="dot"></div> LIVE</div>
                 </div>
-                <div class="search-container" style="display: flex; gap: 10px; flex-wrap: wrap; flex: 1; justify-content: flex-end;">
+                <div class="search-container" style="display: flex; gap: 10px; flex-wrap: wrap; width: 100%;">
                     <select id="filterRouteSelect" onchange="handleFilterRoute(this.value)" style="padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.1); background: rgba(0, 0, 0, 0.2); color: white; outline: none; font-family: 'Inter', sans-serif; flex: 1; min-width: 140px;">
                         <option value="">Todas as Rotas</option>
                     </select>

@@ -142,6 +142,18 @@ const updateVoteFeed = (targetGroup) => {
                 body.appendChild(row);
             });
             
+            const emptyRows = itemsPerPage - visibleVotes.length;
+            if (emptyRows > 0 && totalPages > 1) {
+                for (let i = 0; i < emptyRows; i++) {
+                    const row = document.createElement("tr");
+                    row.className = "feed-row";
+                    row.style.opacity = "0";
+                    row.style.pointerEvents = "none";
+                    row.innerHTML = `<td class="timestamp-cell">&nbsp;</td><td><div class="user-cell"><div class="user-avatar"></div><span class="user-name">&nbsp;</span></div></td><td><span class="tag">&nbsp;</span></td><td><span class="tag">&nbsp;</span></td>`;
+                    body.appendChild(row);
+                }
+            }
+            
             if (btnContainer) {
                 if (totalPages <= 1) {
                     btnContainer.innerHTML = '';
