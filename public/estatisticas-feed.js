@@ -2,35 +2,46 @@
 
 let currentFeedSearch = '';
 let currentFeedOption = '';
+let currentFeedRoute = '';
+let currentPage = 1;
+const itemsPerPage = 10;
 
 window.handleSearchFeed = (val) => {
     currentFeedSearch = val.toLowerCase().trim();
-    // Reset limit on search
-    feedLimit = 10;
+    currentPage = 1;
     updateVoteFeed(currentTargetGroup);
 };
 
 window.handleFilterOption = (val) => {
     currentFeedOption = val.toLowerCase().trim();
-    feedLimit = 10;
+    currentPage = 1;
+    updateVoteFeed(currentTargetGroup);
+};
+
+window.handleFilterRoute = (val) => {
+    currentFeedRoute = val;
+    currentPage = 1;
+    updateVoteFeed(currentTargetGroup);
+};
+
+window.goToPage = (page) => {
+    currentPage = page;
     updateVoteFeed(currentTargetGroup);
 };
 
 const switchFeedTab = (tab) => {
     currentFeedTab = tab;
-    feedLimit = 10;
+    currentPage = 1;
     document.getElementById('tabVotes').classList.toggle('active', tab === 'votes');
     document.getElementById('tabPending').classList.toggle('active', tab === 'pending');
     updateVoteFeed(currentTargetGroup);
 };
 
-const loadMoreVotes = () => { feedLimit += 10; updateVoteFeed(currentTargetGroup); };
-
 const updateVoteFeed = (targetGroup) => {
     currentTargetGroup = targetGroup;
     const body = document.getElementById("voteFeedBody");
     const header = document.getElementById("feedHeader");
-    const btnContainer = document.getElementById("loadMoreContainer");
+    const btnContainer = document.getElementById("paginationContainer");
     if (!body) return;
 
     const formatPhone = (raw) => {
@@ -72,7 +83,7 @@ const updateVoteFeed = (targetGroup) => {
         });
         allTodayVotes.sort((a, b) => moment(b.timestamp).valueOf() - moment(a.timestamp).valueOf());
         
-        if (currentFeedSearch || currentFeedOption) {
+        if (currentFeedSearch || currentFeedOption || currentFeedRoute) {
             allTodayVotes = allTodayVotes.filter(vote => {
                 const pass = getPassengerByJid(vote.voter_id);
                 let fullName = vote.voter_name || (pass ? pass.name : "Ext");
@@ -90,15 +101,27 @@ const updateVoteFeed = (targetGroup) => {
                     matchesOption = vote.option.toLowerCase() === currentFeedOption;
                 }
                 
-                return matchesSearch && matchesOption;
+                let matchesRoute = true;
+                if (currentFeedRoute) {
+                    matchesRoute = vote.group === currentFeedRoute;
+                }
+                
+                return matchesSearch && matchesOption && matchesRoute;
             });
         }
 
         body.innerHTML = "";
-        const visibleVotes = allTodayVotes.slice(0, feedLimit);
+        
+        const totalItems = allTodayVotes.length;
+        const totalPages = Math.ceil(totalItems / itemsPerPage);
+        if (currentPage > totalPages && totalPages > 0) currentPage = totalPages;
+        
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const visibleVotes = allTodayVotes.slice(startIndex, startIndex + itemsPerPage);
+        
         if (visibleVotes.length === 0) {
             body.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #555; padding: 30px;">Nenhum voto registrado hoje.</td></tr>';
-            btnContainer.style.display = "none";
+            if (btnContainer) btnContainer.innerHTML = "";
         } else {
             visibleVotes.forEach(vote => {
                 const pass = getPassengerByJid(vote.voter_id);
@@ -118,10 +141,22 @@ const updateVoteFeed = (targetGroup) => {
                 row.innerHTML = `<td class="timestamp-cell">${timeStr}</td><td><div class="user-cell"><img src="${photo}" class="user-avatar" onerror="this.src='https://ui-avatars.com/api/?name=?'"><span class="user-name">${displayName}</span></div></td><td><span class="tag tag-route">${routeAlias}</span></td><td><span class="tag ${optClass}">${vote.option}</span></td>`;
                 body.appendChild(row);
             });
-            btnContainer.style.display = (allTodayVotes.length > feedLimit) ? "block" : "none";
+            
+            if (btnContainer) {
+                if (totalPages <= 1) {
+                    btnContainer.innerHTML = '';
+                } else {
+                    let html = '';
+                    html += `<button class="btn-page" onclick="goToPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}><i data-lucide="chevron-left"></i></button>`;
+                    html += `<span class="pagination-info">Página ${currentPage} de ${totalPages}</span>`;
+                    html += `<button class="btn-page" onclick="goToPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}><i data-lucide="chevron-right"></i></button>`;
+                    btnContainer.innerHTML = html;
+                    if (window.lucide) window.lucide.createIcons();
+                }
+            }
         }
     } else {
-        if (btnContainer) btnContainer.style.display = "none";
+        if (btnContainer) btnContainer.innerHTML = "";
         const votersToday = [];
         Object.keys(dayEntry.grupos).forEach(gName => { Object.keys(dayEntry.grupos[gName].votes).forEach(vId => votersToday.push(vId)); });
         const tGroup = (targetGroup === "Todos") ? null : targetGroup;

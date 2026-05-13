@@ -1,21 +1,15 @@
 {
   "data": [
     {
-      "date": "12/05",
-      "max": 21,
-      "min": 6,
-      "condition_code": 0
-    },
-    {
       "date": "13/05",
-      "max": 22,
+      "max": 21,
       "min": 5,
       "condition_code": 3
     },
     {
       "date": "14/05",
       "max": 21,
-      "min": 10,
+      "min": 9,
       "condition_code": 51
     },
     {
@@ -26,22 +20,28 @@
     },
     {
       "date": "16/05",
-      "max": 25,
+      "max": 23,
       "min": 12,
       "condition_code": 3
     },
     {
       "date": "17/05",
-      "max": 18,
-      "min": 12,
-      "condition_code": 53
+      "max": 23,
+      "min": 14,
+      "condition_code": 51
     },
     {
       "date": "18/05",
-      "max": 17,
+      "max": 21,
+      "min": 14,
+      "condition_code": 51
+    },
+    {
+      "date": "19/05",
+      "max": 18,
       "min": 10,
-      "condition_code": 1
+      "condition_code": 51
     }
   ],
-  "lastUpdate": 1778598015369
+  "lastUpdate": 1778706014985
 }

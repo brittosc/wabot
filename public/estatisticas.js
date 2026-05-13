@@ -68,16 +68,34 @@ const extractGroups = () => {
 
 const populateGroupSelect = () => {
     const gSelect = document.getElementById("groupSelect");
-    const currentVal = gSelect.value;
-    gSelect.innerHTML = '<option value="Todos">Todos os Grupos</option>';
+    const rSelect = document.getElementById("filterRouteSelect");
+    const currentVal = gSelect ? gSelect.value : "Todos";
+    const currentRouteVal = rSelect ? rSelect.value : "";
+    
+    if (gSelect) gSelect.innerHTML = '<option value="Todos">Todos os Grupos</option>';
+    if (rSelect) rSelect.innerHTML = '<option value="">Todas as Rotas</option>';
+    
     extractGroups().forEach(g => {
-        const opt = document.createElement("option");
-        opt.value = g;
-        opt.textContent = groupAliases[g] || g;
-        gSelect.appendChild(opt);
+        if (gSelect) {
+            const opt = document.createElement("option");
+            opt.value = g;
+            opt.textContent = groupAliases[g] || g;
+            gSelect.appendChild(opt);
+        }
+        
+        if (rSelect) {
+            const optR = document.createElement("option");
+            optR.value = g;
+            optR.textContent = groupAliases[g] || g;
+            rSelect.appendChild(optR);
+        }
     });
-    if (gSelect.querySelector(`option[value="${currentVal}"]`)) {
+    
+    if (gSelect && gSelect.querySelector(`option[value="${currentVal}"]`)) {
         gSelect.value = currentVal;
+    }
+    if (rSelect && rSelect.querySelector(`option[value="${currentRouteVal}"]`)) {
+        rSelect.value = currentRouteVal;
     }
 };
 
