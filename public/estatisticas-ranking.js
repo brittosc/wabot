@@ -99,18 +99,33 @@ const updateRanking = (targetGroup, _targetDaysStr) => {
         });
     });
 
-    // Monta e ordena o ranking completo
-    const fullRanking = [];
+    // Monta entradas brutas
+    const rawRanking = [];
     userStats.forEach(stats => {
         if (stats.presenceCount === 0) return;
+        rawRanking.push({ ...stats });
+    });
+
+    // Agrupa por nome (resolve duplicatas de JID para o mesmo passageiro)
+    const mergedMap = new Map();
+    rawRanking.forEach(entry => {
+        const key = entry.name.toLowerCase().trim();
+        if (!mergedMap.has(key)) {
+            mergedMap.set(key, { ...entry });
+        } else {
+            const existing = mergedMap.get(key);
+            existing.presenceCount += entry.presenceCount;
+            existing.totalSeconds += entry.totalSeconds;
+            existing.voteCountForAvg += entry.voteCountForAvg;
+            if (!existing.photo_url && entry.photo_url) existing.photo_url = entry.photo_url;
+        }
+    });
+
+    const fullRanking = Array.from(mergedMap.values()).map(stats => {
         const avgSeconds = stats.voteCountForAvg > 0
             ? stats.totalSeconds / stats.voteCountForAvg
             : Infinity;
-        fullRanking.push({
-            ...stats,
-            avgSeconds,
-            routeAlias: groupAliases[stats.group] || stats.group
-        });
+        return { ...stats, avgSeconds, routeAlias: groupAliases[stats.group] || stats.group };
     });
 
     fullRanking.sort((a, b) => {
