@@ -1,10 +1,17 @@
 // Feed de Votos e Pendências
 
 let currentFeedSearch = '';
+let currentFeedOption = '';
 
 window.handleSearchFeed = (val) => {
     currentFeedSearch = val.toLowerCase().trim();
     // Reset limit on search
+    feedLimit = 10;
+    updateVoteFeed(currentTargetGroup);
+};
+
+window.handleFilterOption = (val) => {
+    currentFeedOption = val.toLowerCase().trim();
     feedLimit = 10;
     updateVoteFeed(currentTargetGroup);
 };
@@ -65,14 +72,25 @@ const updateVoteFeed = (targetGroup) => {
         });
         allTodayVotes.sort((a, b) => moment(b.timestamp).valueOf() - moment(a.timestamp).valueOf());
         
-        if (currentFeedSearch) {
+        if (currentFeedSearch || currentFeedOption) {
             allTodayVotes = allTodayVotes.filter(vote => {
                 const pass = getPassengerByJid(vote.voter_id);
                 let fullName = vote.voter_name || (pass ? pass.name : "Ext");
                 const routeAlias = groupAliases[vote.group] || vote.group;
-                return fullName.toLowerCase().includes(currentFeedSearch) ||
+                
+                let matchesSearch = true;
+                if (currentFeedSearch) {
+                    matchesSearch = fullName.toLowerCase().includes(currentFeedSearch) ||
                        routeAlias.toLowerCase().includes(currentFeedSearch) ||
                        vote.option.toLowerCase().includes(currentFeedSearch);
+                }
+                
+                let matchesOption = true;
+                if (currentFeedOption) {
+                    matchesOption = vote.option.toLowerCase() === currentFeedOption;
+                }
+                
+                return matchesSearch && matchesOption;
             });
         }
 
