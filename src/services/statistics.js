@@ -21,7 +21,7 @@ const readStats = async () => {
       const { data: rows, error } = await withRetry(() => 
         supabase
           .from("votes")
-          .select("voter_id, group_name, vote_date, option, poll_name, voter_name, created_at")
+          .select("voter_id, group_name, vote_date, option, poll_name, voter_name, photo_url, created_at")
           .order("vote_date", { ascending: false })
           .range(from, from + step - 1)
       , 5, 1000, `Supabase:Votes:Batch:${from}`);
@@ -60,7 +60,8 @@ const readStats = async () => {
         voteObj = { 
           option: row.option, 
           timestamp: row.created_at,
-          voter_name: row.voter_name 
+          voter_name: row.voter_name,
+          photo_url: row.photo_url || null
         };
       }
       stats[date].grupos[row.group_name].votes[row.voter_id] = voteObj;
@@ -179,6 +180,7 @@ const registerVote = async (vote, voterName, photoUrl) => {
           option: selectedOption,
           poll_name: pollName,
           voter_name: voterName,
+          photo_url: photoUrl || null,
         },
         { onConflict: "voter_id,group_name,vote_date" }
       )

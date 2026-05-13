@@ -51,7 +51,8 @@ const updateRanking = (targetGroup, _targetDaysStr) => {
                 const ts = typeof vData === 'object' ? vData.timestamp : null;
                 // voter_name vem embutido no voto (igual ao feed)
                 const voter_name = typeof vData === 'object' ? vData.voter_name : undefined;
-                dayUniqueVoters.set(jid, { opt, ts, voter_name, gName });
+                const photo_url = typeof vData === 'object' ? (vData.photo_url || null) : null;
+                dayUniqueVoters.set(jid, { opt, ts, voter_name, photo_url, gName });
             });
         });
 
@@ -60,12 +61,12 @@ const updateRanking = (targetGroup, _targetDaysStr) => {
                 // Resolve nome: voter_name > getPassengerByJid > fallback
                 const pass = getPassengerByJid(jid);
                 const name = vData.voter_name || (pass ? pass.name : null);
-                if (!name) return; // ignora externos sem nome cadastrado
+                if (!name) return;
 
                 const group = pass ? (pass.group_name || vData.gName) : vData.gName;
                 userStats.set(jid, {
                     name,
-                    photo_url: pass ? pass.photo_url : null,
+                    photo_url: vData.photo_url || (pass ? pass.photo_url : null),
                     group,
                     presenceCount: 0,
                     totalSeconds: 0,
@@ -75,6 +76,11 @@ const updateRanking = (targetGroup, _targetDaysStr) => {
 
             const stats = userStats.get(jid);
             if (!stats) return;
+
+            // Atualiza foto se o voto atual tiver e o usuário ainda não tiver
+            if (vData.photo_url && !stats.photo_url) {
+                stats.photo_url = vData.photo_url;
+            }
 
             const opt = vData.opt;
             if (

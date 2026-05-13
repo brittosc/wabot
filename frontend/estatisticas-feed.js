@@ -78,7 +78,7 @@ const updateVoteFeed = (targetGroup) => {
             const groupData = dayEntry.grupos[gName];
             Object.keys(groupData.votes).forEach(vId => {
                 const vData = groupData.votes[vId];
-                allTodayVotes.push({ voter_id: vId, group: gName, option: typeof vData === 'object' ? vData.option : vData, timestamp: typeof vData === 'object' ? (vData.timestamp || todayStr) : todayStr, voter_name: typeof vData === 'object' ? vData.voter_name : undefined });
+                allTodayVotes.push({ voter_id: vId, group: gName, option: typeof vData === 'object' ? vData.option : vData, timestamp: typeof vData === 'object' ? (vData.timestamp || todayStr) : todayStr, voter_name: typeof vData === 'object' ? vData.voter_name : undefined, photo_url: typeof vData === 'object' ? vData.photo_url : null });
             });
         });
         allTodayVotes.sort((a, b) => moment(b.timestamp).valueOf() - moment(a.timestamp).valueOf());
@@ -133,7 +133,7 @@ const updateVoteFeed = (targetGroup) => {
                 if (vote.voter_name) fullName = vote.voter_name;
                 else if (pass && pass.name) fullName = pass.name;
                 const displayName = fullName;
-                const photo = (pass && pass.photo_url) ? pass.photo_url : "https://ui-avatars.com/api/?name=" + encodeURIComponent(displayName) + "&background=333&color=fff";
+                const photo = vote.photo_url || (pass && pass.photo_url) || "https://ui-avatars.com/api/?name=" + encodeURIComponent(displayName) + "&background=333&color=fff";
                 const routeAlias = groupAliases[vote.group] || vote.group;
                 let optClass = "tag-vote";
                 if (vote.option.includes("Não irei")) optClass = "tag-absence";
