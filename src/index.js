@@ -145,12 +145,19 @@ async function startBot() {
         const currentName = voterName || vote.voter;
         const shouldHighlight = highlightNames.some(name => currentName.toLowerCase().includes(name.toLowerCase()));
         
+        let displayGroup = groupName;
+        if (config.groupAliases && config.groupAliases[groupName]) {
+          displayGroup = config.groupAliases[groupName];
+        }
+
+        const suffix = displayGroup.toLowerCase().startsWith("linha") ? "." : " linha.";
+
         let part1 = chalk.gray(`${currentName} fez o seu registro.`);
-        let part3 = chalk.gray(`${firstName} pertence a ${groupName} linha.`);
+        let part3 = chalk.gray(`${firstName} pertence a ${displayGroup}${suffix}`);
         
         if (shouldHighlight) {
           part1 = `${chalk.bgYellow.black.bold(` ${currentName} `)}${chalk.gray(` fez o seu registro.`)}`;
-          part3 = `${chalk.bgYellow.black.bold(` ${firstName} `)}${chalk.gray(` pertence a ${groupName} linha.`)}`;
+          part3 = `${chalk.bgYellow.black.bold(` ${firstName} `)}${chalk.gray(` pertence a ${displayGroup}${suffix}`)}`;
         }
 
         dashboard.addLog(`${part1} ${coloredOption} ${part3}`);
