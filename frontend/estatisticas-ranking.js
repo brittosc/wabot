@@ -22,6 +22,7 @@ const updateRanking = (targetGroup, targetDaysStr) => {
     const targetDays = parseInt(targetDaysStr, 10);
     const todayMoment = moment().startOf('day');
 
+    // jid -> { name, photo_url, group, presenceCount, totalSeconds, voteCountForAvg }
     const userStats = new Map();
 
     for (let i = targetDays - 1; i >= 0; i--) {
@@ -34,36 +35,54 @@ const updateRanking = (targetGroup, targetDaysStr) => {
 
         if (dayEntry.Version2 && dayEntry.grupos) {
             if (targetGroup === "Todos") {
-                groupsToProcess = Object.values(dayEntry.grupos);
+                Object.keys(dayEntry.grupos).forEach(gName => {
+                    groupsToProcess.push({ gName, payload: dayEntry.grupos[gName] });
+                });
             } else if (dayEntry.grupos[targetGroup]) {
-                groupsToProcess = [dayEntry.grupos[targetGroup]];
+                groupsToProcess.push({ gName: targetGroup, payload: dayEntry.grupos[targetGroup] });
             }
         } else if (!dayEntry.Version2) {
             if (targetGroup === "Todos" || targetGroup === "Grupo Geral (Legado)") {
-                groupsToProcess = [dayEntry];
+                groupsToProcess.push({ gName: "Grupo Geral (Legado)", payload: dayEntry });
             }
         }
 
+        // Deduplicação por dia: um voto por JID
         const dayUniqueVoters = new Map();
-        groupsToProcess.forEach(groupPayload => {
-            if (!groupPayload.votes) return;
-            Object.entries(groupPayload.votes).forEach(([jid, vData]) => {
-                if (!dayUniqueVoters.has(jid)) {
-                    dayUniqueVoters.set(jid, {
-                        opt: typeof vData === 'object' ? vData.option : vData,
-                        ts: typeof vData === 'object' ? vData.timestamp : null
-                    });
-                }
+        groupsToProcess.forEach(({ gName, payload }) => {
+            if (!payload.votes) return;
+            Object.entries(payload.votes).forEach(([jid, vData]) => {
+                if (dayUniqueVoters.has(jid)) return;
+                const opt = typeof vData === 'object' ? vData.option : vData;
+                const ts = typeof vData === 'object' ? vData.timestamp : null;
+                // voter_name vem embutido no voto (igual ao feed)
+                const voter_name = typeof vData === 'object' ? vData.voter_name : undefined;
+                dayUniqueVoters.set(jid, { opt, ts, voter_name, gName });
             });
         });
 
         dayUniqueVoters.forEach((vData, jid) => {
             if (!userStats.has(jid)) {
-                userStats.set(jid, { presenceCount: 0, totalSeconds: 0, voteCountForAvg: 0 });
-            }
-            const stats = userStats.get(jid);
-            const opt = vData.opt;
+                // Resolve nome: voter_name > getPassengerByJid > fallback
+                const pass = getPassengerByJid(jid);
+                const name = vData.voter_name || (pass ? pass.name : null);
+                if (!name) return; // ignora externos sem nome cadastrado
 
+                const group = pass ? (pass.group_name || vData.gName) : vData.gName;
+                userStats.set(jid, {
+                    name,
+                    photo_url: pass ? pass.photo_url : null,
+                    group,
+                    presenceCount: 0,
+                    totalSeconds: 0,
+                    voteCountForAvg: 0
+                });
+            }
+
+            const stats = userStats.get(jid);
+            if (!stats) return;
+
+            const opt = vData.opt;
             if (
                 opt === "Irei, ida e volta." ||
                 opt === "Irei, mas não retornarei." ||
@@ -80,35 +99,27 @@ const updateRanking = (targetGroup, targetDaysStr) => {
         });
     }
 
-    // Resolve nomes via getPassengerByJid e filtra quem tem presença
+    // Monta e ordena o ranking completo
     const fullRanking = [];
-    userStats.forEach((stats, jid) => {
+    userStats.forEach(stats => {
         if (stats.presenceCount === 0) return;
-        const pass = getPassengerByJid(jid);
-        const name = pass ? pass.name : null;
-        if (!name) return;
-
         const avgSeconds = stats.voteCountForAvg > 0
             ? stats.totalSeconds / stats.voteCountForAvg
             : Infinity;
-
-        const group = pass.group_name || '';
         fullRanking.push({
-            name,
-            photo_url: pass.photo_url || null,
-            routeAlias: groupAliases[group] || group,
-            presenceCount: stats.presenceCount,
-            avgSeconds
+            ...stats,
+            avgSeconds,
+            routeAlias: groupAliases[stats.group] || stats.group
         });
     });
 
     fullRanking.sort((a, b) => {
         if (rankingOrder === 'desc') {
             if (b.presenceCount !== a.presenceCount) return b.presenceCount - a.presenceCount;
-            return a.avgSeconds - b.avgSeconds;
+            return a.avgSeconds - b.avgSeconds; // desempate: mais cedo
         } else {
             if (a.presenceCount !== b.presenceCount) return a.presenceCount - b.presenceCount;
-            return b.avgSeconds - a.avgSeconds;
+            return b.avgSeconds - a.avgSeconds; // desempate: mais tarde
         }
     });
 
@@ -158,30 +169,25 @@ const updateRanking = (targetGroup, targetDaysStr) => {
     };
 
     if (rankingSearch) {
-        // Modo busca: encontra o usuário no ranking completo e mostra a posição real
+        // Busca no ranking completo — mostra posição real
         const results = [];
         fullRanking.forEach((user, idx) => {
             if (user.name.toLowerCase().includes(rankingSearch)) {
                 results.push({ user, idx });
             }
         });
-
         if (results.length === 0) {
-            body.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#555;padding:30px;">Nenhum usuário encontrado com esse nome.</td></tr>';
+            body.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#555;padding:30px;">Nenhum usuário encontrado.</td></tr>';
         } else {
-            results.forEach(({ user, idx }) => {
-                body.appendChild(renderRow(user, idx));
-            });
+            results.forEach(({ user, idx }) => body.appendChild(renderRow(user, idx)));
         }
     } else {
-        // Modo normal: top 10
+        // Top 10 normal
         if (fullRanking.length === 0) {
             body.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#555;padding:30px;">Sem dados para o ranking.</td></tr>';
             return;
         }
-        fullRanking.slice(0, 10).forEach((user, idx) => {
-            body.appendChild(renderRow(user, idx));
-        });
+        fullRanking.slice(0, 10).forEach((user, idx) => body.appendChild(renderRow(user, idx)));
     }
 
     if (window.lucide) window.lucide.createIcons();
