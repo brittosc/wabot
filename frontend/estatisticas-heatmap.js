@@ -11,9 +11,9 @@ const renderHeatmap = (targetGroup) => {
     }
 
     const today = moment().tz("America/Sao_Paulo").endOf('day');
-    // Forçar início no Domingo anterior ao primeiro registro de forma manual e segura
+    // Iniciar na SEGUNDA-FEIRA anterior ao primeiro registro (mais intuitivo para o usuário)
     let startDate = moment(dbDates[0]).tz("America/Sao_Paulo").startOf('day');
-    while (startDate.day() !== 0) {
+    while (startDate.day() !== 1) { // 1 = Segunda
         startDate.subtract(1, 'day');
     }
     
@@ -27,7 +27,7 @@ const renderHeatmap = (targetGroup) => {
     // Labels dos dias da semana
     const labels = document.createElement("div");
     labels.className = "heatmap-labels";
-    const dayLabels = ["", "Seg", "Ter", "Qua", "Qui", "Sex", ""];
+    const dayLabels = ["Seg", "Ter", "Qua", "Qui", "Sex", "", ""];
     for (let i = 0; i < 7; i++) {
         const span = document.createElement("span");
         span.innerHTML = dayLabels[i] || "&nbsp;";
