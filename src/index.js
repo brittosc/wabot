@@ -275,14 +275,9 @@ async function startBot() {
   });
 
   try {
-    dashboard.addLog("Iniciando WhatsApp Web...");
-    dashboard.addLog("Chamando initialize()...");
     await client.initialize();
   } catch (e) {
     dashboard.addLog(`Erro fatal no puppeteer: ${e.message}`);
-    if (e.stack) {
-      dashboard.addLog(`Stack: ${e.stack.split('\n')[0]}`);
-    }
   }
 
   // Graceful shutdown
