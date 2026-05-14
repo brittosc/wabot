@@ -1,0 +1,7 @@
+logs.txt
+auth_info/
+.wwebjs_auth/
+.wwebjs_cache/
+frontend/
+public/
+*.json
