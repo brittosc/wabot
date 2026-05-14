@@ -22,6 +22,23 @@ const updateRanking = (targetGroup, _targetDaysStr) => {
     // O ranking sempre usa o histórico completo, ignorando o filtro de período
     const userStats = new Map();
 
+    // Normaliza JID para chave canônica:
+    // JIDs baseados em telefone (c.us / s.whatsapp.net) → normaliza dígitos (resolve 9º dígito BR)
+    // JIDs @lid → mantém como está (não tem telefone)
+    const normalizeJidKey = (jid) => {
+        if (!jid) return jid;
+        const atIdx = jid.indexOf('@');
+        if (atIdx === -1) return jid;
+        const domain = jid.substring(atIdx + 1);
+        if (domain === 'lid') return jid; // LID não tem telefone — chave opaca
+        let digits = jid.substring(0, atIdx).replace(/\D/g, '');
+        // Normaliza 9º dígito brasileiro: 12 dígitos → adiciona o 9
+        if (digits.startsWith('55') && digits.length === 12) {
+            digits = digits.substring(0, 4) + '9' + digits.substring(4);
+        }
+        return digits; // ex: "5548999994360"
+    };
+
     Object.keys(rawDB).forEach(dateStr => {
 
         const dayEntry = rawDB[dateStr];
@@ -41,33 +58,30 @@ const updateRanking = (targetGroup, _targetDaysStr) => {
             }
         }
 
-        // Deduplicação por dia: um voto por JID
+        // Deduplicação por dia: um voto por chave normalizada
         const dayUniqueVoters = new Map();
         groupsToProcess.forEach(({ gName, payload }) => {
             if (!payload.votes) return;
             Object.entries(payload.votes).forEach(([jid, vData]) => {
-                if (dayUniqueVoters.has(jid)) return;
+                const key = normalizeJidKey(jid);
+                if (dayUniqueVoters.has(key)) return;
                 const opt = typeof vData === 'object' ? vData.option : vData;
                 const ts = typeof vData === 'object' ? vData.timestamp : null;
-                // voter_name vem embutido no voto (igual ao feed)
                 const voter_name = typeof vData === 'object' ? vData.voter_name : undefined;
                 const photo_url = typeof vData === 'object' ? (vData.photo_url || null) : null;
-                dayUniqueVoters.set(jid, { opt, ts, voter_name, photo_url, gName });
+                dayUniqueVoters.set(key, { opt, ts, voter_name, photo_url, gName });
             });
         });
 
-        dayUniqueVoters.forEach((vData, jid) => {
-            if (!userStats.has(jid)) {
-                // Resolve nome: voter_name > getPassengerByJid > fallback
-                const pass = getPassengerByJid(jid);
-                const name = vData.voter_name || (pass ? pass.name : null);
+        dayUniqueVoters.forEach((vData, key) => {
+            if (!userStats.has(key)) {
+                const name = vData.voter_name || null;
                 if (!name) return;
 
-                const group = pass ? (pass.group_name || vData.gName) : vData.gName;
-                userStats.set(jid, {
+                userStats.set(key, {
                     name,
-                    photo_url: vData.photo_url || (pass ? pass.photo_url : null),
-                    group,
+                    photo_url: vData.photo_url || null,
+                    group: vData.gName,
                     presenceCount: 0,
                     totalSeconds: 0,
                     voteCountForAvg: 0
@@ -99,33 +113,13 @@ const updateRanking = (targetGroup, _targetDaysStr) => {
         });
     });
 
-    // Monta entradas brutas
-    const rawRanking = [];
+    const fullRanking = [];
     userStats.forEach(stats => {
         if (stats.presenceCount === 0) return;
-        rawRanking.push({ ...stats });
-    });
-
-    // Agrupa por nome (resolve duplicatas de JID para o mesmo passageiro)
-    const mergedMap = new Map();
-    rawRanking.forEach(entry => {
-        const key = entry.name.toLowerCase().trim();
-        if (!mergedMap.has(key)) {
-            mergedMap.set(key, { ...entry });
-        } else {
-            const existing = mergedMap.get(key);
-            existing.presenceCount += entry.presenceCount;
-            existing.totalSeconds += entry.totalSeconds;
-            existing.voteCountForAvg += entry.voteCountForAvg;
-            if (!existing.photo_url && entry.photo_url) existing.photo_url = entry.photo_url;
-        }
-    });
-
-    const fullRanking = Array.from(mergedMap.values()).map(stats => {
         const avgSeconds = stats.voteCountForAvg > 0
             ? stats.totalSeconds / stats.voteCountForAvg
             : Infinity;
-        return { ...stats, avgSeconds, routeAlias: groupAliases[stats.group] || stats.group };
+        fullRanking.push({ ...stats, avgSeconds, routeAlias: groupAliases[stats.group] || stats.group });
     });
 
     fullRanking.sort((a, b) => {
