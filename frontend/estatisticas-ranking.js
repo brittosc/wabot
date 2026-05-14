@@ -18,7 +18,7 @@ window.toggleRankingOrder = () => {
 };
 
 window.handleSearchRanking = (val) => {
-    rankingSearch = val.toLowerCase().trim();
+    rankingSearch = normalizeSearch(val);
     currentPageRanking = 1;
     updateRanking();
 };
@@ -141,12 +141,10 @@ const updateRanking = (targetGroupFromDash, _targetDaysStr) => {
             ? stats.totalSeconds / stats.voteCountForAvg
             : Infinity;
         
-        const matchesSearch = !rankingSearch || stats.name.toLowerCase().includes(rankingSearch);
-        if (matchesSearch) {
-            fullRanking.push({ ...stats, avgSeconds, routeAlias: groupAliases[stats.group] || stats.group });
-        }
+        fullRanking.push({ ...stats, avgSeconds, routeAlias: groupAliases[stats.group] || stats.group });
     });
 
+    // Ordena o ranking completo para determinar as posições globais
     fullRanking.sort((a, b) => {
         if (rankingOrder === 'desc') {
             if (b.presenceCount !== a.presenceCount) return b.presenceCount - a.presenceCount;
@@ -156,6 +154,20 @@ const updateRanking = (targetGroupFromDash, _targetDaysStr) => {
             return b.avgSeconds - a.avgSeconds;
         }
     });
+
+    // Atribui a posição global a cada usuário
+    fullRanking.forEach((user, idx) => {
+        user.globalRank = idx;
+    });
+
+    // Agora aplica o filtro de pesquisa, mas mantendo a posição global original
+    let visibleRankingList = fullRanking;
+    if (rankingSearch) {
+        const term = normalizeSearch(rankingSearch);
+        visibleRankingList = fullRanking.filter(stats => 
+            normalizeSearch(stats.name).includes(term)
+        );
+    }
 
     const body = document.getElementById("rankingBody");
     const btnContainer = document.getElementById("rankingPaginationContainer");
@@ -173,23 +185,22 @@ const updateRanking = (targetGroupFromDash, _targetDaysStr) => {
         const row = document.createElement("tr");
         row.className = "feed-row";
 
-        let rankBadge = '<span class="rank-badge">' + (globalIndex + 1) + 'º</span>';
+        let rankBadge = '<span class="rank-badge">' + (user.globalRank + 1) + 'º</span>';
         if (rankingOrder === 'desc') {
-            if (globalIndex === 0) rankBadge = '<span class="rank-badge rank-gold"><i data-lucide="medal" style="width:16px;height:16px;margin-right:2px;"></i>1º</span>';
-            else if (globalIndex === 1) rankBadge = '<span class="rank-badge rank-silver"><i data-lucide="medal" style="width:16px;height:16px;margin-right:2px;"></i>2º</span>';
-            else if (globalIndex === 2) rankBadge = '<span class="rank-badge rank-bronze"><i data-lucide="medal" style="width:16px;height:16px;margin-right:2px;"></i>3º</span>';
+            if (user.globalRank === 0) rankBadge = '<span class="rank-badge rank-gold"><i data-lucide="medal" style="width:16px;height:16px;margin-right:2px;"></i>1º</span>';
+            else if (user.globalRank === 1) rankBadge = '<span class="rank-badge rank-silver"><i data-lucide="medal" style="width:16px;height:16px;margin-right:2px;"></i>2º</span>';
+            else if (user.globalRank === 2) rankBadge = '<span class="rank-badge rank-bronze"><i data-lucide="medal" style="width:16px;height:16px;margin-right:2px;"></i>3º</span>';
         }
 
-        const photo = user.photo_url || "https://ui-avatars.com/api/?name=" + encodeURIComponent(user.name) + "&background=333&color=fff";
         const avgTime = fmt(user.avgSeconds);
         const avgColor = user.avgSeconds === Infinity ? '#555' : 'var(--accent)';
         const presenceLabel = user.presenceCount === 1 ? 'presença' : 'presenças';
+        const displayName = formatName(user.name);
 
         row.innerHTML =
             '<td style="width:60px;text-align:center;">' + rankBadge + '</td>' +
             '<td><div class="user-cell">' +
-                '<img src="' + photo + '" class="user-avatar" onerror="this.src=\'https://ui-avatars.com/api/?name=?\'">' +
-                '<span class="user-name">' + user.name + '</span>' +
+                '<span class="user-name">' + displayName + '</span>' +
             '</div></td>' +
             '<td><div style="display:flex;flex-direction:column;gap:4px;align-items:flex-start;">' +
                 '<span class="tag tag-vote" style="font-size:0.75rem;">' + user.presenceCount + ' ' + presenceLabel + '</span>' +
@@ -203,12 +214,12 @@ const updateRanking = (targetGroupFromDash, _targetDaysStr) => {
         return row;
     };
 
-    const totalItems = fullRanking.length;
+    const totalItems = visibleRankingList.length;
     const totalPages = Math.ceil(totalItems / itemsPerPageRanking);
     if (currentPageRanking > totalPages && totalPages > 0) currentPageRanking = totalPages;
     
     const startIndex = (currentPageRanking - 1) * itemsPerPageRanking;
-    const visibleRanking = fullRanking.slice(startIndex, startIndex + itemsPerPageRanking);
+    const visibleRanking = visibleRankingList.slice(startIndex, startIndex + itemsPerPageRanking);
 
     if (visibleRanking.length === 0) {
         body.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#555;padding:30px;">Nenhum dado encontrado.</td></tr>';
