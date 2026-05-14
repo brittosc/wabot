@@ -72,11 +72,16 @@ const updateNextPollsCalendar = (limitDays = 7) => {
             let statusHtml = '<div class="status-badge status-agendada">Agendada</div>';
             if (dayWeather) {
                 const icon = getWeatherIcon(dayWeather.condition_code);
+                const theme = getTempTheme(dayWeather.max);
                 statusHtml = `
-                    <div class="status-weather-badge">
+                    <div class="status-weather-badge" style="background: ${theme.bg}; color: ${theme.text}; border-color: ${theme.border};">
                         <span>Agendada</span>
-                        <i data-lucide="${icon}" class="weather-icon"></i>
-                        <span class="temp-val">${dayWeather.max}°C</span>
+                        <i data-lucide="${icon}" class="weather-icon" style="color: ${theme.icon};"></i>
+                        <div style="display:flex; align-items:center; gap:3px;">
+                            <span class="temp-max">${dayWeather.max}°</span>
+                            <span class="temp-separator">/</span>
+                            <span class="temp-min">${dayWeather.min}°</span>
+                        </div>
                     </div>
                 `;
             }
