@@ -24,15 +24,16 @@ class ConfigService {
   }
 
   watchConfig() {
+    let watchTimeout = null;
     fs.watch(CONFIG_PATH, (eventType) => {
       if (eventType === "change") {
-        // Pequeno delay para garantir que o arquivo foi totalmente gravado
-        setTimeout(() => {
+        if (watchTimeout) clearTimeout(watchTimeout);
+        watchTimeout = setTimeout(() => {
           dashboard.addLog(
             "Alteração detectada no config.json. Recarregando...",
           );
           this.loadConfig();
-        }, 100);
+        }, 500); // 500ms debounce
       }
     });
   }
