@@ -396,14 +396,14 @@ select option {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(255, 255, 255, 0.05);
-    padding: 3px;
+    background: transparent;
+    padding: 2px;
     border-radius: 4px;
     cursor: help;
 }
 .user-badge-icon i {
-    width: 13px;
-    height: 13px;
+    width: 11px;
+    height: 11px;
 }
 
 /* PREDICTION CARD STYLES */

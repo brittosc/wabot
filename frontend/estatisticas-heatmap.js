@@ -4,9 +4,14 @@ const renderHeatmap = (targetGroup) => {
     if (!container) return;
     container.innerHTML = "";
 
-    const daysToShow = 200; // Aproximadamente 28 semanas
+    const dbDates = Object.keys(rawDB).sort();
+    if (dbDates.length === 0) {
+        container.innerHTML = '<div style="text-align:center; padding: 20px; color: #666;">Sem dados para exibir o mapa.</div>';
+        return;
+    }
+
     const today = moment().tz("America/Sao_Paulo").endOf('day');
-    const startDate = today.clone().subtract(daysToShow, 'days').startOf('week');
+    const startDate = moment(dbDates[0]).tz("America/Sao_Paulo").startOf('week');
     
     const heatmapFlex = document.createElement("div");
     heatmapFlex.className = "heatmap-flex";
@@ -21,7 +26,8 @@ const renderHeatmap = (targetGroup) => {
     ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].forEach((day, idx) => {
         const span = document.createElement("span");
         span.textContent = day;
-        if (idx % 2 === 0) span.style.visibility = "hidden";
+        // Mostrar labels de dias úteis, ocultar fim de semana
+        if (idx === 0 || idx === 6) span.style.visibility = "hidden";
         labels.appendChild(span);
     });
 

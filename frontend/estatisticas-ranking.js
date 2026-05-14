@@ -186,7 +186,8 @@ const updateRanking = (targetGroupFromDash, _targetDaysStr) => {
         
         // Pontuação de consistência: peso para streak, peso para baixa ausência, peso para pontualidade
         // Quanto maior o streak, melhor. Quanto menor a ausência, melhor. Quanto menor o avgSeconds, melhor.
-        const consistencyScore = (maxStreak * 10) + (latestStreak * 5) - (absenceRate * 2) - (avgSeconds / 3600);
+        // Peso massivo para streaks e penalidade para ausências no ranking de consistência
+        const consistencyScore = (maxStreak * 200) + (latestStreak * 100) + (stats.presenceCount * 10) - (absenceRate * 10) - (avgSeconds / 3600);
 
         fullRanking.push({ 
             ...stats, 
