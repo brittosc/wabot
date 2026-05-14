@@ -69,11 +69,22 @@ const updateNextPollsCalendar = (limitDays = 7) => {
             const h = duration.hours();
             const m = duration.minutes();
 
+            let statusHtml = '<div class="status-badge status-agendada">Agendada</div>';
+            if (dayWeather) {
+                const icon = getWeatherIcon(dayWeather.condition_code);
+                statusHtml = `
+                    <div class="status-weather-badge">
+                        <span>Agendada</span>
+                        <i data-lucide="${icon}" class="weather-icon"></i>
+                        <span class="temp-val">${dayWeather.max}°C</span>
+                    </div>
+                `;
+            }
+
             row.innerHTML = `
                 <div class="calendar-box"><i data-lucide="calendar" class="cal-icon"></i><div class="cal-date">${dateDisplay}</div></div>
                 <div class="poll-info"><div class="poll-title">${['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'][current.day()]}</div><div class="poll-subtitle">Semana ${weekNum} • ${pollTime}</div></div>
-                ${weatherHtml}
-                <div class="status-badge status-agendada">Agendada</div>
+                ${statusHtml}
             `;
         }
 
