@@ -43,13 +43,6 @@
     justify-content: flex-start;
     gap: 12px;
 }
-.user-avatar {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    object-fit: cover;
-    background-color: #333;
-}
 .user-name {
     font-weight: 600;
     font-size: 0.9rem;
@@ -338,10 +331,6 @@
     }
     .user-name {
         font-size: 0.8rem;
-    }
-    .user-avatar {
-        width: 30px;
-        height: 30px;
     }
     .user-cell {
         gap: 8px;
