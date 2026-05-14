@@ -143,7 +143,7 @@ const updateVoteFeed = (targetGroup) => {
             });
             
             const emptyRows = itemsPerPage - visibleVotes.length;
-            if (emptyRows > 0 && totalPages > 1) {
+            if (emptyRows > 0) {
                 for (let i = 0; i < emptyRows; i++) {
                     const row = document.createElement("tr");
                     row.className = "feed-row";
