@@ -8,6 +8,7 @@ const dashboard = require("./services/dashboard");
 const cronJob = require("./services/cron-job");
 const statistics = require("./services/statistics");
 const configService = require("./services/configService");
+const { getProfilePhoto } = require("./services/photoService");
 const { startServer } = require("./server");
 
 async function startBot() {
@@ -71,14 +72,9 @@ async function startBot() {
     try {
       const myId = client.info.wid._serialized;
       // Pequeno delay para garantir que o Store esteja pronto
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      await new Promise(resolve => setTimeout(resolve, 5000));
       
-      const contact = await client.getContactById(myId).catch(() => null);
-      let myPhoto = contact ? await contact.getProfilePicUrl().catch(() => null) : null;
-      
-      if (!myPhoto) {
-        myPhoto = await client.getProfilePicUrl(myId).catch(() => null);
-      }
+      const myPhoto = await getProfilePhoto(client, myId);
       
       dashboard.addLog(chalk.blue(`[DIAGNÓSTICO] Foto do próprio bot (${myId}): ${myPhoto ? 'OK' : 'Falha'}`));
     } catch (e) {
@@ -100,87 +96,7 @@ async function startBot() {
         const contact = await client.getContactById(vote.voter);
         voterName = contact.pushname || contact.name || "Desconhecido";
         
-        // Tenta o método direto do contato primeiro
-        photoUrl = await contact.getProfilePicUrl().catch(() => null);
-        // dashboard.addLog(`[DEBUG] Foto 1 (contact.getProfilePicUrl): ${photoUrl ? 'Sucesso' : 'Falha'}`);
-        
-        // Se falhou e for LID, tenta converter para JID real (c.us)
-        if (!photoUrl && vote.voter.includes("@lid")) {
-          // Extrai o número do contato se disponível
-          const contactNumber = contact.number || (contact.id && contact.id.user);
-          if (contactNumber && !contactNumber.includes("@")) {
-            const jid = `${contactNumber}@c.us`;
-            dashboard.addLog(`[DEBUG] Tentando JID convertido de LID: ${jid}`);
-            
-            // Força o carregamento do chat para este JID antes de pedir a foto
-            try { await client.getChatById(jid); } catch (e) {}
-            
-            photoUrl = await client.getProfilePicUrl(jid).catch(() => null);
-            dashboard.addLog(`[DEBUG] Foto 2 (JID convertido): ${photoUrl ? 'Sucesso' : 'Falha'}`);
-          }
-        }
-
-        // Se ainda falhou, tenta o pupPage evaluate como último recurso
-        if (!photoUrl) {
-          try {
-            photoUrl = await client.pupPage.evaluate(async (jidStr) => {
-              try {
-                const Store = window.Store;
-                if (!Store) return "ERR_NO_STORE";
-                
-                const WidFactory = Store.WidFactory || (Store.Wid && Store.Wid.WidFactory);
-                if (!WidFactory) return "ERR_NO_WIDFACTORY";
-
-                const wid = WidFactory.createWid(jidStr);
-                if (!wid) return "ERR_WID_NULL";
-
-                const Contacts = Store.Contact || Store.ContactCollection;
-                
-                // Tenta forçar sync se tiver o método
-                if (Store.ProfilePic && Store.ProfilePic.requestProfilePicFromServer) {
-                  try {
-                    await Store.ProfilePic.requestProfilePicFromServer(wid);
-                  } catch (e) { /* ignore */ }
-                }
-                
-                // Aguarda um pouco menos para o primeiro check
-                await new Promise(resolve => setTimeout(resolve, 2000));
-                
-                const contactObj = Contacts ? Contacts.get(wid) : null;
-                if (contactObj && contactObj.profilePicThumbObj) {
-                   const p = contactObj.profilePicThumbObj;
-                   if (p.imgFull) return p.imgFull;
-                   if (p.eurl) return p.eurl;
-                }
-                
-                // Tenta via ProfilePicFind, mas com cautela
-                if (Store.ProfilePic && Store.ProfilePic.profilePicFind) {
-                  try {
-                    // Evita passar objeto direto se puder dar erro de 'isNewsletter'
-                    const pic = await Store.ProfilePic.profilePicFind(wid);
-                    if (pic) return pic.imgFull || pic.eurl || pic.img || null;
-                  } catch (e) { /* ignore */ }
-                }
-                
-                return null;
-              } catch (e) { return "ERR_EVAL_" + e.message; }
-            }, vote.voter);
-            
-            if (photoUrl && photoUrl.startsWith("ERR_")) {
-              dashboard.addLog(`[DEBUG] Erro no Puppeteer: ${photoUrl}`);
-              photoUrl = null;
-            }
-            dashboard.addLog(`[DEBUG] Foto 3 (Puppeteer): ${photoUrl ? 'Sucesso' : 'Falha'}`);
-          } catch (e) {
-            dashboard.addLog(`[DEBUG] Erro ao avaliar Puppeteer: ${e.message}`);
-          }
-        }
-
-        // Último suspiro: tenta o método oficial com o ID original
-        if (!photoUrl) {
-          photoUrl = await client.getProfilePicUrl(vote.voter).catch(() => null);
-          if (photoUrl) dashboard.addLog(`[DEBUG] Foto 4 (Oficial Final): Sucesso`);
-        }
+        photoUrl = await getProfilePhoto(client, vote.voter);
 
         if (photoUrl) {
           dashboard.addLog(chalk.cyan(`[FOTO] Foto obtida para ${voterName}`));
@@ -336,41 +252,7 @@ async function syncRecentPhotos(client) {
         const contact = await client.getContactById(id);
         voterName = contact.pushname || contact.name || "Desconhecido";
         
-        photoUrl = await contact.getProfilePicUrl().catch(() => null);
-
-        if (!photoUrl && id.includes("@lid")) {
-          const contactNumber = contact.number || (contact.id && contact.id.user);
-          if (contactNumber && !contactNumber.includes("@")) {
-            const jid = `${contactNumber}@c.us`;
-            photoUrl = await client.getProfilePicUrl(jid).catch(() => null);
-          }
-        }
-
-        if (!photoUrl) {
-          photoUrl = await client.pupPage.evaluate(async (jidStr) => {
-            try {
-              const Store = window.Store;
-              if (!Store) return null;
-              const WidFactory = Store.WidFactory || (Store.Wid && Store.Wid.WidFactory);
-              if (!WidFactory) return null;
-              const wid = WidFactory.createWid(jidStr);
-              const Contacts = Store.Contact || Store.ContactCollection;
-              if (Store.ProfilePic && Store.ProfilePic.requestProfilePicFromServer) {
-                await Store.ProfilePic.requestProfilePicFromServer(wid);
-              }
-              await new Promise(resolve => setTimeout(resolve, 2000));
-              const contactObj = Contacts ? Contacts.get(wid) : null;
-              if (contactObj && contactObj.profilePicThumbObj) {
-                return contactObj.profilePicThumbObj.imgFull || contactObj.profilePicThumbObj.eurl || contactObj.profilePicThumbObj.img || null;
-              }
-              if (Store.ProfilePic && Store.ProfilePic.profilePicFind) {
-                const pic = await Store.ProfilePic.profilePicFind(wid);
-                return pic ? (pic.imgFull || pic.eurl || pic.img) : null;
-              }
-              return null;
-            } catch (e) { return null; }
-          }, id);
-        }
+        photoUrl = await getProfilePhoto(client, id);
       } catch (ce) {
         /* ignora */
       }
