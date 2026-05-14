@@ -405,6 +405,7 @@ const processData = (targetGroup, targetDaysStr) => {
     updateCapacityCard(targetGroup);
     updateNextPollsCalendar();
     updateVoteFeed(targetGroup);
+    if (typeof renderHeatmap === "function") renderHeatmap(targetGroup);
     if (typeof updateRanking === "function") updateRanking(targetGroup, targetDaysStr);
     renderCharts(barLabels, barData, globalOptionCounts, stackedData);
 };

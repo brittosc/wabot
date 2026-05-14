@@ -187,6 +187,23 @@
             </div>
         </div>
 
+        <!-- Heatmap de Frequência Semanal -->
+        <div class="card card-wide" style="padding: 25px; align-items: stretch; margin-bottom: 25px;">
+            <h2 style="margin-bottom: 15px; text-align: left;">Frequência Semanal (Presença)</h2>
+            <div id="heatmapContainer" class="heatmap-wrapper">
+                <!-- Renderizado via JS -->
+            </div>
+            <div class="heatmap-legend">
+                <span>Menos</span>
+                <div class="heatmap-legend-square" data-level="0"></div>
+                <div class="heatmap-legend-square" data-level="1"></div>
+                <div class="heatmap-legend-square" data-level="2"></div>
+                <div class="heatmap-legend-square" data-level="3"></div>
+                <div class="heatmap-legend-square" data-level="4"></div>
+                <span>Mais</span>
+            </div>
+        </div>
+
         <!-- Calendário de Próximas Enquetes -->
         <div id="calendarSection" style="width: 100%;">
             <div class="card card-wide" style="align-items: stretch;">
@@ -328,6 +345,7 @@
     <script src="/estatisticas-capacity.js?v=4"></script>
     <script src="/estatisticas-charts.js?v=4"></script>
     <script src="/estatisticas-lifecycle.js?v=4"></script>
+    <script src="/estatisticas-heatmap.js?v=4"></script>
     <script src="/estatisticas-ranking.js?v=4"></script>
 </body>
 </html>
