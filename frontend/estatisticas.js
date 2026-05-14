@@ -150,6 +150,14 @@ const initSelects = () => {
 window.initSelects = initSelects;
 window.populateGroupSelect = populateGroupSelect;
 
+window.handlePeriodChange = (val) => {
+    const customContainer = document.getElementById("customRangeContainer");
+    if (customContainer) {
+        customContainer.style.display = val === "custom" ? "flex" : "none";
+    }
+    updateDash();
+};
+
 const updateChartsOnly = () => {
     const grp = document.getElementById("groupSelect").value;
     const per = document.getElementById("periodSelect").value;
@@ -180,9 +188,32 @@ const updateTrendBadge = (id, current, baseline, inverse = false) => {
     el.innerHTML = `<i data-lucide="${icon}" style="width: 12px; height: 12px;"></i> ${absDiff}%`;
 };
 
-const processData = (targetGroup, targetDaysStr) => {
-    const targetDays = parseInt(targetDaysStr, 10);
-    const todayMoment = moment().startOf('day');
+const processData = (targetGroup, targetPeriod) => {
+    const today = moment().tz("America/Sao_Paulo").startOf('day');
+    let startMoment, endMoment;
+
+    if (targetPeriod === "today") {
+        startMoment = today.clone();
+        endMoment = today.clone();
+    } else if (targetPeriod === "yesterday") {
+        startMoment = today.clone().subtract(1, 'day');
+        endMoment = today.clone().subtract(1, 'day');
+    } else if (targetPeriod === "this_month") {
+        startMoment = today.clone().startOf('month');
+        endMoment = today.clone();
+    } else if (targetPeriod === "custom") {
+        const s = document.getElementById("customStartDate").value;
+        const e = document.getElementById("customEndDate").value;
+        startMoment = s ? moment(s).startOf('day') : today.clone();
+        endMoment = e ? moment(e).startOf('day') : today.clone();
+    } else {
+        const days = parseInt(targetPeriod, 10) || 7;
+        startMoment = today.clone().subtract(days - 1, 'days');
+        endMoment = today.clone();
+    }
+
+    const totalDaysCount = endMoment.diff(startMoment, 'days') + 1;
+    const labelPeriod = targetPeriod === "custom" ? `${startMoment.format('DD/MM')} - ${endMoment.format('DD/MM')}` : targetPeriod;
 
     let barLabels = [];
     let barData = [];
@@ -227,8 +258,7 @@ const processData = (targetGroup, targetDaysStr) => {
     };
     const baseDays = 7;
 
-    for (let i = targetDays - 1; i >= 0; i--) {
-        const day = todayMoment.clone().subtract(i, 'days');
+    for (let day = startMoment.clone(); day.isSameOrBefore(endMoment); day.add(1, 'day')) {
         const dateStr = day.format('YYYY-MM-DD');
         const displayDate = day.format('DD/MM');
         barLabels.push(displayDate);
@@ -273,8 +303,9 @@ const processData = (targetGroup, targetDaysStr) => {
                     dailyPresence++;
                 }
 
-                // Dados para o baseline de 7 dias
-                if (i < baseDays) {
+                // Dados para o baseline de 7 dias (contexto para tendências)
+                const daysFromEnd = endMoment.diff(day, 'days');
+                if (daysFromEnd < baseDays) {
                     baseStats.totalVotes++;
                     if (opt === "Irei, ida e volta." || opt === "Irei, mas não retornarei." || opt === "Não irei, apenas retornarei.") {
                         baseStats.presence++;
@@ -322,7 +353,7 @@ const processData = (targetGroup, targetDaysStr) => {
     const bAvgIdaVolta = baseStats.idaVolta / baselineDivisor;
 
     updateTrendBadge("lblAverageTrend", avgPresence, bAvgPresence);
-    updateTrendBadge("lblTotalVotesTrend", accumTotalVotes / targetDays, bAvgTotalVotes);
+    updateTrendBadge("lblTotalVotesTrend", accumTotalVotes / totalDaysCount, bAvgTotalVotes);
 
     updateTrendBadge("hlLotacaoTrend", peakLotacao.val, bAvgIdaVolta);
     updateTrendBadge("hlLotacaoMinTrend", valleyLotacao.val, bAvgIdaVolta);
@@ -362,7 +393,7 @@ const processData = (targetGroup, targetDaysStr) => {
 
     document.getElementById("lblTotalVotes").innerText = accumTotalVotes.toLocaleString('pt-BR');
     const totalTitle = document.getElementById("lblTotalVotesTitle");
-    if (totalTitle) totalTitle.innerText = "Total Votos (" + targetDaysStr + " dias)";
+    if (totalTitle) totalTitle.innerText = "Total Votos (" + labelPeriod + ")";
     
     const currentAvgTime = calculateAverageInterval(voteTimestamps);
     const baselineAvgTime = calculateAverageInterval(baseStats.voteTimestamps);
@@ -381,9 +412,9 @@ const processData = (targetGroup, targetDaysStr) => {
     if (typeof lucide !== 'undefined') lucide.createIcons();
 
     const setTitle = (id, txt) => { const el = document.getElementById(id); if (el) el.innerText = txt; };
-    setTitle("titlePieChart", "Consolidado Geral (" + targetDaysStr + " dias)");
-    setTitle("titleBarChart", "Votos por Dia (" + targetDaysStr + " dias)");
-    setTitle("titleStackedBarChart", "Proporção Diária (" + targetDaysStr + " dias)");
+    setTitle("titlePieChart", "Consolidado Geral (" + labelPeriod + ")");
+    setTitle("titleBarChart", "Votos por Dia (" + labelPeriod + ")");
+    setTitle("titleStackedBarChart", "Proporção Diária (" + labelPeriod + ")");
 
     const setHighlight = (valId, dateId, peakObj) => {
         const valEl = document.getElementById(valId);
@@ -408,7 +439,7 @@ const processData = (targetGroup, targetDaysStr) => {
     if (typeof renderHeatmap === "function") renderHeatmap(targetGroup);
     if (typeof renderPrediction === "function") renderPrediction(targetGroup);
     if (typeof updateGroupMilestones === "function") updateGroupMilestones(targetGroup);
-    if (typeof updateRanking === "function") updateRanking(targetGroup, targetDaysStr);
+    if (typeof updateRanking === "function") updateRanking(targetGroup, targetPeriod);
     renderCharts(barLabels, barData, globalOptionCounts, stackedData);
 };
 window.processData = processData;

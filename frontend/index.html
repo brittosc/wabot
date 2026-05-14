@@ -29,15 +29,24 @@
                 <!-- Preenchido via JS -->
             </select>
 
-            <select id="periodSelect">
-                <option value="7" selected>Últimos 7 dias</option>
-                <option value="15">Últimos 15 dias</option>
-                <option value="30">Últimos 30 dias</option>
-                <option value="60">Últimos 2 meses</option>
-                <option value="90">Últimos 3 meses</option>
-                <option value="180">Últimos 6 meses</option>
-                <option value="365">Últimos 12 meses</option>
-            </select>
+            <div style="display: flex; gap: 15px; flex-wrap: wrap; justify-content: center; align-items: center;">
+                <select id="periodSelect" onchange="handlePeriodChange(this.value)">
+                    <option value="today">Hoje</option>
+                    <option value="yesterday">Ontem</option>
+                    <option value="7" selected>Últimos 7 dias</option>
+                    <option value="15">Últimos 15 dias</option>
+                    <option value="30">Últimos 30 dias</option>
+                    <option value="this_month">Mês Atual</option>
+                    <option value="60">Últimos 2 meses</option>
+                    <option value="custom">Intervalo Personalizado</option>
+                </select>
+
+                <div id="customRangeContainer" style="display: none; gap: 8px; align-items: center;">
+                    <input type="date" id="customStartDate" style="padding: 10px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--card-bg); color: #fff; outline: none;" onchange="updateDash()">
+                    <span style="color: #666; font-size: 0.8rem;">até</span>
+                    <input type="date" id="customEndDate" style="padding: 10px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--card-bg); color: #fff; outline: none;" onchange="updateDash()">
+                </div>
+            </div>
         </div>
     </div>
 
