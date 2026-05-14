@@ -101,6 +101,23 @@ const readPassengers = async () => {
   }
 };
 
+const readPollHistory = async () => {
+  try {
+    const { data, error } = await withRetry(() => 
+      supabase
+        .from("poll_history")
+        .select("poll_date")
+        .order("poll_date", { ascending: false })
+    , 5, 1000, "Supabase:PollHistory");
+
+    if (error) throw error;
+    return data.map(r => r.poll_date) || [];
+  } catch (e) {
+    dashboard.addLog(`Erro ao ler histórico de enquetes: ${e.message}`);
+    return [];
+  }
+};
+
 const updateTerminalOccupancy = async (stats) => {
   try {
     if (!stats) stats = await readStats();
@@ -229,4 +246,4 @@ const syncPassengerMetadata = async (whatsappId, name, photoUrl, groupName) => {
   }
 };
 
-module.exports = { readStats, readPassengers, registerVote, updateTerminalOccupancy, syncPassengerMetadata };
+module.exports = { readStats, readPassengers, readPollHistory, registerVote, updateTerminalOccupancy, syncPassengerMetadata };

@@ -1,6 +1,7 @@
-let rankingOrder = 'desc'; // 'desc' = Mais presença, 'asc' = Menos presença
+let rankingOrder = 'desc'; // 'desc' = Mais, 'asc' = Menos
 let rankingSearch = '';
 let rankingRoute = 'Todos';
+let rankingType = 'presence'; // 'presence' ou 'consistency'
 let currentPageRanking = 1;
 const itemsPerPageRanking = 10;
 
@@ -8,10 +9,27 @@ window.toggleRankingOrder = () => {
     rankingOrder = rankingOrder === 'desc' ? 'asc' : 'desc';
     const btn = document.getElementById('btnToggleRanking');
     if (btn) {
+        let label = rankingOrder === 'desc' ? 'Mais' : 'Menos';
+        if (rankingType === 'presence') label += ' Presença';
+        else label += ' Consistência';
+
         btn.innerHTML = rankingOrder === 'desc'
-            ? '<i data-lucide="arrow-down-up" style="width: 16px; height: 16px;"></i> Mais Presença'
-            : '<i data-lucide="arrow-up-down" style="width: 16px; height: 16px;"></i> Menos Presença';
+            ? `<i data-lucide="arrow-down-up" style="width: 16px; height: 16px;"></i> ${label}`
+            : `<i data-lucide="arrow-up-down" style="width: 16px; height: 16px;"></i> ${label}`;
         if (window.lucide) window.lucide.createIcons();
+    }
+    currentPageRanking = 1;
+    updateRanking();
+};
+
+window.handleRankingType = (val) => {
+    rankingType = val;
+    const btn = document.getElementById('btnToggleRanking');
+    if (btn) {
+        let label = rankingOrder === 'desc' ? 'Mais' : 'Menos';
+        if (rankingType === 'presence') label += ' Presença';
+        else label += ' Consistência';
+        btn.innerHTML = `<i data-lucide="arrow-down-up" style="width: 16px; height: 16px;"></i> ${label}`;
     }
     currentPageRanking = 1;
     updateRanking();
@@ -35,18 +53,7 @@ window.goToPageRanking = (page) => {
 };
 
 const updateRanking = (targetGroupFromDash, _targetDaysStr) => {
-    // Se vier do dash principal (mudança no topo), opcionalmente ignoramos ou sincronizamos.
-    // Para seguir a solicitação de "seletor de rota no ranking", usaremos o valor do rankingRouteSelect.
     const rkSelect = document.getElementById("rankingRouteSelect");
-    if (rkSelect && targetGroupFromDash && targetGroupFromDash !== "ignore") {
-        // Se o dash principal mudar, podemos sincronizar o seletor do ranking se desejado,
-        // ou manter independente. Vamos sincronizar para evitar confusão.
-        if (rkSelect.value !== targetGroupFromDash && targetGroupFromDash !== "Todos") {
-             // rkSelect.value = targetGroupFromDash;
-             // rankingRoute = targetGroupFromDash;
-        }
-    }
-    
     const targetGroup = rankingRoute; 
     const userStats = new Map();
 
@@ -63,6 +70,7 @@ const updateRanking = (targetGroupFromDash, _targetDaysStr) => {
         return digits;
     };
 
+    // Preparar dados por usuário
     Object.keys(rawDB).forEach(dateStr => {
         const dayEntry = rawDB[dateStr];
         let groupsToProcess = [];
@@ -105,8 +113,11 @@ const updateRanking = (targetGroupFromDash, _targetDaysStr) => {
                     photo_url: vData.photo_url || null,
                     group: vData.gName,
                     presenceCount: 0,
+                    absenceCount: 0,
                     totalSeconds: 0,
-                    voteCountForAvg: 0
+                    voteCountForAvg: 0,
+                    votesByDate: {}, // Para cálculo de streak
+                    lastVoteDate: null
                 });
             }
 
@@ -118,12 +129,16 @@ const updateRanking = (targetGroupFromDash, _targetDaysStr) => {
             }
 
             const opt = vData.opt;
+            stats.votesByDate[dateStr] = opt;
+
             if (
                 opt === "Irei, ida e volta." ||
                 opt === "Irei, mas não retornarei." ||
                 opt === "Não irei, apenas retornarei."
             ) {
                 stats.presenceCount++;
+            } else if (opt === "Não irei à faculdade hoje.") {
+                stats.absenceCount++;
             }
 
             if (vData.ts) {
@@ -134,33 +149,80 @@ const updateRanking = (targetGroupFromDash, _targetDaysStr) => {
         });
     });
 
+    // Cálculo de Streaks e Pontualidade
+    const sortedPollDates = [...pollHistory].sort((a, b) => b.localeCompare(a)); // Descendente
+    
     let fullRanking = [];
-    userStats.forEach(stats => {
-        if (stats.presenceCount === 0) return;
+    userStats.forEach((stats, key) => {
+        if (stats.presenceCount === 0 && stats.absenceCount === 0) return;
+
+        // Cálculo da sequência (streak)
+        let currentStreak = 0;
+        let maxStreak = 0;
+        for (let i = 0; i < sortedPollDates.length; i++) {
+            const d = sortedPollDates[i];
+            if (stats.votesByDate[d]) {
+                currentStreak++;
+                if (currentStreak > maxStreak) maxStreak = currentStreak;
+            } else {
+                currentStreak = 0;
+            }
+        }
+        
+        // Sequência atual (partindo da última enquete enviada)
+        let latestStreak = 0;
+        for (let i = 0; i < sortedPollDates.length; i++) {
+            const d = sortedPollDates[i];
+            if (stats.votesByDate[d]) latestStreak++;
+            else break;
+        }
+
         const avgSeconds = stats.voteCountForAvg > 0
             ? stats.totalSeconds / stats.voteCountForAvg
             : Infinity;
         
-        fullRanking.push({ ...stats, avgSeconds, routeAlias: groupAliases[stats.group] || stats.group });
+        const totalPolls = pollHistory.length || 1;
+        const absenceRate = (stats.absenceCount / totalPolls) * 100;
+        
+        // Pontuação de consistência: peso para streak, peso para baixa ausência, peso para pontualidade
+        // Quanto maior o streak, melhor. Quanto menor a ausência, melhor. Quanto menor o avgSeconds, melhor.
+        const consistencyScore = (maxStreak * 10) + (latestStreak * 5) - (absenceRate * 2) - (avgSeconds / 3600);
+
+        fullRanking.push({ 
+            ...stats, 
+            avgSeconds, 
+            maxStreak, 
+            latestStreak,
+            absenceRate,
+            consistencyScore,
+            routeAlias: groupAliases[stats.group] || stats.group 
+        });
     });
 
-    // Ordena o ranking completo para determinar as posições globais
+    // Ordenação
     fullRanking.sort((a, b) => {
-        if (rankingOrder === 'desc') {
-            if (b.presenceCount !== a.presenceCount) return b.presenceCount - a.presenceCount;
-            return a.avgSeconds - b.avgSeconds;
+        if (rankingType === 'presence') {
+            if (rankingOrder === 'desc') {
+                if (b.presenceCount !== a.presenceCount) return b.presenceCount - a.presenceCount;
+                return a.avgSeconds - b.avgSeconds;
+            } else {
+                if (a.presenceCount !== b.presenceCount) return a.presenceCount - b.presenceCount;
+                return b.avgSeconds - a.avgSeconds;
+            }
         } else {
-            if (a.presenceCount !== b.presenceCount) return a.presenceCount - b.presenceCount;
-            return b.avgSeconds - a.avgSeconds;
+            // Consistência
+            if (rankingOrder === 'desc') {
+                return b.consistencyScore - a.consistencyScore;
+            } else {
+                return a.consistencyScore - b.consistencyScore;
+            }
         }
     });
 
-    // Atribui a posição global a cada usuário
     fullRanking.forEach((user, idx) => {
         user.globalRank = idx;
     });
 
-    // Agora aplica o filtro de pesquisa, mas mantendo a posição global original
     let visibleRankingList = fullRanking;
     if (rankingSearch) {
         const term = normalizeSearch(rankingSearch);
@@ -174,7 +236,7 @@ const updateRanking = (targetGroupFromDash, _targetDaysStr) => {
     if (!body) return;
     body.innerHTML = "";
 
-    const fmt = (secs) => {
+    const fmtTime = (secs) => {
         if (secs === Infinity || isNaN(secs)) return "--:--";
         const h = Math.floor(secs / 3600);
         const m = Math.floor((secs % 3600) / 60);
@@ -185,39 +247,65 @@ const updateRanking = (targetGroupFromDash, _targetDaysStr) => {
         const row = document.createElement("tr");
         row.className = "feed-row";
 
-        let rankBadge = '<span class="rank-badge">' + (user.globalRank + 1) + 'º</span>';
+        let rankBadge = `<span class="rank-badge">${user.globalRank + 1}º</span>`;
         let nameClass = "";
         if (rankingOrder === 'desc') {
             if (user.globalRank === 0) {
-                rankBadge = '<span class="rank-badge rank-gold"><i data-lucide="medal" style="width:16px;height:16px;margin-right:2px;"></i>1º</span>';
+                rankBadge = '<span class="rank-badge rank-gold"><i data-lucide="medal" style="width:14px;height:14px;margin-right:2px;"></i>1º</span>';
                 nameClass = "name-gold";
             } else if (user.globalRank === 1) {
-                rankBadge = '<span class="rank-badge rank-silver"><i data-lucide="medal" style="width:16px;height:16px;margin-right:2px;"></i>2º</span>';
+                rankBadge = '<span class="rank-badge rank-silver"><i data-lucide="medal" style="width:14px;height:14px;margin-right:2px;"></i>2º</span>';
                 nameClass = "name-silver";
             } else if (user.globalRank === 2) {
-                rankBadge = '<span class="rank-badge rank-bronze"><i data-lucide="medal" style="width:16px;height:16px;margin-right:2px;"></i>3º</span>';
+                rankBadge = '<span class="rank-badge rank-bronze"><i data-lucide="medal" style="width:14px;height:14px;margin-right:2px;"></i>3º</span>';
                 nameClass = "name-bronze";
             }
         }
 
-        const avgTime = fmt(user.avgSeconds);
-        const avgColor = user.avgSeconds === Infinity ? '#555' : 'var(--accent)';
-        const presenceLabel = user.presenceCount === 1 ? 'presença' : 'presenças';
         const displayName = formatName(user.name);
-
-        row.innerHTML =
-            '<td style="width:60px;text-align:center;">' + rankBadge + '</td>' +
-            '<td><div class="user-cell">' +
-                '<span class="user-name ' + nameClass + '">' + displayName + '</span>' +
-            '</div></td>' +
-            '<td><div style="display:flex;flex-direction:column;gap:4px;align-items:flex-start;">' +
-                '<span class="tag tag-vote" style="font-size:0.75rem;">' + user.presenceCount + ' ' + presenceLabel + '</span>' +
-                '<span class="tag tag-route" style="opacity:0.8;">' + user.routeAlias + '</span>' +
-            '</div></td>' +
-            '<td style="text-align:right;">' +
-                '<div style="font-size:0.8rem;color:#888;">Média horário</div>' +
-                '<div style="font-size:0.95rem;font-weight:700;color:' + avgColor + ';">' + avgTime + '</div>' +
-            '</td>';
+        
+        if (rankingType === 'presence') {
+            const presenceLabel = user.presenceCount === 1 ? 'presença' : 'presenças';
+            row.innerHTML = `
+                <td style="width:60px;text-align:center;">${rankBadge}</td>
+                <td><div class="user-cell"><span class="user-name ${nameClass}">${displayName}</span></div></td>
+                <td>
+                    <div style="display:flex;flex-direction:column;gap:4px;">
+                        <span class="tag tag-vote" style="font-size:0.7rem;">${user.presenceCount} ${presenceLabel}</span>
+                        <span class="tag tag-route" style="opacity:0.7;">${user.routeAlias}</span>
+                    </div>
+                </td>
+                <td style="text-align:right;">
+                    <div style="font-size:0.75rem;color:#888;">Média horário</div>
+                    <div style="font-size:0.9rem;font-weight:700;color:var(--accent);">${fmtTime(user.avgSeconds)}</div>
+                </td>
+            `;
+        } else {
+            // Layout de Consistência
+            row.innerHTML = `
+                <td style="width:60px;text-align:center;">${rankBadge}</td>
+                <td>
+                    <div class="user-cell">
+                        <span class="user-name ${nameClass}">${displayName}</span>
+                        <div style="font-size:0.7rem;color:#666;margin-top:2px;">${user.routeAlias}</div>
+                    </div>
+                </td>
+                <td>
+                    <div style="display:flex;flex-direction:column;gap:4px;">
+                        <span class="tag" style="background:rgba(33,150,243,0.1);color:#2196f3;border:1px solid rgba(33,150,243,0.2);font-size:0.7rem;">
+                            <i data-lucide="zap" style="width:10px;height:10px;margin-right:3px;"></i> ${user.maxStreak} dias seguidos
+                        </span>
+                        <span class="tag" style="background:rgba(244,67,54,0.1);color:#f44336;border:1px solid rgba(244,67,54,0.2);font-size:0.7rem;">
+                            Faltas: ${user.absenceRate.toFixed(0)}%
+                        </span>
+                    </div>
+                </td>
+                <td style="text-align:right;">
+                    <div style="font-size:0.75rem;color:#888;">Pontualidade</div>
+                    <div style="font-size:0.9rem;font-weight:700;color:#4caf50;">${fmtTime(user.avgSeconds)}</div>
+                </td>
+            `;
+        }
 
         return row;
     };
@@ -237,19 +325,6 @@ const updateRanking = (targetGroupFromDash, _targetDaysStr) => {
             body.appendChild(renderRow(user, startIndex + idx));
         });
 
-        // Adiciona linhas vazias para manter altura (opcional, igual ao feed)
-        const emptyRows = itemsPerPageRanking - visibleRanking.length;
-        if (emptyRows > 0) {
-            for (let i = 0; i < emptyRows; i++) {
-                const row = document.createElement("tr");
-                row.className = "feed-row";
-                row.style.opacity = "0";
-                row.style.pointerEvents = "none";
-                row.innerHTML = `<td>&nbsp;</td><td><div class="user-cell"><span class="user-name">&nbsp;</span></div></td><td><div style="display:flex;flex-direction:column;gap:4px;"><span class="tag">&nbsp;</span><span class="tag">&nbsp;</span></div></td><td style="text-align:right;"><div style="font-size:0.8rem;">&nbsp;</div><div style="font-size:0.95rem;">&nbsp;</div></td>`;
-                body.appendChild(row);
-            }
-        }
-
         if (btnContainer) {
             if (totalPages <= 1) {
                 btnContainer.innerHTML = '';
@@ -259,12 +334,13 @@ const updateRanking = (targetGroupFromDash, _targetDaysStr) => {
                 html += `<span class="pagination-info">Página ${currentPageRanking} de ${totalPages}</span>`;
                 html += `<button class="btn-page" onclick="goToPageRanking(${currentPageRanking + 1})" ${currentPageRanking === totalPages ? 'disabled' : ''}><i data-lucide="chevron-right"></i></button>`;
                 btnContainer.innerHTML = html;
-                if (window.lucide) window.lucide.createIcons();
             }
         }
     }
 
     if (window.lucide) window.lucide.createIcons();
 };
+
+window.updateRanking = updateRanking;
 
 window.updateRanking = updateRanking;

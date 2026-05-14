@@ -260,10 +260,16 @@
         <div class="feed-container" style="margin-top: 40px;">
             <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 15px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-                    <h2 style="margin: 0; font-size: 1.2rem;">Ranking de Presen&ccedil;a</h2>
-                    <button id="btnToggleRanking" class="btn-load-more" style="padding: 6px 15px; font-size: 0.8rem; display: flex; align-items: center; gap: 6px; margin: 0; border-radius: 8px;" onclick="toggleRankingOrder()">
-                        <i data-lucide="arrow-down-up" style="width: 16px; height: 16px;"></i> Mais Presen&ccedil;a
-                    </button>
+                    <h2 style="margin: 0; font-size: 1.2rem;">Ranking de Engajamento</h2>
+                    <div style="display: flex; gap: 10px;">
+                        <select id="rankingTypeSelect" onchange="handleRankingType(this.value)" style="padding: 6px 12px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.1); background: rgba(0, 0, 0, 0.2); color: white; outline: none; font-family: 'Inter', sans-serif; font-size: 0.8rem;">
+                            <option value="presence">Por Presença</option>
+                            <option value="consistency">Por Consistência</option>
+                        </select>
+                        <button id="btnToggleRanking" class="btn-load-more" style="padding: 6px 15px; font-size: 0.8rem; display: flex; align-items: center; gap: 6px; margin: 0; border-radius: 8px;" onclick="toggleRankingOrder()">
+                            <i data-lucide="arrow-down-up" style="width: 16px; height: 16px;"></i> Mais Presença
+                        </button>
+                    </div>
                 </div>
                 <div style="display: flex; gap: 10px; flex-wrap: wrap; width: 100%;">
                     <select id="rankingRouteSelect" onchange="handleRankingRoute(this.value)" style="padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.1); background: rgba(0, 0, 0, 0.2); color: white; outline: none; font-family: 'Inter', sans-serif; flex: 1; min-width: 140px;">
@@ -306,6 +312,7 @@
 
         let rawDB = {};
         let passengers = [];
+        let pollHistory = [];
         let isPollSentToday = false;
         let capacities = {};
         let groupAliases = {};

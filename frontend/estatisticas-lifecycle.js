@@ -127,6 +127,7 @@ const fetchStats = async () => {
                 
                 rawDB = data.votes || {};
                 passengers = data.passengers || [];
+                pollHistory = data.pollHistory || [];
                 isPollSentToday = !!data.isPollSentToday;
                 capacities = data.capacities || {};
                 groupAliases = data.aliases || {};

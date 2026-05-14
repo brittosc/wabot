@@ -1,5 +1,5 @@
 const http = require("http");
-const { readStats, readPassengers } = require("./services/statistics");
+const { readStats, readPassengers, readPollHistory } = require("./services/statistics");
 const configService = require("./services/configService");
 const dashboard = require("./services/dashboard");
 const { withRetry } = require("./services/utils");
@@ -34,6 +34,7 @@ const startServer = () => {
       try {
         const stats = await readStats();
         const passengers = await readPassengers();
+        const pollHistory = await readPollHistory();
         const config = configService.getConfig();
         const weather = weatherService.getWeatherData();
 
@@ -42,6 +43,7 @@ const startServer = () => {
           JSON.stringify({
             votes: stats.rawDB || {},
             passengers: passengers || [],
+            pollHistory: pollHistory || [],
             isPollSentToday: !!stats.isPollSentToday,
             capacities: config.groupCapacities || {},
             aliases: config.groupAliases || {},
