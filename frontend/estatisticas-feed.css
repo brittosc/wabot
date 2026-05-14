@@ -47,6 +47,24 @@
     font-weight: 600;
     font-size: 0.9rem;
 }
+.name-gold {
+    background: linear-gradient(90deg, #ffd600, #fff200);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: 800;
+}
+.name-silver {
+    background: linear-gradient(90deg, #c0c0c0, #ffffff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: 800;
+}
+.name-bronze {
+    background: linear-gradient(90deg, #cd7f32, #ff9800);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: 800;
+}
 .tag {
     display: inline-block;
     padding: 3px 8px;
