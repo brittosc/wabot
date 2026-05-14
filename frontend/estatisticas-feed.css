@@ -294,28 +294,34 @@
     color: var(--accent);
 }
 
-/* Novo Badge Combinado */
+/* Novo Badge Combinado Dinâmico */
 .status-weather-badge {
     display: inline-flex;
     align-items: center;
-    gap: 10px;
-    padding: 5px 15px;
+    gap: 8px;
+    padding: 4px 14px;
     border-radius: 20px;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     font-weight: 600;
-    background: #064e3b; /* Verde escuro */
-    color: #ffffff;
-    border: 1px solid rgba(16, 185, 129, 0.2);
+    border: 1px solid transparent;
     white-space: nowrap;
+    transition: all 0.3s ease;
 }
 .status-weather-badge .weather-icon {
-    color: #fbbf24; /* Cor de sol para o ícone */
-    width: 16px;
-    height: 16px;
+    width: 14px;
+    height: 14px;
+    margin-left: 2px;
 }
-.status-weather-badge .temp-val {
-    font-weight: 700;
-    color: #ffffff;
+.status-weather-badge .temp-max {
+    font-weight: 800;
+}
+.status-weather-badge .temp-separator {
+    opacity: 0.4;
+    margin: 0 1px;
+}
+.status-weather-badge .temp-min {
+    opacity: 0.7;
+    font-weight: 400;
 }
 
 /* Ranking Badges */
