@@ -3,6 +3,7 @@ const moment = require("moment-timezone");
 const dashboard = require("./dashboard");
 const supabase = require("../database/supabaseClient");
 const { withRetry } = require("./utils");
+const { formatName } = require("../utils/nameFormatter");
 
 const normalizePhone = (p) => {
   if (!p) return "";
@@ -165,7 +166,7 @@ const registerVote = async (vote, voterName, photoUrl) => {
 
   // Sincroniza metadados do passageiro (nome e foto) na tabela passengers
   if (voterName || photoUrl) {
-    await syncPassengerMetadata(voterId, voterName, photoUrl, groupName);
+    await syncPassengerMetadata(voterId, formatName(voterName), photoUrl, groupName);
   }
 
 
@@ -179,7 +180,7 @@ const registerVote = async (vote, voterName, photoUrl) => {
           vote_date: todayStr,
           option: selectedOption,
           poll_name: pollName,
-          voter_name: voterName,
+          voter_name: formatName(voterName),
           photo_url: photoUrl || null,
         },
         { onConflict: "voter_id,group_name,vote_date" }
@@ -211,7 +212,7 @@ const syncPassengerMetadata = async (whatsappId, name, photoUrl, groupName) => {
       updated_at: new Date().toISOString()
     };
     
-    if (name) updateData.name = name;
+    if (name) updateData.name = formatName(name);
     if (photoUrl) {
       updateData.photo_url = photoUrl;
       // dashboard.addLog(`DEBUG: Salvando foto para ${whatsappId}`);
