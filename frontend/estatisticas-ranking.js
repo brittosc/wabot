@@ -150,18 +150,25 @@ const updateRanking = (targetGroupFromDash, _targetDaysStr) => {
     });
 
     // Cálculo de Streaks e Pontualidade
-    const sortedPollDates = [...pollHistory].sort((a, b) => b.localeCompare(a)); // Descendente
+    const normalizedPollHistory = pollHistory.map(d => moment(d).format('YYYY-MM-DD'));
+    const sortedPollDates = [...new Set(normalizedPollHistory)].sort((a, b) => b.localeCompare(a)); // Descendente
     
     let fullRanking = [];
     userStats.forEach((stats, key) => {
         if (stats.presenceCount === 0 && stats.absenceCount === 0) return;
+
+        // Normalizar votos do usuário
+        const userVotesNormalized = {};
+        Object.keys(stats.votesByDate).forEach(d => {
+            userVotesNormalized[moment(d).format('YYYY-MM-DD')] = stats.votesByDate[d];
+        });
 
         // Cálculo da sequência (streak)
         let currentStreak = 0;
         let maxStreak = 0;
         for (let i = 0; i < sortedPollDates.length; i++) {
             const d = sortedPollDates[i];
-            if (stats.votesByDate[d]) {
+            if (userVotesNormalized[d]) {
                 currentStreak++;
                 if (currentStreak > maxStreak) maxStreak = currentStreak;
             } else {
@@ -169,12 +176,15 @@ const updateRanking = (targetGroupFromDash, _targetDaysStr) => {
             }
         }
         
-        // Sequência atual (partindo da última enquete enviada)
+        // Latest streak (sequência atual terminando hoje ou no último dia disponível)
         let latestStreak = 0;
         for (let i = 0; i < sortedPollDates.length; i++) {
             const d = sortedPollDates[i];
-            if (stats.votesByDate[d]) latestStreak++;
-            else break;
+            if (userVotesNormalized[d]) {
+                latestStreak++;
+            } else {
+                break;
+            }
         }
 
         const avgSeconds = stats.voteCountForAvg > 0

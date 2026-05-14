@@ -409,13 +409,13 @@ select option {
     align-items: center;
     justify-content: center;
     background: transparent;
-    padding: 2px;
+    padding: 1px;
     border-radius: 4px;
     cursor: help;
 }
 .user-badge-icon i {
-    width: 11px;
-    height: 11px;
+    width: 8px;
+    height: 8px;
 }
 
 /* PREDICTION CARD STYLES */
