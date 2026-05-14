@@ -11,7 +11,8 @@ const renderHeatmap = (targetGroup) => {
     }
 
     const today = moment().tz("America/Sao_Paulo").endOf('day');
-    const startDate = moment(dbDates[0]).tz("America/Sao_Paulo").startOf('week');
+    // Garantir que começamos no Domingo da semana do primeiro registro
+    const startDate = moment(dbDates[0]).tz("America/Sao_Paulo").day(0).startOf('day');
     
     const heatmapFlex = document.createElement("div");
     heatmapFlex.className = "heatmap-flex";
@@ -23,11 +24,9 @@ const renderHeatmap = (targetGroup) => {
     // Labels dos dias da semana
     const labels = document.createElement("div");
     labels.className = "heatmap-labels";
-    ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].forEach((day, idx) => {
+    ["", "Seg", "Ter", "Qua", "Qui", "Sex", ""].forEach((day, idx) => {
         const span = document.createElement("span");
         span.textContent = day;
-        // Mostrar labels de dias úteis, ocultar fim de semana
-        if (idx === 0 || idx === 6) span.style.visibility = "hidden";
         labels.appendChild(span);
     });
 
