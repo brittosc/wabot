@@ -65,7 +65,16 @@ async function startBot() {
     // Teste de diagnóstico: tenta pegar a própria foto
     try {
       const myId = client.info.wid._serialized;
-      const myPhoto = await client.getProfilePicUrl(myId).catch(() => null);
+      // Pequeno delay para garantir que o Store esteja pronto
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      
+      const contact = await client.getContactById(myId).catch(() => null);
+      let myPhoto = contact ? await contact.getProfilePicUrl().catch(() => null) : null;
+      
+      if (!myPhoto) {
+        myPhoto = await client.getProfilePicUrl(myId).catch(() => null);
+      }
+      
       dashboard.addLog(chalk.blue(`[DIAGNÓSTICO] Foto do próprio bot (${myId}): ${myPhoto ? 'OK' : 'Falha'}`));
     } catch (e) {
       dashboard.addLog(chalk.red(`[DIAGNÓSTICO] Erro ao testar própria foto: ${e.message}`));
@@ -88,7 +97,7 @@ async function startBot() {
         
         // Tenta o método direto do contato primeiro
         photoUrl = await contact.getProfilePicUrl().catch(() => null);
-        dashboard.addLog(`[DEBUG] Foto 1 (contact.getProfilePicUrl): ${photoUrl ? 'Sucesso' : 'Falha'}`);
+        // dashboard.addLog(`[DEBUG] Foto 1 (contact.getProfilePicUrl): ${photoUrl ? 'Sucesso' : 'Falha'}`);
         
         // Se falhou e for LID, tenta converter para JID real (c.us)
         if (!photoUrl && vote.voter.includes("@lid")) {
@@ -103,8 +112,6 @@ async function startBot() {
             
             photoUrl = await client.getProfilePicUrl(jid).catch(() => null);
             dashboard.addLog(`[DEBUG] Foto 2 (JID convertido): ${photoUrl ? 'Sucesso' : 'Falha'}`);
-          } else {
-            dashboard.addLog(`[DEBUG] LID sem número extraível detectado: ${vote.voter}`);
           }
         }
 
@@ -116,48 +123,38 @@ async function startBot() {
                 const Store = window.Store;
                 if (!Store) return "ERR_NO_STORE";
                 
-                // Tenta encontrar o WidFactory
                 const WidFactory = Store.WidFactory || (Store.Wid && Store.Wid.WidFactory);
                 if (!WidFactory) return "ERR_NO_WIDFACTORY";
 
-                let wid;
-                try {
-                  wid = WidFactory.createWid(jidStr);
-                } catch (e) { return "ERR_WID_CREATE_" + e.message; }
-                
+                const wid = WidFactory.createWid(jidStr);
                 if (!wid) return "ERR_WID_NULL";
 
-                // Tenta forçar o carregamento do contato no Store
                 const Contacts = Store.Contact || Store.ContactCollection;
-                if (Contacts && Contacts.get && !Contacts.get(wid)) {
-                   if (Contacts.add) Contacts.add({ id: wid }, { merge: true });
-                }
-
-                // Solicita a foto ao servidor se possível
+                
+                // Tenta forçar sync se tiver o método
                 if (Store.ProfilePic && Store.ProfilePic.requestProfilePicFromServer) {
                   try {
                     await Store.ProfilePic.requestProfilePicFromServer(wid);
-                  } catch (e) { /* ignora erro de request */ }
+                  } catch (e) { /* ignore */ }
                 }
                 
-                // Espera um pouco para o sync
-                await new Promise(resolve => setTimeout(resolve, 3000));
+                // Aguarda um pouco menos para o primeiro check
+                await new Promise(resolve => setTimeout(resolve, 2000));
                 
-                // Busca o objeto de contato novamente
                 const contactObj = Contacts ? Contacts.get(wid) : null;
                 if (contactObj && contactObj.profilePicThumbObj) {
                    const p = contactObj.profilePicThumbObj;
                    if (p.imgFull) return p.imgFull;
                    if (p.eurl) return p.eurl;
-                   if (p.img) return p.img;
                 }
                 
-                // Fallback para profilePicFind
+                // Tenta via ProfilePicFind, mas com cautela
                 if (Store.ProfilePic && Store.ProfilePic.profilePicFind) {
                   try {
+                    // Evita passar objeto direto se puder dar erro de 'isNewsletter'
                     const pic = await Store.ProfilePic.profilePicFind(wid);
                     if (pic) return pic.imgFull || pic.eurl || pic.img || null;
-                  } catch (e) { /* ignora */ }
+                  } catch (e) { /* ignore */ }
                 }
                 
                 return null;
@@ -174,10 +171,10 @@ async function startBot() {
           }
         }
 
-        // Último suspiro: tenta o método oficial com o ID original, caso tenha havido algum sync
+        // Último suspiro: tenta o método oficial com o ID original
         if (!photoUrl) {
           photoUrl = await client.getProfilePicUrl(vote.voter).catch(() => null);
-          dashboard.addLog(`[DEBUG] Foto 4 (Oficial Final): ${photoUrl ? 'Sucesso' : 'Falha'}`);
+          if (photoUrl) dashboard.addLog(`[DEBUG] Foto 4 (Oficial Final): Sucesso`);
         }
 
         if (photoUrl) {
