@@ -3,37 +3,37 @@
     {
       "date": "14/05",
       "max": 22,
-      "min": 9,
+      "min": 10,
       "condition_code": 51
     },
     {
       "date": "15/05",
       "max": 18,
       "min": 14,
-      "condition_code": 53
+      "condition_code": 51
     },
     {
       "date": "16/05",
-      "max": 23,
-      "min": 11,
-      "condition_code": 3
-    },
-    {
-      "date": "17/05",
-      "max": 23,
-      "min": 15,
+      "max": 22,
+      "min": 12,
       "condition_code": 53
     },
     {
+      "date": "17/05",
+      "max": 21,
+      "min": 14,
+      "condition_code": 61
+    },
+    {
       "date": "18/05",
-      "max": 18,
-      "min": 9,
+      "max": 17,
+      "min": 8,
       "condition_code": 51
     },
     {
       "date": "19/05",
-      "max": 17,
-      "min": 4,
+      "max": 16,
+      "min": 3,
       "condition_code": 0
     },
     {
@@ -43,5 +43,5 @@
       "condition_code": 0
     }
   ],
-  "lastUpdate": 1778749216628
+  "lastUpdate": 1778770816274
 }

@@ -76,43 +76,70 @@ async function startBot() {
       try {
         const contact = await client.getContactById(vote.voter);
         voterName = contact.pushname || contact.name || "Desconhecido";
-        let jid = vote.voter;
-        // Converte LID para JID real (c.us) se possível
-        if (contact.number) {
-          jid = `${contact.number}@c.us`;
-        } else if (contact.id && contact.id._serialized) {
-          jid = contact.id._serialized;
+        
+        // Tenta o método direto do contato primeiro
+        photoUrl = await contact.getProfilePicUrl().catch(() => null);
+        dashboard.addLog(`[DEBUG] Foto 1 (contact.getProfilePicUrl): ${photoUrl ? 'Sucesso' : 'Falha'}`);
+        
+        // Se falhou e for LID, tenta converter para JID real (c.us)
+        if (!photoUrl && vote.voter.includes("@lid")) {
+          if (contact.number) {
+            const jid = `${contact.number}@c.us`;
+            dashboard.addLog(`[DEBUG] Tentando JID convertido: ${jid}`);
+            photoUrl = await client.getProfilePicUrl(jid).catch(() => null);
+            dashboard.addLog(`[DEBUG] Foto 2 (JID convertido): ${photoUrl ? 'Sucesso' : 'Falha'}`);
+          } else {
+            dashboard.addLog(`[DEBUG] LID sem número detectado: ${vote.voter}`);
+          }
         }
 
-        try {
-          photoUrl = await client.pupPage.evaluate(async (jidStr) => {
-            try {
-              const Store = window.Store;
-              const wid = Store.WidFactory.createWid(jidStr);
-              await Store.ProfilePic.requestProfilePicFromServer(wid);
-              await new Promise(resolve => setTimeout(resolve, 800)); // Aguarda resposta
-              const contact = Store.Contact.get(wid);
-              if (contact && contact.profilePicThumbObj) {
-                return contact.profilePicThumbObj.eurl || contact.profilePicThumbObj.img || contact.profilePicThumbObj.imgFull || null;
-              }
-              // Fallback interno no pup
-              const pic = await Store.ProfilePic.profilePicFind(wid);
-              return pic ? (pic.eurl || pic.img) : null;
-            } catch (e) {
-              return null;
+        // Se ainda falhou, tenta o pupPage evaluate como último recurso
+        if (!photoUrl) {
+          try {
+            photoUrl = await client.pupPage.evaluate(async (jidStr) => {
+              try {
+                const Store = window.Store;
+                if (!Store || !Store.WidFactory) return "ERR_NO_STORE";
+                const wid = Store.WidFactory.createWid(jidStr);
+                
+                // Força requisição ao servidor
+                if (Store.ProfilePic && Store.ProfilePic.requestProfilePicFromServer) {
+                  await Store.ProfilePic.requestProfilePicFromServer(wid);
+                }
+                
+                await new Promise(resolve => setTimeout(resolve, 2500)); // 2.5s
+                
+                const contactObj = Store.Contact.get(wid);
+                if (contactObj && contactObj.profilePicThumbObj) {
+                  const p = contactObj.profilePicThumbObj;
+                  return p.imgFull || p.eurl || p.img || null;
+                }
+                
+                const pic = await Store.ProfilePic.profilePicFind(wid);
+                if (pic) return pic.eurl || pic.img || null;
+                
+                return null;
+              } catch (e) { return "ERR_" + e.message; }
+            }, vote.voter);
+            
+            if (photoUrl && photoUrl.startsWith("ERR_")) {
+              dashboard.addLog(`[DEBUG] Erro no Puppeteer: ${photoUrl}`);
+              photoUrl = null;
             }
-          }, jid);
-
-          // Fallback oficial se o pup falhar
-          if (!photoUrl) {
-            photoUrl = await client.getProfilePicUrl(jid).catch(() => null);
+            dashboard.addLog(`[DEBUG] Foto 3 (Puppeteer): ${photoUrl ? 'Sucesso' : 'Falha'}`);
+          } catch (e) {
+            dashboard.addLog(`[DEBUG] Erro ao avaliar Puppeteer: ${e.message}`);
           }
-        } catch (e) {
-          /* silencioso */
+        }
+
+        if (photoUrl) {
+          dashboard.addLog(chalk.cyan(`[FOTO] Foto obtida para ${voterName}`));
+        } else {
+          // dashboard.addLog(chalk.yellow(`[FOTO] Foto indisponível para ${voterName} (${vote.voter})`));
         }
       } catch (e) {
         dashboard.addLog(
-          `Aviso: Não foi possível obter dados de ${vote.voter}`,
+          `Aviso: Não foi possível obter dados de ${vote.voter}: ${e.message}`,
         );
       }
 
@@ -240,53 +267,44 @@ async function syncRecentPhotos(client) {
         continue;
       }
 
-      let name = "Desconhecido";
-      let jid = id;
+      let photoUrl = null;
+      let voterName = "Desconhecido";
       try {
         const contact = await client.getContactById(id);
-        name = contact.pushname || contact.name || "Desconhecido";
+        voterName = contact.pushname || contact.name || "Desconhecido";
+        
+        photoUrl = await contact.getProfilePicUrl().catch(() => null);
 
-        // Converte LID para JID real (c.us) se possível
-        if (contact.number) {
-          jid = `${contact.number}@c.us`;
-        } else if (contact.id && contact.id._serialized) {
-          jid = contact.id._serialized;
+        if (!photoUrl && id.includes("@lid") && contact.number) {
+          const jid = `${contact.number}@c.us`;
+          photoUrl = await client.getProfilePicUrl(jid).catch(() => null);
+        }
+
+        if (!photoUrl) {
+          photoUrl = await client.pupPage.evaluate(async (jidStr) => {
+            try {
+              const Store = window.Store;
+              if (!Store || !Store.WidFactory) return null;
+              const wid = Store.WidFactory.createWid(jidStr);
+              if (Store.ProfilePic && Store.ProfilePic.requestProfilePicFromServer) {
+                await Store.ProfilePic.requestProfilePicFromServer(wid);
+              }
+              await new Promise(resolve => setTimeout(resolve, 1500));
+              const contactObj = Store.Contact.get(wid);
+              if (contactObj && contactObj.profilePicThumbObj) {
+                return contactObj.profilePicThumbObj.eurl || contactObj.profilePicThumbObj.img || null;
+              }
+              const pic = await Store.ProfilePic.profilePicFind(wid);
+              return pic ? (pic.eurl || pic.img) : null;
+            } catch (e) { return null; }
+          }, id);
         }
       } catch (ce) {
         /* ignora */
       }
 
-      let photoUrl = null;
-
-      try {
-        photoUrl = await client.pupPage.evaluate(async (jidStr) => {
-          try {
-            const Store = window.Store;
-            const wid = Store.WidFactory.createWid(jidStr);
-            await Store.ProfilePic.requestProfilePicFromServer(wid);
-            await new Promise(resolve => setTimeout(resolve, 800)); // Aguarda resposta
-            const contact = Store.Contact.get(wid);
-            if (contact && contact.profilePicThumbObj) {
-              return contact.profilePicThumbObj.eurl || contact.profilePicThumbObj.img || contact.profilePicThumbObj.imgFull || null;
-            }
-            // Fallback interno no pup
-            const pic = await Store.ProfilePic.profilePicFind(wid);
-            return pic ? (pic.eurl || pic.img) : null;
-          } catch (e) {
-            return null;
-          }
-        }, jid);
-
-        // Fallback oficial se o pup falhar
-        if (!photoUrl) {
-          photoUrl = await client.getProfilePicUrl(jid).catch(() => null);
-        }
-      } catch (pe) {
-        /* silencioso */
-      }
-
       if (photoUrl) {
-        await statistics.syncPassengerMetadata(id, name, photoUrl);
+        await statistics.syncPassengerMetadata(id, voterName, photoUrl);
         count++;
       }
 
