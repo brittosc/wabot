@@ -11,7 +11,7 @@ const renderInsights = (targetGroup) => {
     if (stats.peakWeekday && stats.peakWeekday.val > 0) {
         insights.push({
             icon: "calendar",
-            text: `A <b>${stats.peakWeekday.day}</b> apresenta a maior taxa média de presença (${stats.peakWeekday.val.toFixed(1)} alunos).`,
+            text: `A <b>${stats.peakWeekday.day}</b> apresenta a maior taxa média de presença (<b>${Math.round(stats.peakWeekday.val)}</b> alunos).`,
             color: "#4caf50"
         });
     }
@@ -43,7 +43,7 @@ const renderInsights = (targetGroup) => {
         const color = diffPercent > 0 ? "#4caf50" : "#f44336";
         insights.push({
             icon: diffPercent > 0 ? "trending-up" : "trending-down",
-            text: `Houve um <b>${direction} de ${Math.abs(diffPercent).toFixed(0)}%</b> na participação em relação à semana anterior.`,
+            text: `Houve um <b>${direction} de ${Math.round(Math.abs(diffPercent))}%</b> na participação em relação à semana anterior.`,
             color: color
         });
     }
