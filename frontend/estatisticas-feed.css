@@ -294,6 +294,30 @@
     color: var(--accent);
 }
 
+/* Novo Badge Combinado */
+.status-weather-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 5px 15px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    background: #064e3b; /* Verde escuro */
+    color: #ffffff;
+    border: 1px solid rgba(16, 185, 129, 0.2);
+    white-space: nowrap;
+}
+.status-weather-badge .weather-icon {
+    color: #fbbf24; /* Cor de sol para o ícone */
+    width: 16px;
+    height: 16px;
+}
+.status-weather-badge .temp-val {
+    font-weight: 700;
+    color: #ffffff;
+}
+
 /* Ranking Badges */
 .rank-badge {
     display: inline-flex;
