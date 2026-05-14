@@ -63,15 +63,8 @@ const startServer = () => {
     res.end("Not found.");
   });
 
-  server.on("error", (e) => {
-    if (e.code === "EADDRINUSE") {
-      dashboard.addLog(`Erro: A porta ${port} já está em uso.`);
-      setTimeout(() => process.exit(1), 3000);
-    }
-  });
-
   server.listen(port, "0.0.0.0", () => {
-    dashboard.setServerUrl(`https://api.grupobritto.com.br/api/stats`);
+    dashboard.setServerUrl(`http://0.0.0.0:${port}`);
   });
 };
 

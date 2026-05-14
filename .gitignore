@@ -17,6 +17,3 @@ public/estatisticas.html
 config/weather.json
 config/weather.json
 logs.txt
-.wwebjs_auth/
-.lock
-bot.lock

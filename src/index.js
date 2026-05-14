@@ -8,7 +8,6 @@ const dashboard = require("./services/dashboard");
 const cronJob = require("./services/cron-job");
 const statistics = require("./services/statistics");
 const configService = require("./services/configService");
-const { getProfilePhoto } = require("./services/photoService");
 const { startServer } = require("./server");
 
 async function startBot() {
@@ -17,7 +16,7 @@ async function startBot() {
   const client = new Client({
     authStrategy: new LocalAuth({ dataPath: "./auth_info" }),
     puppeteer: {
-      headless: "new",
+      headless: true,
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",
@@ -26,12 +25,7 @@ async function startBot() {
         "--no-first-run",
         "--no-zygote",
         "--disable-gpu",
-        "--disable-extensions",
-        "--disable-default-apps",
-        "--no-default-browser-check",
       ],
-      handleSIGINT: false, // Deixamos o nosso shutdown cuidar disso
-      handleSIGTERM: false,
     },
   });
 
@@ -68,19 +62,6 @@ async function startBot() {
       );
     });
 
-    // Teste de diagnóstico: tenta pegar a própria foto
-    try {
-      const myId = client.info.wid._serialized;
-      // Pequeno delay para garantir que o Store esteja pronto
-      await new Promise(resolve => setTimeout(resolve, 5000));
-      
-      const myPhoto = await getProfilePhoto(client, myId);
-      
-      dashboard.addLog(chalk.blue(`[DIAGNÓSTICO] Foto do próprio bot (${myId}): ${myPhoto ? 'OK' : 'Falha'}`));
-    } catch (e) {
-      dashboard.addLog(chalk.red(`[DIAGNÓSTICO] Erro ao testar própria foto: ${e.message}`));
-    }
-
     if (process.argv.includes("--now")) {
       dashboard.addLog("Parâmetro --now detectado. Forçando envio imediato 🎉");
       cronJob.sendPolls(client);
@@ -95,15 +76,43 @@ async function startBot() {
       try {
         const contact = await client.getContactById(vote.voter);
         voterName = contact.pushname || contact.name || "Desconhecido";
-        
-        photoUrl = await getProfilePhoto(client, vote.voter);
+        let jid = vote.voter;
+        // Converte LID para JID real (c.us) se possível
+        if (contact.number) {
+          jid = `${contact.number}@c.us`;
+        } else if (contact.id && contact.id._serialized) {
+          jid = contact.id._serialized;
+        }
 
-        if (photoUrl) {
-          dashboard.addLog(chalk.cyan(`[FOTO] Foto obtida para ${voterName}`));
+        try {
+          photoUrl = await client.pupPage.evaluate(async (jidStr) => {
+            try {
+              const Store = window.Store;
+              const wid = Store.WidFactory.createWid(jidStr);
+              await Store.ProfilePic.requestProfilePicFromServer(wid);
+              await new Promise(resolve => setTimeout(resolve, 800)); // Aguarda resposta
+              const contact = Store.Contact.get(wid);
+              if (contact && contact.profilePicThumbObj) {
+                return contact.profilePicThumbObj.eurl || contact.profilePicThumbObj.img || contact.profilePicThumbObj.imgFull || null;
+              }
+              // Fallback interno no pup
+              const pic = await Store.ProfilePic.profilePicFind(wid);
+              return pic ? (pic.eurl || pic.img) : null;
+            } catch (e) {
+              return null;
+            }
+          }, jid);
+
+          // Fallback oficial se o pup falhar
+          if (!photoUrl) {
+            photoUrl = await client.getProfilePicUrl(jid).catch(() => null);
+          }
+        } catch (e) {
+          /* silencioso */
         }
       } catch (e) {
         dashboard.addLog(
-          `Aviso: Não foi possível obter dados de ${vote.voter}: ${e.message}`,
+          `Aviso: Não foi possível obter dados de ${vote.voter}`,
         );
       }
 
@@ -195,21 +204,6 @@ async function startBot() {
   } catch (e) {
     dashboard.addLog(`Erro fatal no puppeteer: ${e.message}`);
   }
-
-  // Graceful shutdown
-  const shutdown = async () => {
-    dashboard.addLog("Encerrando bot graciosamente...");
-    try {
-      await client.destroy();
-      dashboard.addLog("Cliente encerrado com sucesso.");
-    } catch (e) {
-      dashboard.addLog(`Erro ao fechar cliente: ${e.message}`);
-    }
-    process.exit(0);
-  };
-
-  process.on("SIGINT", shutdown);
-  process.on("SIGTERM", shutdown);
 }
 
 /**
@@ -246,19 +240,53 @@ async function syncRecentPhotos(client) {
         continue;
       }
 
-      let photoUrl = null;
-      let voterName = "Desconhecido";
+      let name = "Desconhecido";
+      let jid = id;
       try {
         const contact = await client.getContactById(id);
-        voterName = contact.pushname || contact.name || "Desconhecido";
-        
-        photoUrl = await getProfilePhoto(client, id);
+        name = contact.pushname || contact.name || "Desconhecido";
+
+        // Converte LID para JID real (c.us) se possível
+        if (contact.number) {
+          jid = `${contact.number}@c.us`;
+        } else if (contact.id && contact.id._serialized) {
+          jid = contact.id._serialized;
+        }
       } catch (ce) {
         /* ignora */
       }
 
+      let photoUrl = null;
+
+      try {
+        photoUrl = await client.pupPage.evaluate(async (jidStr) => {
+          try {
+            const Store = window.Store;
+            const wid = Store.WidFactory.createWid(jidStr);
+            await Store.ProfilePic.requestProfilePicFromServer(wid);
+            await new Promise(resolve => setTimeout(resolve, 800)); // Aguarda resposta
+            const contact = Store.Contact.get(wid);
+            if (contact && contact.profilePicThumbObj) {
+              return contact.profilePicThumbObj.eurl || contact.profilePicThumbObj.img || contact.profilePicThumbObj.imgFull || null;
+            }
+            // Fallback interno no pup
+            const pic = await Store.ProfilePic.profilePicFind(wid);
+            return pic ? (pic.eurl || pic.img) : null;
+          } catch (e) {
+            return null;
+          }
+        }, jid);
+
+        // Fallback oficial se o pup falhar
+        if (!photoUrl) {
+          photoUrl = await client.getProfilePicUrl(jid).catch(() => null);
+        }
+      } catch (pe) {
+        /* silencioso */
+      }
+
       if (photoUrl) {
-        await statistics.syncPassengerMetadata(id, voterName, photoUrl);
+        await statistics.syncPassengerMetadata(id, name, photoUrl);
         count++;
       }
 
