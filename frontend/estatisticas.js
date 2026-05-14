@@ -10,6 +10,15 @@ const getWeatherIcon = (code) => {
     return 'cloud';
 };
 
+const getTempTheme = (temp) => {
+    if (temp <= 12) return { bg: 'rgba(0, 150, 255, 0.1)', text: '#74c0fc', border: 'rgba(0, 150, 255, 0.2)', icon: '#74c0fc' }; // Gelado
+    if (temp <= 19) return { bg: 'rgba(33, 150, 243, 0.1)', text: '#64b5f6', border: 'rgba(33, 150, 243, 0.2)', icon: '#64b5f6' }; // Frio
+    if (temp <= 26) return { bg: 'rgba(76, 175, 80, 0.1)', text: '#81c784', border: 'rgba(76, 175, 80, 0.2)', icon: '#81c784' }; // Agradável
+    if (temp <= 32) return { bg: 'rgba(255, 152, 0, 0.1)', text: '#ffb74d', border: 'rgba(255, 152, 0, 0.2)', icon: '#ffb74d' }; // Quente
+    return { bg: 'rgba(244, 67, 54, 0.1)', text: '#e57373', border: 'rgba(244, 67, 54, 0.2)', icon: '#e57373' }; // Muito Quente
+};
+window.getTempTheme = getTempTheme;
+
 let lastNotifiedCount = {};
 let notificationEnabled = false;
 
