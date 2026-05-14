@@ -7,7 +7,7 @@ let currentPage = 1;
 const itemsPerPage = 10;
 
 window.handleSearchFeed = (val) => {
-    currentFeedSearch = val.toLowerCase().trim();
+    currentFeedSearch = normalizeSearch(val);
     currentPage = 1;
     updateVoteFeed(currentTargetGroup);
 };
@@ -91,9 +91,9 @@ const updateVoteFeed = (targetGroup) => {
                 
                 let matchesSearch = true;
                 if (currentFeedSearch) {
-                    matchesSearch = fullName.toLowerCase().includes(currentFeedSearch) ||
-                       routeAlias.toLowerCase().includes(currentFeedSearch) ||
-                       vote.option.toLowerCase().includes(currentFeedSearch);
+                    matchesSearch = normalizeSearch(fullName).includes(currentFeedSearch) ||
+                       normalizeSearch(routeAlias).includes(currentFeedSearch) ||
+                       normalizeSearch(vote.option).includes(currentFeedSearch);
                 }
                 
                 let matchesOption = true;
@@ -130,16 +130,15 @@ const updateVoteFeed = (targetGroup) => {
                 const timeStr = vote.timestamp ? moment(vote.timestamp).tz("America/Sao_Paulo").format("HH:mm") : "--:--";
                 const maskedPhone = formatPhone(vote.voter_id.split('@')[0]);
                 let fullName = "Ext";
-                if (vote.voter_name) fullName = vote.voter_name;
-                else if (pass && pass.name) fullName = pass.name;
+                if (vote.voter_name) fullName = formatName(vote.voter_name);
+                else if (pass && pass.name) fullName = formatName(pass.name);
                 const displayName = fullName;
-                const photo = vote.photo_url || (pass && pass.photo_url) || "https://ui-avatars.com/api/?name=" + encodeURIComponent(displayName) + "&background=333&color=fff";
                 const routeAlias = groupAliases[vote.group] || vote.group;
                 let optClass = "tag-vote";
                 if (vote.option.includes("não retornarei")) optClass = "tag-one-way";
                 if (vote.option.includes("Não irei")) optClass = "tag-absence";
                 if (vote.option.includes("apenas retornarei")) optClass = "tag-waiting";
-                row.innerHTML = `<td class="timestamp-cell">${timeStr}</td><td><div class="user-cell"><img src="${photo}" class="user-avatar" onerror="this.src='https://ui-avatars.com/api/?name=?'"><span class="user-name">${displayName}</span></div></td><td><span class="tag tag-route">${routeAlias}</span></td><td><span class="tag ${optClass}">${vote.option}</span></td>`;
+                row.innerHTML = `<td class="timestamp-cell">${timeStr}</td><td><div class="user-cell"><span class="user-name">${displayName}</span></div></td><td><span class="tag tag-route">${routeAlias}</span></td><td><span class="tag ${optClass}">${vote.option}</span></td>`;
                 body.appendChild(row);
             });
             
@@ -150,7 +149,7 @@ const updateVoteFeed = (targetGroup) => {
                     row.className = "feed-row";
                     row.style.opacity = "0";
                     row.style.pointerEvents = "none";
-                    row.innerHTML = `<td class="timestamp-cell">&nbsp;</td><td><div class="user-cell"><div class="user-avatar"></div><span class="user-name">&nbsp;</span></div></td><td><span class="tag">&nbsp;</span></td><td><span class="tag">&nbsp;</span></td>`;
+                    row.innerHTML = `<td class="timestamp-cell">&nbsp;</td><td><div class="user-cell"><span class="user-name">&nbsp;</span></div></td><td><span class="tag">&nbsp;</span></td><td><span class="tag">&nbsp;</span></td>`;
                     body.appendChild(row);
                 }
             }
@@ -178,8 +177,8 @@ const updateVoteFeed = (targetGroup) => {
         if (currentFeedSearch) {
             pendingUsers = pendingUsers.filter(p => {
                 const routeAlias = groupAliases[p.group_name] || p.group_name;
-                return p.name.toLowerCase().includes(currentFeedSearch) ||
-                       routeAlias.toLowerCase().includes(currentFeedSearch) ||
+                return normalizeSearch(p.name).includes(currentFeedSearch) ||
+                       normalizeSearch(routeAlias).includes(currentFeedSearch) ||
                        "pendente".includes(currentFeedSearch);
             });
         }
@@ -192,10 +191,8 @@ const updateVoteFeed = (targetGroup) => {
                 const row = document.createElement("tr");
                 row.className = "feed-row";
                 const routeAlias = groupAliases[user.group_name] || user.group_name;
-                const fullName = user.name;
-                const displayName = fullName;
-                const photo = user.photo_url || "https://ui-avatars.com/api/?name=" + encodeURIComponent(displayName) + "&background=333&color=fff";
-                row.innerHTML = `<td><div class="user-cell"><img src="${photo}" class="user-avatar" onerror="this.src='https://ui-avatars.com/api/?name=?'"><span class="user-name">${displayName}</span></div></td><td><span class="tag tag-route">${routeAlias}</span></td><td><span class="tag tag-pending">PENDENTE</span></td>`;
+                const displayName = formatName(user.name);
+                row.innerHTML = `<td><div class="user-cell"><span class="user-name">${displayName}</span></div></td><td><span class="tag tag-route">${routeAlias}</span></td><td><span class="tag tag-pending">PENDENTE</span></td>`;
                 body.appendChild(row);
             });
         }
