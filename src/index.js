@@ -9,6 +9,7 @@ const cronJob = require("./services/cron-job");
 const statistics = require("./services/statistics");
 const configService = require("./services/configService");
 const { startServer } = require("./server");
+const { formatName } = require("./utils/nameFormatter");
 
 async function startBot() {
   dashboard.setStatus("Processando inicialização...");
@@ -75,7 +76,7 @@ async function startBot() {
       let photoUrl = null;
       try {
         const contact = await client.getContactById(vote.voter);
-        voterName = contact.pushname || contact.name || "Desconhecido";
+        voterName = formatName(contact.pushname || contact.name || "Desconhecido");
         let jid = vote.voter;
         // Converte LID para JID real (c.us) se possível
         if (contact.number) {
@@ -244,7 +245,7 @@ async function syncRecentPhotos(client) {
       let jid = id;
       try {
         const contact = await client.getContactById(id);
-        name = contact.pushname || contact.name || "Desconhecido";
+        name = formatName(contact.pushname || contact.name || "Desconhecido");
 
         // Converte LID para JID real (c.us) se possível
         if (contact.number) {
