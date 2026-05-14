@@ -52,7 +52,7 @@ const updateCapacityCard = (targetGroup) => {
             }
         }
     });
-    const avgHistorical = daysWithHistoricalData > 0 ? totalHistoricalPresence / daysWithHistoricalData : 0;
+    const avgHistorical = daysWithHistoricalData > 0 ? Math.round(totalHistoricalPresence / daysWithHistoricalData) : 0;
 
     const busIdx = targetGroups.indexOf(gName) + 1;
     const totalPassengers = passengers.filter(
@@ -105,7 +105,7 @@ const renderCompactBar = (name, count, cap, pending, avg) => {
       const fire = document.createElement("span");
       fire.innerHTML = "🔥";
       fire.style.fontSize = "1rem";
-      fire.title = "Acima da média histórica (" + avg.toFixed(1) + ")";
+      fire.title = "Acima da média histórica (" + Math.round(avg) + ")";
       nameSpan.appendChild(fire);
   }
 
@@ -141,7 +141,7 @@ const renderCompactBar = (name, count, cap, pending, avg) => {
         box-shadow: 0 0 5px rgba(255,255,255,0.5);
         z-index: 10;
       `;
-      avgMarker.title = "Média histórica: " + avg.toFixed(1);
+      avgMarker.title = "Média histórica: " + Math.round(avg);
       progressContainer.appendChild(avgMarker);
   }
 
