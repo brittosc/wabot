@@ -433,12 +433,27 @@ const processData = (targetGroup, targetPeriod) => {
     setHighlight("hlSoVoltaVal", "hlSoVoltaDate", peakSoVolta);
     setHighlight("hlSoVoltaMinVal", "hlSoVoltaMinDate", valleySoVolta);
 
+    const diffPercent = bAvgPresence > 0 ? ((avgPresence - bAvgPresence) / bAvgPresence) * 100 : 0;
+    
+    // Expor dados para outros scripts (insights, etc)
+    window.lastProcessedStats = {
+        avgPresence,
+        bAvgPresence,
+        diffPercent,
+        peakWeekday,
+        valleyWeekday,
+        peakHour: document.getElementById("hlPeakHour")?.innerText || "--",
+        accumTotalVotes,
+        totalDaysCount
+    };
+
     updateCapacityCard(targetGroup);
     updateNextPollsCalendar();
     updateVoteFeed(targetGroup);
     if (typeof renderHeatmap === "function") renderHeatmap(targetGroup);
     if (typeof renderPrediction === "function") renderPrediction(targetGroup);
     if (typeof updateGroupMilestones === "function") updateGroupMilestones(targetGroup);
+    if (typeof renderInsights === "function") renderInsights(targetGroup);
     if (typeof updateRanking === "function") updateRanking(targetGroup, targetPeriod);
     renderCharts(barLabels, barData, globalOptionCounts, stackedData);
 };
