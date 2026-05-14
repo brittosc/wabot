@@ -69,7 +69,7 @@ const updateNextPollsCalendar = (limitDays = 7) => {
             const h = duration.hours();
             const m = duration.minutes();
 
-            let statusHtml = '<div class="status-badge status-agendada">Agendada</div>';
+            let statusHtml = '<div class="status-badge status-rascunho">Agendada</div>';
             if (dayWeather) {
                 const icon = getWeatherIcon(dayWeather.condition_code);
                 const theme = getTempTheme(dayWeather.max);
