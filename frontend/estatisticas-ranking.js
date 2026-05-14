@@ -264,11 +264,33 @@ const updateRanking = (targetGroupFromDash, _targetDaysStr) => {
 
         const displayName = formatName(user.name);
         
+        // Cálculo de Badges
+        let userBadgesHtml = '';
+        if (user.latestStreak >= 5) {
+            userBadgesHtml += `<span class="user-badge-icon" title="Streak de ${user.latestStreak} dias" style="color: #ffc107;"><i data-lucide="zap"></i></span>`;
+        }
+        if (user.absenceRate < 5 && user.presenceCount > 5) {
+            userBadgesHtml += `<span class="user-badge-icon" title="Frequência Exemplar" style="color: #4caf50;"><i data-lucide="shield-check"></i></span>`;
+        }
+        if (user.avgSeconds < 23400 && user.avgSeconds !== Infinity) { // Antes das 06:30
+            userBadgesHtml += `<span class="user-badge-icon" title="Madrugador" style="color: #ff9800;"><i data-lucide="sunrise"></i></span>`;
+        }
+        if (user.presenceCount >= 20) {
+            userBadgesHtml += `<span class="user-badge-icon" title="Veterano" style="color: #2196f3;"><i data-lucide="award"></i></span>`;
+        }
+
         if (rankingType === 'presence') {
             const presenceLabel = user.presenceCount === 1 ? 'presença' : 'presenças';
             row.innerHTML = `
                 <td style="width:60px;text-align:center;">${rankBadge}</td>
-                <td><div class="user-cell"><span class="user-name ${nameClass}">${displayName}</span></div></td>
+                <td>
+                    <div class="user-cell">
+                        <div style="display:flex; flex-direction:column;">
+                            <span class="user-name ${nameClass}">${displayName}</span>
+                            <div class="user-badges-container">${userBadgesHtml}</div>
+                        </div>
+                    </div>
+                </td>
                 <td>
                     <div style="display:flex;flex-direction:column;gap:4px;">
                         <span class="tag tag-vote" style="font-size:0.7rem;">${user.presenceCount} ${presenceLabel}</span>
@@ -286,8 +308,11 @@ const updateRanking = (targetGroupFromDash, _targetDaysStr) => {
                 <td style="width:60px;text-align:center;">${rankBadge}</td>
                 <td>
                     <div class="user-cell">
-                        <span class="user-name ${nameClass}">${displayName}</span>
-                        <div style="font-size:0.7rem;color:#666;margin-top:2px;">${user.routeAlias}</div>
+                        <div style="display:flex; flex-direction:column;">
+                            <span class="user-name ${nameClass}">${displayName}</span>
+                            <div class="user-badges-container">${userBadgesHtml}</div>
+                            <div style="font-size:0.7rem;color:#666;margin-top:2px;">${user.routeAlias}</div>
+                        </div>
                     </div>
                 </td>
                 <td>

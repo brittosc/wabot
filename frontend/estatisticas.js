@@ -407,6 +407,7 @@ const processData = (targetGroup, targetDaysStr) => {
     updateVoteFeed(targetGroup);
     if (typeof renderHeatmap === "function") renderHeatmap(targetGroup);
     if (typeof renderPrediction === "function") renderPrediction(targetGroup);
+    if (typeof updateGroupMilestones === "function") updateGroupMilestones(targetGroup);
     if (typeof updateRanking === "function") updateRanking(targetGroup, targetDaysStr);
     renderCharts(barLabels, barData, globalOptionCounts, stackedData);
 };

@@ -387,6 +387,25 @@ select option {
     border-radius: 2px;
 }
 
+.user-badges-container {
+    display: flex;
+    gap: 6px;
+    margin-top: 5px;
+}
+.user-badge-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 3px;
+    border-radius: 4px;
+    cursor: help;
+}
+.user-badge-icon i {
+    width: 13px;
+    height: 13px;
+}
+
 /* PREDICTION CARD STYLES */
 .prediction-card {
     background: linear-gradient(135deg, #0d47a1, #1a237e);
