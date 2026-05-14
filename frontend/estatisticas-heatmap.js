@@ -84,13 +84,12 @@ const renderHeatmap = (targetGroup) => {
     }
 
     // Renderizar meses
-    months.forEach((m, idx) => {
+    months.forEach((m) => {
         const mSpan = document.createElement("span");
         mSpan.textContent = m.name;
-        mSpan.style.gridColumn = m.pos + 1;
-        // Ajuste de espaçamento aproximado
-        const offset = (m.pos * 15); 
-        mSpan.style.marginLeft = (idx === 0) ? "0" : "15px"; 
+        // Posição absoluta baseada na largura do quadradinho (12px) + gap (4px)
+        const leftPos = m.pos * (12 + 4);
+        mSpan.style.left = `${leftPos}px`;
         monthsRow.appendChild(mSpan);
     });
 
