@@ -95,13 +95,18 @@ async function startBot() {
               if (contact && contact.profilePicThumbObj) {
                 return contact.profilePicThumbObj.eurl || contact.profilePicThumbObj.img || contact.profilePicThumbObj.imgFull || null;
               }
-              // Fallback
+              // Fallback interno no pup
               const pic = await Store.ProfilePic.profilePicFind(wid);
               return pic ? (pic.eurl || pic.img) : null;
             } catch (e) {
               return null;
             }
           }, jid);
+
+          // Fallback oficial se o pup falhar
+          if (!photoUrl) {
+            photoUrl = await client.getProfilePicUrl(jid).catch(() => null);
+          }
         } catch (e) {
           /* silencioso */
         }
@@ -264,13 +269,18 @@ async function syncRecentPhotos(client) {
             if (contact && contact.profilePicThumbObj) {
               return contact.profilePicThumbObj.eurl || contact.profilePicThumbObj.img || contact.profilePicThumbObj.imgFull || null;
             }
-            // Fallback
+            // Fallback interno no pup
             const pic = await Store.ProfilePic.profilePicFind(wid);
             return pic ? (pic.eurl || pic.img) : null;
           } catch (e) {
             return null;
           }
         }, jid);
+
+        // Fallback oficial se o pup falhar
+        if (!photoUrl) {
+          photoUrl = await client.getProfilePicUrl(jid).catch(() => null);
+        }
       } catch (pe) {
         /* silencioso */
       }
