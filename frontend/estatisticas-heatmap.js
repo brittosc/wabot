@@ -11,8 +11,11 @@ const renderHeatmap = (targetGroup) => {
     }
 
     const today = moment().tz("America/Sao_Paulo").endOf('day');
-    // Garantir que começamos no Domingo da semana do primeiro registro
-    const startDate = moment(dbDates[0]).tz("America/Sao_Paulo").day(0).startOf('day');
+    // Forçar início no Domingo anterior ao primeiro registro de forma manual e segura
+    let startDate = moment(dbDates[0]).tz("America/Sao_Paulo").startOf('day');
+    while (startDate.day() !== 0) {
+        startDate.subtract(1, 'day');
+    }
     
     const heatmapFlex = document.createElement("div");
     heatmapFlex.className = "heatmap-flex";
@@ -24,11 +27,12 @@ const renderHeatmap = (targetGroup) => {
     // Labels dos dias da semana
     const labels = document.createElement("div");
     labels.className = "heatmap-labels";
-    ["", "Seg", "Ter", "Qua", "Qui", "Sex", ""].forEach((day, idx) => {
+    const dayLabels = ["", "Seg", "Ter", "Qua", "Qui", "Sex", ""];
+    for (let i = 0; i < 7; i++) {
         const span = document.createElement("span");
-        span.textContent = day;
+        span.innerHTML = dayLabels[i] || "&nbsp;";
         labels.appendChild(span);
-    });
+    }
 
     const gridWrapper = document.createElement("div");
     gridWrapper.style.display = "flex";
