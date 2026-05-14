@@ -186,10 +186,18 @@ const updateRanking = (targetGroupFromDash, _targetDaysStr) => {
         row.className = "feed-row";
 
         let rankBadge = '<span class="rank-badge">' + (user.globalRank + 1) + 'º</span>';
+        let nameClass = "";
         if (rankingOrder === 'desc') {
-            if (user.globalRank === 0) rankBadge = '<span class="rank-badge rank-gold"><i data-lucide="medal" style="width:16px;height:16px;margin-right:2px;"></i>1º</span>';
-            else if (user.globalRank === 1) rankBadge = '<span class="rank-badge rank-silver"><i data-lucide="medal" style="width:16px;height:16px;margin-right:2px;"></i>2º</span>';
-            else if (user.globalRank === 2) rankBadge = '<span class="rank-badge rank-bronze"><i data-lucide="medal" style="width:16px;height:16px;margin-right:2px;"></i>3º</span>';
+            if (user.globalRank === 0) {
+                rankBadge = '<span class="rank-badge rank-gold"><i data-lucide="medal" style="width:16px;height:16px;margin-right:2px;"></i>1º</span>';
+                nameClass = "name-gold";
+            } else if (user.globalRank === 1) {
+                rankBadge = '<span class="rank-badge rank-silver"><i data-lucide="medal" style="width:16px;height:16px;margin-right:2px;"></i>2º</span>';
+                nameClass = "name-silver";
+            } else if (user.globalRank === 2) {
+                rankBadge = '<span class="rank-badge rank-bronze"><i data-lucide="medal" style="width:16px;height:16px;margin-right:2px;"></i>3º</span>';
+                nameClass = "name-bronze";
+            }
         }
 
         const avgTime = fmt(user.avgSeconds);
@@ -200,7 +208,7 @@ const updateRanking = (targetGroupFromDash, _targetDaysStr) => {
         row.innerHTML =
             '<td style="width:60px;text-align:center;">' + rankBadge + '</td>' +
             '<td><div class="user-cell">' +
-                '<span class="user-name">' + displayName + '</span>' +
+                '<span class="user-name ' + nameClass + '">' + displayName + '</span>' +
             '</div></td>' +
             '<td><div style="display:flex;flex-direction:column;gap:4px;align-items:flex-start;">' +
                 '<span class="tag tag-vote" style="font-size:0.75rem;">' + user.presenceCount + ' ' + presenceLabel + '</span>' +
