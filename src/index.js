@@ -10,34 +10,8 @@ const statistics = require("./services/statistics");
 const configService = require("./services/configService");
 const { startServer } = require("./server");
 
-const fs = require("fs");
-const path = require("path");
-
-const LOCK_FILE = path.join(__dirname, "../bot.lock");
-
-function acquireLock() {
-  if (fs.existsSync(LOCK_FILE)) {
-    const pid = fs.readFileSync(LOCK_FILE, "utf8");
-    try {
-      process.kill(pid, 0);
-      console.log(`Bot já está rodando (PID: ${pid}).`);
-      process.exit(1);
-    } catch (e) {
-      fs.unlinkSync(LOCK_FILE);
-    }
-  }
-  fs.writeFileSync(LOCK_FILE, process.pid.toString());
-  process.on("exit", () => {
-    if (fs.existsSync(LOCK_FILE)) fs.unlinkSync(LOCK_FILE);
-  });
-  process.on("SIGINT", () => process.exit());
-  process.on("SIGTERM", () => process.exit());
-}
-
 async function startBot() {
-  acquireLock();
   dashboard.setStatus("Processando inicialização...");
-  dashboard.addLog("Iniciando WhatsApp Web...");
 
   const client = new Client({
     authStrategy: new LocalAuth({ dataPath: "./auth_info" }),
@@ -65,7 +39,6 @@ async function startBot() {
 
   client.on("ready", async () => {
     dashboard.setStatus("Conectado!");
-    dashboard.addLog("Bot pronto e conectado!");
     dashboard.setQrCode(""); // Limpa QR
 
     // Garante que o agendamento e o check só ocorram uma única vez
@@ -274,7 +247,7 @@ async function startBot() {
   });
 
   client.on("authenticated", () => {
-    dashboard.addLog("Autenticado com sucesso!");
+    // Autenticação preservada
   });
 
   client.on("auth_failure", (msg) => {
@@ -297,13 +270,25 @@ async function startBot() {
   });
 
   try {
-    dashboard.addLog("Chamando initialize()...");
     await client.initialize();
-    dashboard.addLog("Bot inicializado (aguardando ready/qr).");
   } catch (e) {
     dashboard.addLog(`Erro fatal no puppeteer: ${e.message}`);
-    if (fs.existsSync(LOCK_FILE)) fs.unlinkSync(LOCK_FILE);
   }
+
+  // Graceful shutdown
+  const shutdown = async () => {
+    dashboard.addLog("Encerrando bot graciosamente...");
+    try {
+      await client.destroy();
+      dashboard.addLog("Cliente encerrado com sucesso.");
+    } catch (e) {
+      dashboard.addLog(`Erro ao fechar cliente: ${e.message}`);
+    }
+    process.exit(0);
+  };
+
+  process.on("SIGINT", shutdown);
+  process.on("SIGTERM", shutdown);
 }
 
 /**
