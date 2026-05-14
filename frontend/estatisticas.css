@@ -123,79 +123,7 @@ select option {
     color: #666;
     margin-top: 4px;
 }
-@media (max-width: 768px) {
-    body {
-        padding: 12px;
-    }
-    h1 {
-        font-size: 1.6rem;
-        margin-bottom: 20px;
-    }
-    .controls {
-        flex-direction: column;
-        align-items: stretch;
-    }
-    select {
-        width: 100%;
-        min-width: unset;
-        box-sizing: border-box;
-    }
-    .dashboard {
-        gap: 15px;
-    }
-    .card {
-        flex: 1 1 100% !important;
-        min-width: 0 !important;
-        max-width: 100% !important;
-    }
-    .card h2 {
-        font-size: 1rem;
-    }
-    .highlights {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 12px;
-    }
-    .highlight-card {
-        padding: 14px;
-    }
-    .split-half .value {
-        font-size: 1.4rem;
-    }
-    .split-half .label {
-        font-size: 0.65rem;
-    }
-    .summary-card {
-        flex-direction: column;
-        padding: 18px 16px;
-        gap: 16px;
-    }
-    .summary-item:not(:last-child)::after {
-        display: none;
-    }
-    .summary-item {
-        border-bottom: 1px solid rgba(255,255,255,0.07);
-        padding-bottom: 12px;
-    }
-    .summary-item:last-child {
-        border-bottom: none;
-        padding-bottom: 0;
-    }
-    .summary-item p {
-        font-size: 1.6rem;
-    }
-    .chart-container {
-        height: 220px;
-    }
-}
 
-@media (max-width: 480px) {
-    .highlights {
-        grid-template-columns: 1fr;
-    }
-    .split-half .value {
-        font-size: 1.2rem;
-    }
-}
 .summary-card {
     display: flex;
     flex-direction: row;
@@ -277,5 +205,85 @@ select option {
     text-align: center;
     border-top: 1px solid var(--border-color);
     padding-top: 30px;
+}
+
+/* Media Queries moved to the end for correct overrides */
+@media (max-width: 768px) {
+    body {
+        padding: 12px;
+    }
+    h1 {
+        font-size: 1.6rem;
+        margin-bottom: 20px;
+    }
+    .controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    select {
+        width: 100%;
+        min-width: unset;
+        box-sizing: border-box;
+    }
+    .dashboard {
+        gap: 15px;
+    }
+    .card {
+        flex: 1 1 100% !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+    }
+    .card h2 {
+        font-size: 1rem;
+    }
+    .highlights {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+    }
+    .highlight-card {
+        padding: 14px;
+    }
+    .split-half .value {
+        font-size: 1.4rem;
+    }
+    .split-half .label {
+        font-size: 0.65rem;
+    }
+    .summary-card {
+        flex-direction: column;
+        padding: 20px;
+        gap: 20px;
+    }
+    .summary-item:not(:last-child)::after {
+        display: none;
+    }
+    .summary-item {
+        border-bottom: 1px solid rgba(255,255,255,0.07);
+        padding-bottom: 15px;
+        width: 100%;
+    }
+    .summary-item:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+    .summary-item p {
+        font-size: 1.8rem;
+        line-height: 1.2;
+    }
+    .chart-container {
+        height: 220px;
+    }
+}
+
+@media (max-width: 480px) {
+    .highlights {
+        grid-template-columns: 1fr;
+    }
+    .split-half .value {
+        font-size: 1.2rem;
+    }
+    .summary-item p {
+        font-size: 1.5rem;
+    }
 }
 
