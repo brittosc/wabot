@@ -11,7 +11,7 @@ window.updateDash = updateDash;
 const playNotificationSound = () => {
     try {
         // Som de notificação curto e suave
-        const audio = new Audio("https://cdn.pixabay.com/audio/2022/03/15/audio_507663249f.mp3");
+        const audio = new Audio("/notifications/sound.mp3");
         audio.volume = 0.5;
         audio.play().catch(e => {
             console.warn("Notificação sonora bloqueada pelo navegador. Interaja com a página primeiro.");
