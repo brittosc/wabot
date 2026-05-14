@@ -156,6 +156,30 @@ const updateChartsOnly = () => {
     processData(grp, per);
 };
 
+// Helper para atualizar badge de tendência
+const updateTrendBadge = (id, current, baseline, inverse = false) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (!baseline || baseline === 0) { el.innerHTML = ""; return; }
+    const diff = ((current - baseline) / baseline) * 100;
+    const absDiff = Math.abs(diff).toFixed(0);
+    let trend = diff > 1 ? "up" : diff < -1 ? "down" : "neutral";
+    
+    let colorClass = "trend-neutral";
+    let icon = "minus";
+
+    if (trend === "up") {
+        colorClass = inverse ? "trend-down" : "trend-up";
+        icon = "arrow-up";
+    } else if (trend === "down") {
+        colorClass = inverse ? "trend-up" : "trend-down";
+        icon = "arrow-down";
+    }
+
+    el.className = `trend-badge ${colorClass}`;
+    el.innerHTML = `<i data-lucide="${icon}" style="width: 12px; height: 12px;"></i> ${absDiff}%`;
+};
+
 const processData = (targetGroup, targetDaysStr) => {
     const targetDays = parseInt(targetDaysStr, 10);
     const todayMoment = moment().startOf('day');
@@ -191,6 +215,18 @@ const processData = (targetGroup, targetDaysStr) => {
     let totalPresenceVotes = 0;
     let daysWithData = 0;
 
+    // Cálculo da base (últimos 7 dias) para contexto
+    let baseStats = {
+        totalVotes: 0,
+        presence: 0,
+        soIda: 0,
+        soVolta: 0,
+        ausencia: 0,
+        idaVolta: 0,
+        voteTimestamps: []
+    };
+    const baseDays = 7;
+
     for (let i = targetDays - 1; i >= 0; i--) {
         const day = todayMoment.clone().subtract(i, 'days');
         const dateStr = day.format('YYYY-MM-DD');
@@ -213,7 +249,6 @@ const processData = (targetGroup, targetDaysStr) => {
                 if (targetGroup === "Todos" || targetGroup === "Grupo Geral (Legado)") groupsToProcess = [dayEntry];
             }
 
-            // Deduplicação por JID
             const dayUniqueVoters = new Map();
             groupsToProcess.forEach(groupPayload => {
                 if (!groupPayload.votes) return;
@@ -236,6 +271,19 @@ const processData = (targetGroup, targetDaysStr) => {
 
                 if (opt === "Irei, ida e volta." || opt === "Irei, mas não retornarei." || opt === "Não irei, apenas retornarei.") {
                     dailyPresence++;
+                }
+
+                // Dados para o baseline de 7 dias
+                if (i < baseDays) {
+                    baseStats.totalVotes++;
+                    if (opt === "Irei, ida e volta." || opt === "Irei, mas não retornarei." || opt === "Não irei, apenas retornarei.") {
+                        baseStats.presence++;
+                    }
+                    if (opt === "Irei, mas não retornarei.") baseStats.soIda++;
+                    if (opt === "Não irei, apenas retornarei.") baseStats.soVolta++;
+                    if (opt === "Não irei à faculdade hoje.") baseStats.ausencia++;
+                    if (opt === "Irei, ida e volta.") baseStats.idaVolta++;
+                    if (vData.ts) baseStats.voteTimestamps.push(moment(vData.ts));
                 }
             });
 
@@ -264,6 +312,26 @@ const processData = (targetGroup, targetDaysStr) => {
 
     const avgPresence = daysWithData > 0 ? totalPresenceVotes / daysWithData : 0;
     document.getElementById("lblAverage").innerText = avgPresence.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
+    const baselineDivisor = baseDays;
+    const bAvgPresence = baseStats.presence / baselineDivisor;
+    const bAvgTotalVotes = baseStats.totalVotes / baselineDivisor;
+    const bAvgSoIda = baseStats.soIda / baselineDivisor;
+    const bAvgSoVolta = baseStats.soVolta / baselineDivisor;
+    const bAvgAusencia = baseStats.ausencia / baselineDivisor;
+    const bAvgIdaVolta = baseStats.idaVolta / baselineDivisor;
+
+    updateTrendBadge("lblAverageTrend", avgPresence, bAvgPresence);
+    updateTrendBadge("lblTotalVotesTrend", accumTotalVotes / targetDays, bAvgTotalVotes);
+
+    updateTrendBadge("hlLotacaoTrend", peakLotacao.val, bAvgIdaVolta);
+    updateTrendBadge("hlLotacaoMinTrend", valleyLotacao.val, bAvgIdaVolta);
+    updateTrendBadge("hlAusenciaTrend", peakAusencia.val, bAvgAusencia, true);
+    updateTrendBadge("hlAusenciaMinTrend", valleyAusencia.val, bAvgAusencia, true);
+    updateTrendBadge("hlSoIdaTrend", peakSoIda.val, bAvgSoIda);
+    updateTrendBadge("hlSoIdaMinTrend", valleySoIda.val, bAvgSoIda);
+    updateTrendBadge("hlSoVoltaTrend", peakSoVolta.val, bAvgSoVolta);
+    updateTrendBadge("hlSoVoltaMinTrend", valleySoVolta.val, bAvgSoVolta);
 
     // Destaques de dias da semana
     let peakWeekday = { val: -1, day: "" }, valleyWeekday = { val: Infinity, day: "" };
@@ -295,8 +363,22 @@ const processData = (targetGroup, targetDaysStr) => {
     document.getElementById("lblTotalVotes").innerText = accumTotalVotes.toLocaleString('pt-BR');
     const totalTitle = document.getElementById("lblTotalVotesTitle");
     if (totalTitle) totalTitle.innerText = "Total Votos (" + targetDaysStr + " dias)";
-    calculateAverageInterval(voteTimestamps);
+    
+    const currentAvgTime = calculateAverageInterval(voteTimestamps);
+    const baselineAvgTime = calculateAverageInterval(baseStats.voteTimestamps);
+    updateTrendBadge("lblAvgVoteTimeTrend", currentAvgTime, baselineAvgTime, true);
+
+    const timeLabel = document.getElementById("lblAvgVoteTime");
+    if (timeLabel) {
+        if (currentAvgTime > 0) {
+            timeLabel.innerText = currentAvgTime < 60 ? Math.round(currentAvgTime) + "s" : Math.round(currentAvgTime / 60) + "m " + Math.round(currentAvgTime % 60) + "s";
+        } else {
+            timeLabel.innerText = "--";
+        }
+    }
+
     updateHourHighlights(voteTimestamps);
+    if (typeof lucide !== 'undefined') lucide.createIcons();
 
     const setTitle = (id, txt) => { const el = document.getElementById(id); if (el) el.innerText = txt; };
     setTitle("titlePieChart", "Consolidado Geral (" + targetDaysStr + " dias)");
@@ -329,17 +411,16 @@ const processData = (targetGroup, targetDaysStr) => {
 window.processData = processData;
 
 const calculateAverageInterval = (timestamps) => {
-    const label = document.getElementById("lblAvgVoteTime");
-    if (!timestamps || timestamps.length < 2) { label.innerText = "--"; return; }
-    timestamps.sort((a, b) => a.valueOf() - b.valueOf());
+    if (!timestamps || timestamps.length < 2) return 0;
+    
+    const tsCopy = [...timestamps].sort((a, b) => a.valueOf() - b.valueOf());
     let totalDiff = 0, count = 0;
-    for (let i = 1; i < timestamps.length; i++) {
-        const diff = timestamps[i].diff(timestamps[i - 1], 'seconds');
+    for (let i = 1; i < tsCopy.length; i++) {
+        const diff = tsCopy[i].diff(tsCopy[i - 1], 'seconds');
         if (diff > 0 && diff < 7200) { totalDiff += diff; count++; }
     }
-    if (count === 0) { label.innerText = "--"; return; }
-    const avgSeconds = totalDiff / count;
-    label.innerText = avgSeconds < 60 ? Math.round(avgSeconds) + "s" : Math.round(avgSeconds / 60) + "m " + Math.round(avgSeconds % 60) + "s";
+    if (count === 0) return 0;
+    return totalDiff / count;
 };
 
 const updateHourHighlights = (timestamps) => {
