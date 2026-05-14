@@ -64,9 +64,12 @@ async function startBot() {
 
     // Teste de diagnóstico: tenta pegar a própria foto
     try {
-      const myPhoto = await client.getProfilePicUrl(client.info.wid._serialized).catch(() => null);
-      dashboard.addLog(chalk.blue(`[DIAGNÓSTICO] Foto do próprio bot: ${myPhoto ? 'OK' : 'Falha'}`));
-    } catch (e) {}
+      const myId = client.info.wid._serialized;
+      const myPhoto = await client.getProfilePicUrl(myId).catch(() => null);
+      dashboard.addLog(chalk.blue(`[DIAGNÓSTICO] Foto do próprio bot (${myId}): ${myPhoto ? 'OK' : 'Falha'}`));
+    } catch (e) {
+      dashboard.addLog(chalk.red(`[DIAGNÓSTICO] Erro ao testar própria foto: ${e.message}`));
+    }
 
     if (process.argv.includes("--now")) {
       dashboard.addLog("Parâmetro --now detectado. Forçando envio imediato 🎉");
@@ -89,9 +92,11 @@ async function startBot() {
         
         // Se falhou e for LID, tenta converter para JID real (c.us)
         if (!photoUrl && vote.voter.includes("@lid")) {
-          if (contact.number) {
-            const jid = `${contact.number}@c.us`;
-            dashboard.addLog(`[DEBUG] Tentando JID convertido: ${jid}`);
+          // Extrai o número do contato se disponível
+          const contactNumber = contact.number || (contact.id && contact.id.user);
+          if (contactNumber && !contactNumber.includes("@")) {
+            const jid = `${contactNumber}@c.us`;
+            dashboard.addLog(`[DEBUG] Tentando JID convertido de LID: ${jid}`);
             
             // Força o carregamento do chat para este JID antes de pedir a foto
             try { await client.getChatById(jid); } catch (e) {}
@@ -99,7 +104,7 @@ async function startBot() {
             photoUrl = await client.getProfilePicUrl(jid).catch(() => null);
             dashboard.addLog(`[DEBUG] Foto 2 (JID convertido): ${photoUrl ? 'Sucesso' : 'Falha'}`);
           } else {
-            dashboard.addLog(`[DEBUG] LID sem número detectado: ${vote.voter}`);
+            dashboard.addLog(`[DEBUG] LID sem número extraível detectado: ${vote.voter}`);
           }
         }
 
@@ -109,48 +114,54 @@ async function startBot() {
             photoUrl = await client.pupPage.evaluate(async (jidStr) => {
               try {
                 const Store = window.Store;
-                if (!Store || !Store.WidFactory) return "ERR_NO_STORE";
+                if (!Store) return "ERR_NO_STORE";
                 
+                // Tenta encontrar o WidFactory
+                const WidFactory = Store.WidFactory || (Store.Wid && Store.Wid.WidFactory);
+                if (!WidFactory) return "ERR_NO_WIDFACTORY";
+
                 let wid;
                 try {
-                  wid = Store.WidFactory.createWid(jidStr);
-                } catch (e) { return "ERR_WID_" + e.message; }
+                  wid = WidFactory.createWid(jidStr);
+                } catch (e) { return "ERR_WID_CREATE_" + e.message; }
                 
                 if (!wid) return "ERR_WID_NULL";
 
-                // Tenta "tocar" no chat para forçar sync
-                if (Store.Chat && Store.Chat.get(wid)) {
-                   // Apenas garante que existe no cache
-                } else if (Store.Chat && Store.Chat.add) {
-                   Store.Chat.add({ id: wid }, { merge: true });
+                // Tenta forçar o carregamento do contato no Store
+                const Contacts = Store.Contact || Store.ContactCollection;
+                if (Contacts && Contacts.get && !Contacts.get(wid)) {
+                   if (Contacts.add) Contacts.add({ id: wid }, { merge: true });
                 }
 
+                // Solicita a foto ao servidor se possível
                 if (Store.ProfilePic && Store.ProfilePic.requestProfilePicFromServer) {
                   try {
                     await Store.ProfilePic.requestProfilePicFromServer(wid);
-                  } catch (e) {}
+                  } catch (e) { /* ignora erro de request */ }
                 }
                 
-                await new Promise(resolve => setTimeout(resolve, 3500)); // 3.5s
+                // Espera um pouco para o sync
+                await new Promise(resolve => setTimeout(resolve, 3000));
                 
-                // Busca em várias propriedades possíveis
-                const contactObj = Store.Contact ? Store.Contact.get(wid) : null;
-                if (contactObj) {
-                   if (contactObj.profilePicThumbObj) {
-                     const p = contactObj.profilePicThumbObj;
-                     if (p.imgFull) return p.imgFull;
-                     if (p.eurl) return p.eurl;
-                     if (p.img) return p.img;
-                   }
+                // Busca o objeto de contato novamente
+                const contactObj = Contacts ? Contacts.get(wid) : null;
+                if (contactObj && contactObj.profilePicThumbObj) {
+                   const p = contactObj.profilePicThumbObj;
+                   if (p.imgFull) return p.imgFull;
+                   if (p.eurl) return p.eurl;
+                   if (p.img) return p.img;
                 }
                 
+                // Fallback para profilePicFind
                 if (Store.ProfilePic && Store.ProfilePic.profilePicFind) {
-                  const pic = await Store.ProfilePic.profilePicFind(wid);
-                  if (pic) return pic.imgFull || pic.eurl || pic.img || null;
+                  try {
+                    const pic = await Store.ProfilePic.profilePicFind(wid);
+                    if (pic) return pic.imgFull || pic.eurl || pic.img || null;
+                  } catch (e) { /* ignora */ }
                 }
                 
                 return null;
-              } catch (e) { return "ERR_" + e.message; }
+              } catch (e) { return "ERR_EVAL_" + e.message; }
             }, vote.voter);
             
             if (photoUrl && photoUrl.startsWith("ERR_")) {
@@ -163,7 +174,7 @@ async function startBot() {
           }
         }
 
-        // Último suspiro: tenta o método oficial com o ID original
+        // Último suspiro: tenta o método oficial com o ID original, caso tenha havido algum sync
         if (!photoUrl) {
           photoUrl = await client.getProfilePicUrl(vote.voter).catch(() => null);
           dashboard.addLog(`[DEBUG] Foto 4 (Oficial Final): ${photoUrl ? 'Sucesso' : 'Falha'}`);
@@ -171,8 +182,6 @@ async function startBot() {
 
         if (photoUrl) {
           dashboard.addLog(chalk.cyan(`[FOTO] Foto obtida para ${voterName}`));
-        } else {
-          // dashboard.addLog(chalk.yellow(`[FOTO] Foto indisponível para ${voterName} (${vote.voter})`));
         }
       } catch (e) {
         dashboard.addLog(
@@ -312,27 +321,36 @@ async function syncRecentPhotos(client) {
         
         photoUrl = await contact.getProfilePicUrl().catch(() => null);
 
-        if (!photoUrl && id.includes("@lid") && contact.number) {
-          const jid = `${contact.number}@c.us`;
-          photoUrl = await client.getProfilePicUrl(jid).catch(() => null);
+        if (!photoUrl && id.includes("@lid")) {
+          const contactNumber = contact.number || (contact.id && contact.id.user);
+          if (contactNumber && !contactNumber.includes("@")) {
+            const jid = `${contactNumber}@c.us`;
+            photoUrl = await client.getProfilePicUrl(jid).catch(() => null);
+          }
         }
 
         if (!photoUrl) {
           photoUrl = await client.pupPage.evaluate(async (jidStr) => {
             try {
               const Store = window.Store;
-              if (!Store || !Store.WidFactory) return null;
-              const wid = Store.WidFactory.createWid(jidStr);
+              if (!Store) return null;
+              const WidFactory = Store.WidFactory || (Store.Wid && Store.Wid.WidFactory);
+              if (!WidFactory) return null;
+              const wid = WidFactory.createWid(jidStr);
+              const Contacts = Store.Contact || Store.ContactCollection;
               if (Store.ProfilePic && Store.ProfilePic.requestProfilePicFromServer) {
                 await Store.ProfilePic.requestProfilePicFromServer(wid);
               }
-              await new Promise(resolve => setTimeout(resolve, 1500));
-              const contactObj = Store.Contact.get(wid);
+              await new Promise(resolve => setTimeout(resolve, 2000));
+              const contactObj = Contacts ? Contacts.get(wid) : null;
               if (contactObj && contactObj.profilePicThumbObj) {
-                return contactObj.profilePicThumbObj.eurl || contactObj.profilePicThumbObj.img || null;
+                return contactObj.profilePicThumbObj.imgFull || contactObj.profilePicThumbObj.eurl || contactObj.profilePicThumbObj.img || null;
               }
-              const pic = await Store.ProfilePic.profilePicFind(wid);
-              return pic ? (pic.eurl || pic.img) : null;
+              if (Store.ProfilePic && Store.ProfilePic.profilePicFind) {
+                const pic = await Store.ProfilePic.profilePicFind(wid);
+                return pic ? (pic.imgFull || pic.eurl || pic.img) : null;
+              }
+              return null;
             } catch (e) { return null; }
           }, id);
         }
