@@ -37,7 +37,7 @@ const renderHeatmap = (targetGroup) => {
     labels.style.display = "grid";
     labels.style.gridTemplateRows = "repeat(7, 12px)";
     labels.style.gap = "4px";
-    labels.style.marginTop = "18px"; // Ajuste fino para alinhar com o centro dos quadradinhos
+    labels.style.marginTop = "22px"; // Ajustado para baixo conforme solicitado pelo usuário
     labels.style.lineHeight = "12px";
 
     // 2. Container Principal (Meses + Grid)
