@@ -11,52 +11,74 @@ const renderHeatmap = (targetGroup) => {
     }
 
     const today = moment().tz("America/Sao_Paulo").endOf('day');
-    // Iniciar na SEGUNDA-FEIRA anterior ao primeiro registro (mais intuitivo para o usuário)
+    // Iniciar na SEGUNDA-FEIRA anterior ao primeiro registro
     let startDate = moment(dbDates[0]).tz("America/Sao_Paulo").startOf('day');
-    while (startDate.day() !== 1) { // 1 = Segunda
+    while (startDate.day() !== 1) { 
         startDate.subtract(1, 'day');
     }
     
-    const heatmapFlex = document.createElement("div");
-    heatmapFlex.className = "heatmap-flex";
+    const heatmapWrapper = document.createElement("div");
+    heatmapWrapper.className = "heatmap-wrapper";
+    heatmapWrapper.style.display = "flex";
+    heatmapWrapper.style.gap = "10px";
 
-    // Header dos meses
-    const monthsRow = document.createElement("div");
-    monthsRow.className = "heatmap-months";
-    
-    // Labels dos dias da semana
+    // 1. Labels dos dias (Esquerda)
     const labels = document.createElement("div");
     labels.className = "heatmap-labels";
     const dayLabels = ["Seg", "Ter", "Qua", "Qui", "Sex", "", ""];
     for (let i = 0; i < 7; i++) {
         const span = document.createElement("span");
         span.innerHTML = dayLabels[i] || "&nbsp;";
+        span.style.height = "12px";
+        span.style.display = "flex";
+        span.style.alignItems = "center";
         labels.appendChild(span);
     }
+    labels.style.display = "grid";
+    labels.style.gridTemplateRows = "repeat(7, 12px)";
+    labels.style.gap = "4px";
+    labels.style.marginTop = "20px"; // Espaço para os meses
 
-    const gridWrapper = document.createElement("div");
-    gridWrapper.style.display = "flex";
-    gridWrapper.style.flexDirection = "column";
+    // 2. Container Principal (Meses + Grid)
+    const mainArea = document.createElement("div");
+    mainArea.style.display = "flex";
+    mainArea.style.flexDirection = "column";
+    mainArea.style.gap = "4px";
 
+    // 2a. Header dos meses
+    const monthsRow = document.createElement("div");
+    monthsRow.className = "heatmap-months";
+    monthsRow.style.display = "grid";
+    monthsRow.style.gridTemplateColumns = "repeat(auto-fill, 12px)";
+    monthsRow.style.gap = "4px";
+    monthsRow.style.height = "16px";
+    monthsRow.style.fontSize = "0.7rem";
+    monthsRow.style.color = "#666";
+
+    // 2b. Grid de quadradinhos
     const grid = document.createElement("div");
-    grid.className = "heatmap-container";
+    grid.className = "heatmap-grid-inner";
+    grid.style.display = "grid";
+    grid.style.gridTemplateRows = "repeat(7, 12px)";
+    grid.style.gap = "4px";
 
-    let maxPresence = 0;
     const dailyData = {};
     const months = [];
-
     let current = startDate.clone();
     let lastMonth = -1;
 
     while (current.isBefore(today) || current.isSame(today, 'day')) {
         const dateStr = current.format('YYYY-MM-DD');
-        
-        // Adicionar label do mês se mudar e for início da semana
-        if (current.month() !== lastMonth && current.day() === 0) {
-            months.push({ name: current.format('MMM'), pos: Math.floor(Object.keys(dailyData).length / 7) });
+        const diffDays = current.diff(startDate, 'days');
+        const col = Math.floor(diffDays / 7) + 1;
+
+        // Adicionar label do mês
+        if (current.month() !== lastMonth) {
+            months.push({ name: current.format('MMM'), col: col });
             lastMonth = current.month();
         }
 
+        // Processar presença
         let presence = 0;
         if (rawDB[dateStr]) {
             const dayEntry = rawDB[dateStr];
@@ -81,52 +103,47 @@ const renderHeatmap = (targetGroup) => {
             presence = dayUniqueVoters.size;
         }
 
-        dailyData[dateStr] = presence;
-        if (presence > maxPresence) maxPresence = presence;
-        current.add(1, 'day');
-    }
-
-    // Renderizar meses
-    months.forEach((m) => {
-        const mSpan = document.createElement("span");
-        mSpan.textContent = m.name;
-        // Posição absoluta baseada na largura do quadradinho (12px) + gap (4px)
-        const leftPos = m.pos * (12 + 4);
-        mSpan.style.left = `${leftPos}px`;
-        monthsRow.appendChild(mSpan);
-    });
-
-    // Renderizar os quadradinhos
-    current = startDate.clone();
-    while (current.isBefore(today) || current.isSame(today, 'day')) {
-        const dateStr = current.format('YYYY-MM-DD');
-        const presence = dailyData[dateStr] || 0;
+        // Criar quadradinho
+        const day = document.createElement("div");
+        day.className = "heatmap-day";
+        day.title = `${current.format('DD/MM')}: ${presence} presenças`;
         
         let level = 0;
         if (presence > 0) {
-            const ratio = presence / (maxPresence || 1);
-            if (ratio <= 0.25) level = 1;
-            else if (ratio <= 0.5) level = 2;
-            else if (ratio <= 0.75) level = 3;
+            if (presence < 10) level = 1;
+            else if (presence < 25) level = 2;
+            else if (presence < 45) level = 3;
             else level = 4;
         }
+        day.dataset.level = level;
 
-        const dayEl = document.createElement("div");
-        dayEl.className = "heatmap-day";
-        dayEl.dataset.level = level;
-        dayEl.title = `${current.format('DD/MM/YYYY')}: ${presence} presenças`;
-        
-        grid.appendChild(dayEl);
+        // Posicionamento Explícito
+        const dayOfWeek = current.day(); // 0=Dom, 1=Seg...
+        const row = dayOfWeek === 0 ? 7 : dayOfWeek;
+        day.style.gridRow = row;
+        day.style.gridColumn = col;
+        day.style.width = "12px";
+        day.style.height = "12px";
+        day.style.borderRadius = "2px";
+
+        grid.appendChild(day);
         current.add(1, 'day');
     }
 
-    gridWrapper.appendChild(monthsRow);
-    gridWrapper.appendChild(grid);
+    // Renderizar labels dos meses
+    months.forEach(m => {
+        const span = document.createElement("span");
+        span.textContent = m.name;
+        span.style.gridColumn = m.col;
+        monthsRow.appendChild(span);
+    });
+
+    mainArea.appendChild(monthsRow);
+    mainArea.appendChild(grid);
     
-    heatmapFlex.appendChild(labels);
-    heatmapFlex.appendChild(gridWrapper);
-    container.appendChild(heatmapFlex);
-    container.appendChild(heatmapFlex);
+    heatmapWrapper.appendChild(labels);
+    heatmapWrapper.appendChild(mainArea);
+    container.appendChild(heatmapWrapper);
 };
 
 window.renderHeatmap = renderHeatmap;
