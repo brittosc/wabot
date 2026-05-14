@@ -62,6 +62,12 @@ async function startBot() {
       );
     });
 
+    // Teste de diagnóstico: tenta pegar a própria foto
+    try {
+      const myPhoto = await client.getProfilePicUrl(client.info.wid._serialized).catch(() => null);
+      dashboard.addLog(chalk.blue(`[DIAGNÓSTICO] Foto do próprio bot: ${myPhoto ? 'OK' : 'Falha'}`));
+    } catch (e) {}
+
     if (process.argv.includes("--now")) {
       dashboard.addLog("Parâmetro --now detectado. Forçando envio imediato 🎉");
       cronJob.sendPolls(client);
@@ -86,6 +92,10 @@ async function startBot() {
           if (contact.number) {
             const jid = `${contact.number}@c.us`;
             dashboard.addLog(`[DEBUG] Tentando JID convertido: ${jid}`);
+            
+            // Força o carregamento do chat para este JID antes de pedir a foto
+            try { await client.getChatById(jid); } catch (e) {}
+            
             photoUrl = await client.getProfilePicUrl(jid).catch(() => null);
             dashboard.addLog(`[DEBUG] Foto 2 (JID convertido): ${photoUrl ? 'Sucesso' : 'Falha'}`);
           } else {
@@ -108,9 +118,11 @@ async function startBot() {
                 
                 if (!wid) return "ERR_WID_NULL";
 
-                // Tenta forçar o carregamento do contato se não existir
-                if (Store.Contact && !Store.Contact.get(wid)) {
-                  if (Store.Contact.add) Store.Contact.add({ id: wid });
+                // Tenta "tocar" no chat para forçar sync
+                if (Store.Chat && Store.Chat.get(wid)) {
+                   // Apenas garante que existe no cache
+                } else if (Store.Chat && Store.Chat.add) {
+                   Store.Chat.add({ id: wid }, { merge: true });
                 }
 
                 if (Store.ProfilePic && Store.ProfilePic.requestProfilePicFromServer) {
@@ -119,19 +131,22 @@ async function startBot() {
                   } catch (e) {}
                 }
                 
-                await new Promise(resolve => setTimeout(resolve, 3000)); // 3s
+                await new Promise(resolve => setTimeout(resolve, 3500)); // 3.5s
                 
-                // Método 1: Via ProfilePicFind (mais direto)
+                // Busca em várias propriedades possíveis
+                const contactObj = Store.Contact ? Store.Contact.get(wid) : null;
+                if (contactObj) {
+                   if (contactObj.profilePicThumbObj) {
+                     const p = contactObj.profilePicThumbObj;
+                     if (p.imgFull) return p.imgFull;
+                     if (p.eurl) return p.eurl;
+                     if (p.img) return p.img;
+                   }
+                }
+                
                 if (Store.ProfilePic && Store.ProfilePic.profilePicFind) {
                   const pic = await Store.ProfilePic.profilePicFind(wid);
-                  if (pic && (pic.eurl || pic.img)) return pic.eurl || pic.img;
-                }
-
-                // Método 2: Via objeto de contato
-                const contactObj = Store.Contact ? Store.Contact.get(wid) : null;
-                if (contactObj && contactObj.profilePicThumbObj) {
-                  const p = contactObj.profilePicThumbObj;
-                  return p.imgFull || p.eurl || p.img || null;
+                  if (pic) return pic.imgFull || pic.eurl || pic.img || null;
                 }
                 
                 return null;
