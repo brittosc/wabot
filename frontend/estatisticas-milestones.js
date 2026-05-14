@@ -131,12 +131,14 @@ const updateGroupMilestones = (targetGroup) => {
     }
 
     const engagementPercent = totalCap > 0 ? (avgPresence30 / totalCap) * 100 : 0;
-    elEngagement.textContent = `${Math.round(engagementPercent)}%`;
+    if (elEngagement) elEngagement.textContent = `${Math.round(engagementPercent)}%`;
 
     // Meta de Presença (Hoje ou Média)
-    const goalStatus = engagementPercent >= 90 ? "Meta Atingida! 🚀" : `Faltam ${Math.round(90 - engagementPercent)}%`;
-    elGoal.textContent = `${Math.round(engagementPercent)}%`;
-    elGoalStatus.textContent = goalStatus;
+    if (elGoal && elGoalStatus) {
+        const goalStatus = engagementPercent >= 90 ? "Meta Atingida! 🚀" : `Faltam ${Math.round(90 - engagementPercent)}%`;
+        elGoal.textContent = `${Math.round(engagementPercent)}%`;
+        elGoalStatus.textContent = goalStatus;
+    }
 };
 
 window.updateGroupMilestones = updateGroupMilestones;
