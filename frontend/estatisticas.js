@@ -36,6 +36,24 @@ const normalizePhone = (p) => {
     return digits;
 };
 
+const formatName = (name) => {
+    if (!name) return name;
+    const prepositions = ['de', 'da', 'do', 'das', 'dos', 'e'];
+    return name.toLowerCase().trim().split(/\s+/).map((word, index) => {
+        if (prepositions.includes(word) && index > 0) {
+            return word;
+        }
+        return word.charAt(0).toUpperCase() + word.slice(1);
+    }).join(' ');
+};
+window.formatName = formatName;
+
+const normalizeSearch = (str) => {
+    if (!str) return "";
+    return str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+};
+window.normalizeSearch = normalizeSearch;
+
 const getPassengerByJid = (jid) => {
     if (!jid) return null;
     const jidDigits = jid.split('@')[0];
