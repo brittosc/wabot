@@ -296,7 +296,8 @@
         </div>
 
         <!-- Conquistas do Grupo -->
-        <div id="milestonesSection" style="width: 100%; max-width: 1100px; margin: 0 auto 25px auto; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px;">
+        <div id="milestonesSection" style="width: 100%; max-width: 1100px; margin: 0 auto 25px auto; display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
+            <!-- Recorde de Participação -->
             <div class="card" style="padding: 20px; align-items: flex-start; flex-direction: row; gap: 15px; background: linear-gradient(145deg, #1e1e1e, #1a1a1a);">
                 <div style="background: rgba(255, 193, 7, 0.1); border-radius: 12px; padding: 12px; color: #ffc107;">
                     <i data-lucide="trophy" style="width: 24px; height: 24px;"></i>
@@ -307,24 +308,37 @@
                     <div id="milestoneRecordDate" style="font-size: 0.7rem; color: #666;">--/--/----</div>
                 </div>
             </div>
+            <!-- Menor Ausência -->
+            <div class="card" style="padding: 20px; align-items: flex-start; flex-direction: row; gap: 15px; background: linear-gradient(145deg, #1e1e1e, #1a1a1a);">
+                <div style="background: rgba(244, 67, 54, 0.1); border-radius: 12px; padding: 12px; color: #f44336;">
+                    <i data-lucide="user-minus" style="width: 24px; height: 24px;"></i>
+                </div>
+                <div>
+                    <div style="font-size: 0.7rem; color: #888; font-weight: 700; text-transform: uppercase;">Menor Ausência</div>
+                    <div id="milestoneMinAbsence" style="font-size: 1.1rem; font-weight: 800; color: #fff;">-- alunos</div>
+                    <div id="milestoneMinAbsenceDate" style="font-size: 0.7rem; color: #666;">--/--/----</div>
+                </div>
+            </div>
+            <!-- Resposta mais Rápida -->
+            <div class="card" style="padding: 20px; align-items: flex-start; flex-direction: row; gap: 15px; background: linear-gradient(145deg, #1e1e1e, #1a1a1a);">
+                <div style="background: rgba(33, 150, 243, 0.1); border-radius: 12px; padding: 12px; color: #2196f3;">
+                    <i data-lucide="zap" style="width: 24px; height: 24px;"></i>
+                </div>
+                <div>
+                    <div style="font-size: 0.7rem; color: #888; font-weight: 700; text-transform: uppercase;">Mais Rápido</div>
+                    <div id="milestoneFastest" style="font-size: 1.1rem; font-weight: 800; color: #fff;">--:--</div>
+                    <div id="milestoneFastestDate" style="font-size: 0.7rem; color: #666;">--/--/----</div>
+                </div>
+            </div>
+            <!-- Engajamento -->
             <div class="card" style="padding: 20px; align-items: flex-start; flex-direction: row; gap: 15px; background: linear-gradient(145deg, #1e1e1e, #1a1a1a);">
                 <div style="background: rgba(76, 175, 80, 0.1); border-radius: 12px; padding: 12px; color: #4caf50;">
                     <i data-lucide="trending-up" style="width: 24px; height: 24px;"></i>
                 </div>
                 <div>
-                    <div style="font-size: 0.7rem; color: #888; font-weight: 700; text-transform: uppercase;">Engajamento Médio</div>
+                    <div style="font-size: 0.7rem; color: #888; font-weight: 700; text-transform: uppercase;">Engajamento</div>
                     <div id="milestoneEngagement" style="font-size: 1.1rem; font-weight: 800; color: #fff;">--%</div>
                     <div style="font-size: 0.7rem; color: #666;">Últimos 30 dias</div>
-                </div>
-            </div>
-            <div class="card" style="padding: 20px; align-items: flex-start; flex-direction: row; gap: 15px; background: linear-gradient(145deg, #1e1e1e, #1a1a1a);">
-                <div style="background: rgba(33, 150, 243, 0.1); border-radius: 12px; padding: 12px; color: #2196f3;">
-                    <i data-lucide="shield-check" style="width: 24px; height: 24px;"></i>
-                </div>
-                <div>
-                    <div style="font-size: 0.7rem; color: #888; font-weight: 700; text-transform: uppercase;">Meta de Presença</div>
-                    <div id="milestoneGoal" style="font-size: 1.1rem; font-weight: 800; color: #fff;">--%</div>
-                    <div id="milestoneGoalStatus" style="font-size: 0.7rem; color: #666;">Meta: 90%</div>
                 </div>
             </div>
         </div>

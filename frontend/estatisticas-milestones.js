@@ -10,6 +10,11 @@ const updateGroupMilestones = (targetGroup) => {
 
     let maxPresence = 0;
     let recordDate = "";
+    let minAbsence = Infinity;
+    let minAbsenceDate = "";
+    let fastestTime = Infinity;
+    let fastestDate = "";
+
     let totalPresenceLast30 = 0;
     let daysWithDataLast30 = 0;
     
@@ -28,23 +33,59 @@ const updateGroupMilestones = (targetGroup) => {
             if (targetGroup === "Todos" || targetGroup === "Grupo Geral (Legado)") groupsToProcess = [dayEntry];
         }
 
-        const dayUniqueVoters = new Set();
+        const dayUniqueVoters = new Map();
         groupsToProcess.forEach(payload => {
             if (!payload.votes) return;
             Object.entries(payload.votes).forEach(([jid, vData]) => {
                 const opt = typeof vData === 'object' ? vData.option : vData;
-                if (["Irei, ida e volta.", "Irei, mas não retornarei.", "Não irei, apenas retornarei."].includes(opt)) {
-                    dayUniqueVoters.add(jid);
+                const ts = typeof vData === 'object' ? vData.timestamp : null;
+                if (!dayUniqueVoters.has(jid)) {
+                    dayUniqueVoters.set(jid, { opt, ts });
                 }
             });
         });
 
-        const dayPresence = dayUniqueVoters.size;
-        
-        // Recorde Histórico
+        if (dayUniqueVoters.size === 0) return;
+
+        let dayPresence = 0;
+        let dayAbsence = 0;
+        let dayTotalSeconds = 0;
+        let dayVoteCount = 0;
+
+        dayUniqueVoters.forEach(vData => {
+            const opt = vData.opt;
+            if (["Irei, ida e volta.", "Irei, mas não retornarei.", "Não irei, apenas retornarei."].includes(opt)) {
+                dayPresence++;
+            } else if (opt === "Não irei à faculdade hoje.") {
+                dayAbsence++;
+            }
+
+            if (vData.ts) {
+                const m = moment(vData.ts).tz("America/Sao_Paulo");
+                dayTotalSeconds += m.hours() * 3600 + m.minutes() * 60 + m.seconds();
+                dayVoteCount++;
+            }
+        });
+
+        // Recorde Histórico de Presença
         if (dayPresence > maxPresence) {
             maxPresence = dayPresence;
             recordDate = mDate.format('DD/MM/YYYY');
+        }
+
+        // Recorde de Menor Ausência (Mínimo de 10 votos totais para ser relevante)
+        if (dayUniqueVoters.size >= 10 && dayAbsence < minAbsence) {
+            minAbsence = dayAbsence;
+            minAbsenceDate = mDate.format('DD/MM/YYYY');
+        }
+
+        // Recorde de Velocidade (Média de horário mais cedo)
+        if (dayVoteCount >= 5) {
+            const dayAvgTime = dayTotalSeconds / dayVoteCount;
+            if (dayAvgTime < fastestTime) {
+                fastestTime = dayAvgTime;
+                fastestDate = mDate.format('DD/MM/YYYY');
+            }
         }
 
         // Médias últimos 30 dias
@@ -57,6 +98,26 @@ const updateGroupMilestones = (targetGroup) => {
     // Atualizar UI
     elRecord.textContent = `${maxPresence} alunos`;
     elRecordDate.textContent = recordDate;
+
+    const elMinAbsence = document.getElementById("milestoneMinAbsence");
+    const elMinAbsenceDate = document.getElementById("milestoneMinAbsenceDate");
+    if (elMinAbsence) {
+        elMinAbsence.textContent = minAbsence === Infinity ? "--" : `${minAbsence} faltas`;
+        elMinAbsenceDate.textContent = minAbsenceDate || "--/--/----";
+    }
+
+    const elFastest = document.getElementById("milestoneFastest");
+    const elFastestDate = document.getElementById("milestoneFastestDate");
+    if (elFastest) {
+        if (fastestTime === Infinity) {
+            elFastest.textContent = "--:--";
+        } else {
+            const h = Math.floor(fastestTime / 3600);
+            const m = Math.floor((fastestTime % 3600) / 60);
+            elFastest.textContent = String(h).padStart(2, '0') + ":" + String(m).padStart(2, '0');
+        }
+        elFastestDate.textContent = fastestDate || "--/--/----";
+    }
 
     const avgPresence30 = daysWithDataLast30 > 0 ? (totalPresenceLast30 / daysWithDataLast30) : 0;
     
