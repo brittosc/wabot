@@ -48,22 +48,37 @@
     font-size: 0.9rem;
 }
 .name-gold {
-    background: linear-gradient(90deg, #ffd600, #fff200);
+    background: linear-gradient(to right, #bf953f 20%, #fcf6ba 40%, #b38728 60%, #fbf5b7 80%, #aa771c 100%);
+    background-size: 200% auto;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     font-weight: 800;
+    animation: shine 4s linear infinite;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
 }
 .name-silver {
-    background: linear-gradient(90deg, #c0c0c0, #ffffff);
+    background: linear-gradient(to right, #979797 20%, #f7f7f7 40%, #979797 60%, #f7f7f7 80%, #979797 100%);
+    background-size: 200% auto;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     font-weight: 800;
+    animation: shine 4s linear infinite;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
 }
 .name-bronze {
-    background: linear-gradient(90deg, #cd7f32, #ff9800);
+    background: linear-gradient(to right, #804a00 20%, #f1a94e 40%, #804a00 60%, #f1a94e 80%, #804a00 100%);
+    background-size: 200% auto;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     font-weight: 800;
+    animation: shine 4s linear infinite;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+}
+
+@keyframes shine {
+    to {
+        background-position: 200% center;
+    }
 }
 .tag {
     display: inline-block;
