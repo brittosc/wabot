@@ -239,13 +239,13 @@ const updateRanking = (targetGroupFromDash, _targetDaysStr) => {
 
         // Adiciona linhas vazias para manter altura (opcional, igual ao feed)
         const emptyRows = itemsPerPageRanking - visibleRanking.length;
-        if (emptyRows > 0 && totalPages > 1) {
+        if (emptyRows > 0) {
             for (let i = 0; i < emptyRows; i++) {
                 const row = document.createElement("tr");
                 row.className = "feed-row";
                 row.style.opacity = "0";
                 row.style.pointerEvents = "none";
-                row.innerHTML = `<td colspan="4">&nbsp;</td>`;
+                row.innerHTML = `<td>&nbsp;</td><td><div class="user-cell"><span class="user-name">&nbsp;</span></div></td><td><div style="display:flex;flex-direction:column;gap:4px;"><span class="tag">&nbsp;</span><span class="tag">&nbsp;</span></div></td><td style="text-align:right;"><div style="font-size:0.8rem;">&nbsp;</div><div style="font-size:0.95rem;">&nbsp;</div></td>`;
                 body.appendChild(row);
             }
         }
