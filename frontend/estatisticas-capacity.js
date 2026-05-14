@@ -33,6 +33,27 @@ const updateCapacityCard = (targetGroup) => {
           confirmations++;
       });
     }
+    // Calcula média histórica para este grupo
+    let totalHistoricalPresence = 0;
+    let daysWithHistoricalData = 0;
+    Object.keys(rawDB).forEach(dateStr => {
+        const dayEntryHist = rawDB[dateStr];
+        if (dayEntryHist.grupos && dayEntryHist.grupos[gName]) {
+            let dailyGroupPresence = 0;
+            Object.values(dayEntryHist.grupos[gName].votes).forEach(vData => {
+                const opt = typeof vData === "object" ? vData.option : vData;
+                if (["Irei, ida e volta.", "Irei, mas não retornarei.", "Não irei, apenas retornarei."].includes(opt)) {
+                    dailyGroupPresence++;
+                }
+            });
+            if (dailyGroupPresence > 0) {
+                totalHistoricalPresence += dailyGroupPresence;
+                daysWithHistoricalData++;
+            }
+        }
+    });
+    const avgHistorical = daysWithHistoricalData > 0 ? totalHistoricalPresence / daysWithHistoricalData : 0;
+
     const busIdx = targetGroups.indexOf(gName) + 1;
     const totalPassengers = passengers.filter(
       (p) => p.bus_number === busIdx,
@@ -43,17 +64,21 @@ const updateCapacityCard = (targetGroup) => {
       confirmations,
       capacities[gName],
       Math.max(0, totalPassengers - votedCount),
+      avgHistorical
     );
     hasAnyCapacity = true;
   });
   capacitySection.style.display = hasAnyCapacity ? "block" : "none";
 };
 
-const renderCompactBar = (name, count, cap, pending) => {
+const renderCompactBar = (name, count, cap, pending, avg) => {
   const capacityList = document.getElementById("capacityList");
   const percentage = Math.round(Math.min(100, (count / cap) * 100));
+  const avgPercentage = Math.round(Math.min(100, (avg / cap) * 100));
   const isFull = count >= cap;
+  const aboveAvg = count > avg;
   const excess = count > cap ? count - cap : 0;
+  
   const busColors = [
     { grad: "linear-gradient(90deg, #2196f3, #4caf50)" },
     { grad: "linear-gradient(90deg, #9c27b0, #00bcd4)" },
@@ -61,41 +86,102 @@ const renderCompactBar = (name, count, cap, pending) => {
     { grad: "linear-gradient(90deg, #f44336, #e91e63)" },
     { grad: "linear-gradient(90deg, #3f51b5, #2196f3)" },
   ];
+  
   const barGrad = isFull
     ? "linear-gradient(90deg, #f44336, #ff5252)"
     : busColors[Object.keys(capacities).indexOf(name) % busColors.length].grad;
 
   const container = document.createElement("div");
   container.style.marginBottom = "18px";
+  
   const headerEl = document.createElement("div");
-  headerEl.style.cssText =
-    "display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;";
+  headerEl.style.cssText = "display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;";
+  
   const nameSpan = document.createElement("span");
-  nameSpan.style.cssText =
-    "font-size: 0.9rem; font-weight: 600; color: #fff; opacity: 0.9;";
+  nameSpan.style.cssText = "font-size: 0.9rem; font-weight: 600; color: #fff; opacity: 0.9; display: flex; align-items: center; gap: 6px;";
   nameSpan.innerText = groupAliases[name] || name;
+  
+  if (aboveAvg && count > 0) {
+      const fire = document.createElement("span");
+      fire.innerHTML = "🔥";
+      fire.style.fontSize = "1rem";
+      fire.title = "Acima da média histórica (" + avg.toFixed(1) + ")";
+      nameSpan.appendChild(fire);
+  }
+
   const infoDiv = document.createElement("div");
-  infoDiv.style.cssText =
-    "font-size: 0.9rem; font-weight: 500; color: #888; text-align: right;";
+  infoDiv.style.cssText = "font-size: 0.9rem; font-weight: 500; color: #888; text-align: right;";
+  
   let statusText = percentage + "% / " + count + " Votos";
   if (excess > 0) statusText = "Excesso: +" + excess + " / " + count + " Votos";
   else if (count === cap) statusText = "Lotado! / " + count + " Votos";
   infoDiv.innerText = statusText;
+  
   if (isFull) {
     infoDiv.style.color = "#ff5252";
     infoDiv.style.fontWeight = "700";
   }
+  
   headerEl.appendChild(nameSpan);
   headerEl.appendChild(infoDiv);
+  
   const progressContainer = document.createElement("div");
-  progressContainer.style.cssText =
-    "width: 100%; height: 8px; background: #222; border-radius: 4px; overflow: visible;";
+  progressContainer.style.cssText = "width: 100%; height: 8px; background: #222; border-radius: 4px; overflow: visible; position: relative;";
+  
+  // Marcador de média
+  if (avg > 0) {
+      const avgMarker = document.createElement("div");
+      avgMarker.style.cssText = `
+        position: absolute;
+        left: ${avgPercentage}%;
+        top: -4px;
+        bottom: -4px;
+        width: 2px;
+        background: #fff;
+        box-shadow: 0 0 5px rgba(255,255,255,0.5);
+        z-index: 10;
+      `;
+      avgMarker.title = "Média histórica: " + avg.toFixed(1);
+      progressContainer.appendChild(avgMarker);
+  }
+
   const progressBar = document.createElement("div");
-  progressBar.style.cssText =
-    "height: 100%; background: " +
-    barGrad +
-    "; border-radius: 4px; transition: width 1s cubic-bezier(0.4, 0, 0.2, 1); position: relative;";
-  progressBar.style.width = percentage + "%";
+  progressBar.style.cssText = `
+    height: 100%;
+    background: ${barGrad};
+    border-radius: 4px;
+    transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    width: ${percentage}%;
+  `;
+
+  // Foguinho na extremidade da barra se ultrapassar média
+  if (aboveAvg && count > 0) {
+      const fireExt = document.createElement("span");
+      fireExt.innerHTML = "🔥";
+      fireExt.style.cssText = `
+        position: absolute;
+        right: -8px;
+        top: -12px;
+        font-size: 1.2rem;
+        filter: drop-shadow(0 0 5px orange);
+        animation: fire-shake 0.5s infinite alternate;
+      `;
+      progressBar.appendChild(fireExt);
+      
+      if (!document.getElementById("fire-styles")) {
+          const style = document.createElement("style");
+          style.id = "fire-styles";
+          style.innerHTML = `
+            @keyframes fire-shake {
+                from { transform: translateY(0) scale(1); }
+                to { transform: translateY(-2px) scale(1.1); }
+            }
+          `;
+          document.head.appendChild(style);
+      }
+  }
+
   progressContainer.appendChild(progressBar);
   container.appendChild(headerEl);
   container.appendChild(progressContainer);

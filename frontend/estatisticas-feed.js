@@ -136,6 +136,7 @@ const updateVoteFeed = (targetGroup) => {
                 const photo = vote.photo_url || (pass && pass.photo_url) || "https://ui-avatars.com/api/?name=" + encodeURIComponent(displayName) + "&background=333&color=fff";
                 const routeAlias = groupAliases[vote.group] || vote.group;
                 let optClass = "tag-vote";
+                if (vote.option.includes("não retornarei")) optClass = "tag-one-way";
                 if (vote.option.includes("Não irei")) optClass = "tag-absence";
                 if (vote.option.includes("apenas retornarei")) optClass = "tag-waiting";
                 row.innerHTML = `<td class="timestamp-cell">${timeStr}</td><td><div class="user-cell"><img src="${photo}" class="user-avatar" onerror="this.src='https://ui-avatars.com/api/?name=?'"><span class="user-name">${displayName}</span></div></td><td><span class="tag tag-route">${routeAlias}</span></td><td><span class="tag ${optClass}">${vote.option}</span></td>`;

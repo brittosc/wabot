@@ -255,7 +255,12 @@
                         <i data-lucide="arrow-down-up" style="width: 16px; height: 16px;"></i> Mais Presen&ccedil;a
                     </button>
                 </div>
-                <input type="text" id="searchRankingInput" placeholder="Pesquisar por nome no ranking..." oninput="handleSearchRanking(this.value)" style="width: 100%; box-sizing: border-box; padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.1); background: rgba(0, 0, 0, 0.2); color: white; outline: none; font-family: 'Inter', sans-serif;">
+                <div style="display: flex; gap: 10px; flex-wrap: wrap; width: 100%;">
+                    <select id="rankingRouteSelect" onchange="handleRankingRoute(this.value)" style="padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.1); background: rgba(0, 0, 0, 0.2); color: white; outline: none; font-family: 'Inter', sans-serif; flex: 1; min-width: 140px;">
+                        <option value="Todos">Todas as Rotas</option>
+                    </select>
+                    <input type="text" id="searchRankingInput" placeholder="Pesquisar por nome no ranking..." oninput="handleSearchRanking(this.value)" style="flex: 2; box-sizing: border-box; padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.1); background: rgba(0, 0, 0, 0.2); color: white; outline: none; font-family: 'Inter', sans-serif;">
+                </div>
             </div>
             <div class="card card-wide" style="padding: 0; border: none; background: transparent; box-shadow: none;">
                 <table class="feed-table">
@@ -271,6 +276,9 @@
                         <!-- Preenchido via JS -->
                     </tbody>
                 </table>
+                <div id="rankingPaginationContainer" class="pagination-container">
+                    <!-- Preenchido via JS -->
+                </div>
             </div>
         </div>
     </div>

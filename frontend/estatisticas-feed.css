@@ -65,6 +65,7 @@
 }
 .tag-route { background: rgba(33, 150, 243, 0.15); color: var(--accent); }
 .tag-vote { background: rgba(76, 175, 80, 0.15); color: #4caf50; }
+.tag-one-way { background: rgba(33, 150, 243, 0.15); color: #2196f3; }
 .tag-waiting { background: rgba(255, 152, 0, 0.15); color: #ff9800; }
 .tag-absence { background: rgba(244, 67, 54, 0.15); color: #f44336; }
 .timestamp-cell {

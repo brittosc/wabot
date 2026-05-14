@@ -8,19 +8,17 @@ const updateDash = () => {
 };
 window.updateDash = updateDash;
 
-const initNotification = () => {
-    if (!("Notification" in window)) return;
-    if (Notification.permission === "default") {
-        Notification.requestPermission().then(permission => {
-            if (permission === "granted") {
-                notificationEnabled = true;
-                new Notification("Dashboard", { body: "Notificações ativadas com sucesso!" });
-            }
+const playNotificationSound = () => {
+    try {
+        // Som de notificação curto e suave
+        const audio = new Audio("https://cdn.pixabay.com/audio/2022/03/15/audio_507663249f.mp3");
+        audio.volume = 0.5;
+        audio.play().catch(e => {
+            console.warn("Notificação sonora bloqueada pelo navegador. Interaja com a página primeiro.");
         });
-    } else if (Notification.permission === "granted") {
-        notificationEnabled = true;
-    }
+    } catch (e) {}
 };
+window.playNotificationSound = playNotificationSound;
 
 const updateNextPollsCalendar = (limitDays = 7) => {
     const list = document.getElementById("nextPollsList");
@@ -106,6 +104,11 @@ const fetchStats = async () => {
         if (res.ok) {
             const data = await res.json();
             if (JSON.stringify(rawDB) !== JSON.stringify(data.votes) || isPollSentToday !== data.isPollSentToday || JSON.stringify(weatherForecast) !== JSON.stringify(data.weather) || JSON.stringify(passengers) !== JSON.stringify(data.passengers)) {
+                
+                // Detecta se houve novos votos para tocar o som
+                const oldVoteCount = countTotalVotes(rawDB);
+                const newVoteCount = countTotalVotes(data.votes || {});
+                
                 rawDB = data.votes || {};
                 passengers = data.passengers || [];
                 isPollSentToday = !!data.isPollSentToday;
@@ -120,6 +123,10 @@ const fetchStats = async () => {
 
                 updateDash();
 
+                if (newVoteCount > oldVoteCount && oldVoteCount > 0) {
+                    playNotificationSound();
+                }
+
                 const now = new Date();
                 const weatherUpdateStr = data.weatherLastUpdate ? ' | Clima: ' + new Date(data.weatherLastUpdate).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '';
                 document.getElementById('lblLastUpdate').innerText = now.toLocaleDateString('pt-BR') + ' ' + now.toLocaleTimeString('pt-BR') + weatherUpdateStr;
@@ -130,18 +137,25 @@ const fetchStats = async () => {
     }
 };
 
-// Boot
-initSelects();
-initNotification();
+const countTotalVotes = (db) => {
+    let count = 0;
+    Object.values(db).forEach(day => {
+        if (day.grupos) {
+            Object.values(day.grupos).forEach(g => {
+                if (g.votes) count += Object.keys(g.votes).length;
+            });
+        }
+    });
+    return count;
+};
 
+// Boot
+// initNotification foi removido pois usaremos apenas som por enquanto para simplificar
+// initSelects();
 window.addEventListener('load', () => {
+    if (window.initSelects) window.initSelects();
     updateDash();
     fetchStats();
 });
-
-if (document.readyState === 'complete') {
-    updateDash();
-    fetchStats();
-}
 
 setInterval(fetchStats, 10000);
