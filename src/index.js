@@ -25,7 +25,12 @@ async function startBot() {
         "--no-first-run",
         "--no-zygote",
         "--disable-gpu",
+        "--disable-extensions",
+        "--disable-default-apps",
+        "--no-default-browser-check",
       ],
+      handleSIGINT: false, // Deixamos o nosso shutdown cuidar disso
+      handleSIGTERM: false,
     },
   });
 
