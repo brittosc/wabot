@@ -1,5 +1,8 @@
 let rankingOrder = 'desc'; // 'desc' = Mais presença, 'asc' = Menos presença
 let rankingSearch = '';
+let rankingRoute = 'Todos';
+let currentPageRanking = 1;
+const itemsPerPageRanking = 10;
 
 window.toggleRankingOrder = () => {
     rankingOrder = rankingOrder === 'desc' ? 'asc' : 'desc';
@@ -10,37 +13,57 @@ window.toggleRankingOrder = () => {
             : '<i data-lucide="arrow-up-down" style="width: 16px; height: 16px;"></i> Menos Presença';
         if (window.lucide) window.lucide.createIcons();
     }
-    updateRanking(currentTargetGroup, document.getElementById("periodSelect").value);
+    currentPageRanking = 1;
+    updateRanking();
 };
 
 window.handleSearchRanking = (val) => {
     rankingSearch = val.toLowerCase().trim();
-    updateRanking(currentTargetGroup, document.getElementById("periodSelect").value);
+    currentPageRanking = 1;
+    updateRanking();
 };
 
-const updateRanking = (targetGroup, _targetDaysStr) => {
-    // O ranking sempre usa o histórico completo, ignorando o filtro de período
+window.handleRankingRoute = (val) => {
+    rankingRoute = val;
+    currentPageRanking = 1;
+    updateRanking();
+};
+
+window.goToPageRanking = (page) => {
+    currentPageRanking = page;
+    updateRanking();
+};
+
+const updateRanking = (targetGroupFromDash, _targetDaysStr) => {
+    // Se vier do dash principal (mudança no topo), opcionalmente ignoramos ou sincronizamos.
+    // Para seguir a solicitação de "seletor de rota no ranking", usaremos o valor do rankingRouteSelect.
+    const rkSelect = document.getElementById("rankingRouteSelect");
+    if (rkSelect && targetGroupFromDash && targetGroupFromDash !== "ignore") {
+        // Se o dash principal mudar, podemos sincronizar o seletor do ranking se desejado,
+        // ou manter independente. Vamos sincronizar para evitar confusão.
+        if (rkSelect.value !== targetGroupFromDash && targetGroupFromDash !== "Todos") {
+             // rkSelect.value = targetGroupFromDash;
+             // rankingRoute = targetGroupFromDash;
+        }
+    }
+    
+    const targetGroup = rankingRoute; 
     const userStats = new Map();
 
-    // Normaliza JID para chave canônica:
-    // JIDs baseados em telefone (c.us / s.whatsapp.net) → normaliza dígitos (resolve 9º dígito BR)
-    // JIDs @lid → mantém como está (não tem telefone)
     const normalizeJidKey = (jid) => {
         if (!jid) return jid;
         const atIdx = jid.indexOf('@');
         if (atIdx === -1) return jid;
         const domain = jid.substring(atIdx + 1);
-        if (domain === 'lid') return jid; // LID não tem telefone — chave opaca
+        if (domain === 'lid') return jid;
         let digits = jid.substring(0, atIdx).replace(/\D/g, '');
-        // Normaliza 9º dígito brasileiro: 12 dígitos → adiciona o 9
         if (digits.startsWith('55') && digits.length === 12) {
             digits = digits.substring(0, 4) + '9' + digits.substring(4);
         }
-        return digits; // ex: "5548999994360"
+        return digits;
     };
 
     Object.keys(rawDB).forEach(dateStr => {
-
         const dayEntry = rawDB[dateStr];
         let groupsToProcess = [];
 
@@ -58,7 +81,6 @@ const updateRanking = (targetGroup, _targetDaysStr) => {
             }
         }
 
-        // Deduplicação por dia: um voto por chave normalizada
         const dayUniqueVoters = new Map();
         groupsToProcess.forEach(({ gName, payload }) => {
             if (!payload.votes) return;
@@ -91,7 +113,6 @@ const updateRanking = (targetGroup, _targetDaysStr) => {
             const stats = userStats.get(key);
             if (!stats) return;
 
-            // Atualiza foto se o voto atual tiver e o usuário ainda não tiver
             if (vData.photo_url && !stats.photo_url) {
                 stats.photo_url = vData.photo_url;
             }
@@ -113,26 +134,31 @@ const updateRanking = (targetGroup, _targetDaysStr) => {
         });
     });
 
-    const fullRanking = [];
+    let fullRanking = [];
     userStats.forEach(stats => {
         if (stats.presenceCount === 0) return;
         const avgSeconds = stats.voteCountForAvg > 0
             ? stats.totalSeconds / stats.voteCountForAvg
             : Infinity;
-        fullRanking.push({ ...stats, avgSeconds, routeAlias: groupAliases[stats.group] || stats.group });
+        
+        const matchesSearch = !rankingSearch || stats.name.toLowerCase().includes(rankingSearch);
+        if (matchesSearch) {
+            fullRanking.push({ ...stats, avgSeconds, routeAlias: groupAliases[stats.group] || stats.group });
+        }
     });
 
     fullRanking.sort((a, b) => {
         if (rankingOrder === 'desc') {
             if (b.presenceCount !== a.presenceCount) return b.presenceCount - a.presenceCount;
-            return a.avgSeconds - b.avgSeconds; // desempate: mais cedo
+            return a.avgSeconds - b.avgSeconds;
         } else {
             if (a.presenceCount !== b.presenceCount) return a.presenceCount - b.presenceCount;
-            return b.avgSeconds - a.avgSeconds; // desempate: mais tarde
+            return b.avgSeconds - a.avgSeconds;
         }
     });
 
     const body = document.getElementById("rankingBody");
+    const btnContainer = document.getElementById("rankingPaginationContainer");
     if (!body) return;
     body.innerHTML = "";
 
@@ -177,26 +203,46 @@ const updateRanking = (targetGroup, _targetDaysStr) => {
         return row;
     };
 
-    if (rankingSearch) {
-        // Busca no ranking completo — mostra posição real
-        const results = [];
-        fullRanking.forEach((user, idx) => {
-            if (user.name.toLowerCase().includes(rankingSearch)) {
-                results.push({ user, idx });
-            }
-        });
-        if (results.length === 0) {
-            body.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#555;padding:30px;">Nenhum usuário encontrado.</td></tr>';
-        } else {
-            results.forEach(({ user, idx }) => body.appendChild(renderRow(user, idx)));
-        }
+    const totalItems = fullRanking.length;
+    const totalPages = Math.ceil(totalItems / itemsPerPageRanking);
+    if (currentPageRanking > totalPages && totalPages > 0) currentPageRanking = totalPages;
+    
+    const startIndex = (currentPageRanking - 1) * itemsPerPageRanking;
+    const visibleRanking = fullRanking.slice(startIndex, startIndex + itemsPerPageRanking);
+
+    if (visibleRanking.length === 0) {
+        body.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#555;padding:30px;">Nenhum dado encontrado.</td></tr>';
+        if (btnContainer) btnContainer.innerHTML = "";
     } else {
-        // Top 10 normal
-        if (fullRanking.length === 0) {
-            body.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#555;padding:30px;">Sem dados para o ranking.</td></tr>';
-            return;
+        visibleRanking.forEach((user, idx) => {
+            body.appendChild(renderRow(user, startIndex + idx));
+        });
+
+        // Adiciona linhas vazias para manter altura (opcional, igual ao feed)
+        const emptyRows = itemsPerPageRanking - visibleRanking.length;
+        if (emptyRows > 0 && totalPages > 1) {
+            for (let i = 0; i < emptyRows; i++) {
+                const row = document.createElement("tr");
+                row.className = "feed-row";
+                row.style.opacity = "0";
+                row.style.pointerEvents = "none";
+                row.innerHTML = `<td colspan="4">&nbsp;</td>`;
+                body.appendChild(row);
+            }
         }
-        fullRanking.slice(0, 10).forEach((user, idx) => body.appendChild(renderRow(user, idx)));
+
+        if (btnContainer) {
+            if (totalPages <= 1) {
+                btnContainer.innerHTML = '';
+            } else {
+                let html = '';
+                html += `<button class="btn-page" onclick="goToPageRanking(${currentPageRanking - 1})" ${currentPageRanking === 1 ? 'disabled' : ''}><i data-lucide="chevron-left"></i></button>`;
+                html += `<span class="pagination-info">Página ${currentPageRanking} de ${totalPages}</span>`;
+                html += `<button class="btn-page" onclick="goToPageRanking(${currentPageRanking + 1})" ${currentPageRanking === totalPages ? 'disabled' : ''}><i data-lucide="chevron-right"></i></button>`;
+                btnContainer.innerHTML = html;
+                if (window.lucide) window.lucide.createIcons();
+            }
+        }
     }
 
     if (window.lucide) window.lucide.createIcons();

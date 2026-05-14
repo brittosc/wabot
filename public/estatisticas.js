@@ -69,11 +69,14 @@ const extractGroups = () => {
 const populateGroupSelect = () => {
     const gSelect = document.getElementById("groupSelect");
     const rSelect = document.getElementById("filterRouteSelect");
+    const rkSelect = document.getElementById("rankingRouteSelect");
     const currentVal = gSelect ? gSelect.value : "Todos";
     const currentRouteVal = rSelect ? rSelect.value : "";
+    const currentRankingRouteVal = rkSelect ? rkSelect.value : "Todos";
     
     if (gSelect) gSelect.innerHTML = '<option value="Todos">Todos os Grupos</option>';
     if (rSelect) rSelect.innerHTML = '<option value="">Todas as Rotas</option>';
+    if (rkSelect) rkSelect.innerHTML = '<option value="Todos">Todas as Rotas</option>';
     
     extractGroups().forEach(g => {
         if (gSelect) {
@@ -89,6 +92,13 @@ const populateGroupSelect = () => {
             optR.textContent = groupAliases[g] || g;
             rSelect.appendChild(optR);
         }
+
+        if (rkSelect) {
+            const optRk = document.createElement("option");
+            optRk.value = g;
+            optRk.textContent = groupAliases[g] || g;
+            rkSelect.appendChild(optRk);
+        }
     });
     
     if (gSelect && gSelect.querySelector(`option[value="${currentVal}"]`)) {
@@ -96,6 +106,9 @@ const populateGroupSelect = () => {
     }
     if (rSelect && rSelect.querySelector(`option[value="${currentRouteVal}"]`)) {
         rSelect.value = currentRouteVal;
+    }
+    if (rkSelect && rkSelect.querySelector(`option[value="${currentRankingRouteVal}"]`)) {
+        rkSelect.value = currentRankingRouteVal;
     }
 };
 
