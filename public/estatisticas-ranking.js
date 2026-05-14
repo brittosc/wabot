@@ -88,7 +88,7 @@ const updateRanking = (targetGroup, _targetDaysStr) => {
                 });
             }
 
-            const stats = userStats.get(jid);
+            const stats = userStats.get(key);
             if (!stats) return;
 
             // Atualiza foto se o voto atual tiver e o usuário ainda não tiver
