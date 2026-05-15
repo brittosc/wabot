@@ -11,6 +11,74 @@ const configService = require("./services/configService");
 const { startServer } = require("./server");
 const { formatName } = require("./utils/nameFormatter");
 
+/**
+ * Tenta resolver informações de contato (nome e foto) de forma robusta,
+ * lidando inclusive com endereços @lid e novos membros de grupo.
+ */
+async function resolveContactInfo(client, voterId) {
+  let name = null;
+  let photoUrl = null;
+  let jid = voterId;
+
+  try {
+    // 1. Tenta API padrão
+    const contact = await client.getContactById(voterId).catch(() => null);
+    if (contact) {
+      name = contact.pushname || contact.name;
+      if (contact.number) {
+        jid = `${contact.number}@c.us`;
+      } else if (contact.id && contact.id._serialized) {
+        jid = contact.id._serialized;
+      }
+    }
+
+    // 2. Fallback via Puppeteer Store para casos difíceis (@lid ou novos contatos)
+    const storeData = await client.pupPage.evaluate(async (id) => {
+      try {
+        const Store = window.Store;
+        const wid = Store.WidFactory.createWid(id);
+        let contact = Store.Contact.get(wid);
+        
+        if (!contact) {
+          contact = await Store.Contact.find(wid).catch(() => null);
+        }
+
+        if (contact) {
+          let pic = null;
+          if (contact.profilePicThumbObj) {
+            pic = contact.profilePicThumbObj.eurl || contact.profilePicThumbObj.img || contact.profilePicThumbObj.imgFull;
+          }
+          if (!pic) {
+            const picObj = await Store.ProfilePic.profilePicFind(wid).catch(() => null);
+            pic = picObj ? (picObj.eurl || picObj.img) : null;
+          }
+          return {
+            pushname: contact.pushname || contact.name || null,
+            pic: pic || null,
+            jid: contact.id ? contact.id._serialized : null
+          };
+        }
+      } catch (e) {}
+      return null;
+    }, voterId).catch(() => null);
+
+    if (storeData) {
+      if (!name) name = storeData.pushname;
+      if (!photoUrl) photoUrl = storeData.pic;
+      if (storeData.jid && storeData.jid.includes('@c.us')) jid = storeData.jid;
+    }
+
+    // 3. Fallback oficial apenas para foto se o pup falhar
+    if (!photoUrl) {
+      photoUrl = await client.getProfilePicUrl(jid || voterId).catch(() => null);
+    }
+  } catch (err) {
+    /* erro silencioso */
+  }
+
+  return { name, photoUrl, jid };
+}
+
 async function startBot() {
   dashboard.setStatus("Processando inicialização...");
 
@@ -71,47 +139,15 @@ async function startBot() {
 
   client.on("vote_update", async (vote) => {
     try {
-      // Tenta obter o nome do contato e a foto para auto-registro
+      // Tenta obter o nome do contato e a foto para auto-registro de forma robusta
       let voterName = null;
       let photoUrl = null;
-      try {
-        const contact = await client.getContactById(vote.voter);
-        voterName = formatName(contact.pushname || contact.name || "Desconhecido");
-        let jid = vote.voter;
-        // Converte LID para JID real (c.us) se possível
-        if (contact.number) {
-          jid = `${contact.number}@c.us`;
-        } else if (contact.id && contact.id._serialized) {
-          jid = contact.id._serialized;
-        }
+      
+      const contactInfo = await resolveContactInfo(client, vote.voter);
+      voterName = formatName(contactInfo.name);
+      photoUrl = contactInfo.photoUrl;
 
-        try {
-          photoUrl = await client.pupPage.evaluate(async (jidStr) => {
-            try {
-              const Store = window.Store;
-              const wid = Store.WidFactory.createWid(jidStr);
-              await Store.ProfilePic.requestProfilePicFromServer(wid);
-              await new Promise(resolve => setTimeout(resolve, 800)); // Aguarda resposta
-              const contact = Store.Contact.get(wid);
-              if (contact && contact.profilePicThumbObj) {
-                return contact.profilePicThumbObj.eurl || contact.profilePicThumbObj.img || contact.profilePicThumbObj.imgFull || null;
-              }
-              // Fallback interno no pup
-              const pic = await Store.ProfilePic.profilePicFind(wid);
-              return pic ? (pic.eurl || pic.img) : null;
-            } catch (e) {
-              return null;
-            }
-          }, jid);
-
-          // Fallback oficial se o pup falhar
-          if (!photoUrl) {
-            photoUrl = await client.getProfilePicUrl(jid).catch(() => null);
-          }
-        } catch (e) {
-          /* silencioso */
-        }
-      } catch (e) {
+      if (!voterName && !vote.voter.includes('@lid')) {
         dashboard.addLog(
           `Aviso: Não foi possível obter dados de ${vote.voter}`,
         );
@@ -148,7 +184,7 @@ async function startBot() {
         
         const config = configService.getConfig();
         const highlightNames = config.highlightNames || [];
-        const currentName = voterName || vote.voter;
+        const currentName = voterName || (vote.voter.includes('@lid') ? 'Novo Passageiro' : vote.voter);
         const shouldHighlight = highlightNames.some(name => currentName.toLowerCase().includes(name.toLowerCase()));
         
         let displayGroup = groupName;
@@ -241,50 +277,9 @@ async function syncRecentPhotos(client) {
         continue;
       }
 
-      let name = "Desconhecido";
-      let jid = id;
-      try {
-        const contact = await client.getContactById(id);
-        name = formatName(contact.pushname || contact.name || "Desconhecido");
-
-        // Converte LID para JID real (c.us) se possível
-        if (contact.number) {
-          jid = `${contact.number}@c.us`;
-        } else if (contact.id && contact.id._serialized) {
-          jid = contact.id._serialized;
-        }
-      } catch (ce) {
-        /* ignora */
-      }
-
-      let photoUrl = null;
-
-      try {
-        photoUrl = await client.pupPage.evaluate(async (jidStr) => {
-          try {
-            const Store = window.Store;
-            const wid = Store.WidFactory.createWid(jidStr);
-            await Store.ProfilePic.requestProfilePicFromServer(wid);
-            await new Promise(resolve => setTimeout(resolve, 800)); // Aguarda resposta
-            const contact = Store.Contact.get(wid);
-            if (contact && contact.profilePicThumbObj) {
-              return contact.profilePicThumbObj.eurl || contact.profilePicThumbObj.img || contact.profilePicThumbObj.imgFull || null;
-            }
-            // Fallback interno no pup
-            const pic = await Store.ProfilePic.profilePicFind(wid);
-            return pic ? (pic.eurl || pic.img) : null;
-          } catch (e) {
-            return null;
-          }
-        }, jid);
-
-        // Fallback oficial se o pup falhar
-        if (!photoUrl) {
-          photoUrl = await client.getProfilePicUrl(jid).catch(() => null);
-        }
-      } catch (pe) {
-        /* silencioso */
-      }
+      const contactInfo = await resolveContactInfo(client, id);
+      name = formatName(contactInfo.name) || "Desconhecido";
+      photoUrl = contactInfo.photoUrl;
 
       if (photoUrl) {
         await statistics.syncPassengerMetadata(id, name, photoUrl);
