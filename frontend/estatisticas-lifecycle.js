@@ -12,7 +12,7 @@ const playNotificationSound = () => {
     try {
         // Som de notificação curto e suave
         const audio = new Audio("/notifications/sound.mp3");
-        audio.volume = 0.5;
+        audio.volume = 1.0;
         audio.play().catch(e => {
             console.warn("Notificação sonora bloqueada pelo navegador. Interaja com a página primeiro.");
         });
