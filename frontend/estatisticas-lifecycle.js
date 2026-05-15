@@ -136,7 +136,8 @@ const fetchStats = async () => {
                 pollHistory = data.pollHistory || [];
                 isPollSentToday = !!data.isPollSentToday;
                 capacities = data.capacities || {};
-                groupAliases = data.aliases || {};
+                window.groupAliases = data.aliases || {};
+                groupAliases = window.groupAliases;
                 skipDates = data.skipDates || {};
                 weatherForecast = data.weather || [];
                 

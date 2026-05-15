@@ -350,10 +350,10 @@ select option {
     z-index: 10;
 }
 .heatmap-day[data-level="0"] { background-color: #1a1a1a; }
-.heatmap-day[data-level="1"] { background-color: #0e4429; }
-.heatmap-day[data-level="2"] { background-color: #006d32; }
-.heatmap-day[data-level="3"] { background-color: #26a641; }
-.heatmap-day[data-level="4"] { background-color: #39d353; }
+.heatmap-day[data-level="1"] { background-color: #1e3a8a; } /* Azul Escuro (Pouco) */
+.heatmap-day[data-level="2"] { background-color: #3b82f6; } /* Azul (Médio-baixo) */
+.heatmap-day[data-level="3"] { background-color: #f59e0b; } /* Laranja (Médio-alto) */
+.heatmap-day[data-level="4"] { background-color: #ef4444; } /* Vermelho (Alto/Lotação) */
 
 .heatmap-labels {
     display: grid;

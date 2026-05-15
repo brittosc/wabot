@@ -111,7 +111,8 @@ const createPredictionCard = (groupName, stats) => {
     const card = document.createElement("div");
     card.className = "prediction-card";
     
-    const displayName = window.groupAliases && window.groupAliases[groupName] ? window.groupAliases[groupName] : groupName;
+    const aliasSource = (typeof groupAliases !== 'undefined') ? groupAliases : window.groupAliases;
+    const displayName = (aliasSource && aliasSource[groupName]) ? aliasSource[groupName] : groupName;
 
     card.innerHTML = `
         <div class="prediction-header">
@@ -136,10 +137,6 @@ const createPredictionCard = (groupName, stats) => {
             </div>
             <div class="prediction-divider"></div>
             <div class="prediction-stats">
-                <div class="p-stat">
-                    <span class="p-label">Total de Votos</span>
-                    <span class="p-val">${stats.avgVotes}</span>
-                </div>
                 <div class="p-stat">
                     <span class="p-label">Horário de Pico</span>
                     <span class="p-val">${stats.peakHour}</span>
