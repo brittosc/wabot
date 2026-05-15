@@ -280,16 +280,38 @@ const updateRanking = (targetGroupFromDash, _targetDaysStr) => {
         // Cálculo de Badges
         let userBadgesHtml = '';
         if (user.latestStreak >= 5) {
-            userBadgesHtml += `<span class="user-badge-icon" title="Streak de ${user.latestStreak} dias" style="color: #ffc107;"><i data-lucide="zap"></i></span>`;
+            const streakTitle = user.latestStreak >= 10 ? `Super Streak de ${user.latestStreak} dias` : `Streak de ${user.latestStreak} dias`;
+            const streakColor = user.latestStreak >= 10 ? '#ff5722' : '#ffc107';
+            const streakIcon = user.latestStreak >= 10 ? 'flame' : 'zap';
+            userBadgesHtml += `<span class="user-badge-icon" title="${streakTitle}" style="color: ${streakColor};"><i data-lucide="${streakIcon}"></i></span>`;
         }
         if (user.absenceRate < 5 && user.presenceCount > 5) {
             userBadgesHtml += `<span class="user-badge-icon" title="Frequência Exemplar" style="color: #4caf50;"><i data-lucide="shield-check"></i></span>`;
         }
         if (user.avgSeconds < 23400 && user.avgSeconds !== Infinity) { // Antes das 06:30
-            userBadgesHtml += `<span class="user-badge-icon" title="Madrugador" style="color: #ff9800;"><i data-lucide="sunrise"></i></span>`;
+            const earlyTitle = user.avgSeconds < 21600 ? "Madrugador Elite (antes das 06h)" : "Madrugador";
+            const earlyIcon = user.avgSeconds < 21600 ? "coffee" : "sunrise";
+            userBadgesHtml += `<span class="user-badge-icon" title="${earlyTitle}" style="color: #ff9800;"><i data-lucide="${earlyIcon}"></i></span>`;
         }
         if (user.presenceCount >= 20) {
-            userBadgesHtml += `<span class="user-badge-icon" title="Veterano" style="color: #2196f3;"><i data-lucide="award"></i></span>`;
+            let honorTitle = "Veterano";
+            let honorColor = "#2196f3";
+            let honorIcon = "award";
+            
+            if (user.presenceCount >= 100) {
+                honorTitle = "Membro Diamante (+100 presenças)";
+                honorColor = "#00bcd4";
+                honorIcon = "gem";
+            } else if (user.presenceCount >= 50) {
+                honorTitle = "Lenda da Linha (+50 presenças)";
+                honorColor = "#ffd700";
+                honorIcon = "trophy";
+            }
+            
+            userBadgesHtml += `<span class="user-badge-icon" title="${honorTitle}" style="color: ${honorColor};"><i data-lucide="${honorIcon}"></i></span>`;
+        }
+        if (user.absenceRate === 0 && user.presenceCount >= 10) {
+            userBadgesHtml += `<span class="user-badge-icon" title="Comprometimento Total (0 faltas)" style="color: #8bc34a;"><i data-lucide="check-circle"></i></span>`;
         }
 
         if (rankingType === 'presence') {
