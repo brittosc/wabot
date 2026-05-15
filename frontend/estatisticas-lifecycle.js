@@ -8,12 +8,15 @@ const updateDash = () => {
 };
 window.updateDash = updateDash;
 
+let notificationAudio = null;
 const playNotificationSound = () => {
     try {
-        // Som de notificação curto e suave
-        const audio = new Audio("/notifications/sound.mp3");
-        audio.volume = 1.0;
-        audio.play().catch(e => {
+        if (!notificationAudio) {
+            notificationAudio = new Audio("/notifications/sound.mp3");
+        }
+        notificationAudio.volume = 1.0;
+        notificationAudio.currentTime = 0; // Reinicia o som se já estiver tocando
+        notificationAudio.play().catch(e => {
             console.warn("Notificação sonora bloqueada pelo navegador. Interaja com a página primeiro.");
         });
     } catch (e) {}
@@ -121,9 +124,8 @@ const fetchStats = async () => {
             const data = await res.json();
             if (JSON.stringify(rawDB) !== JSON.stringify(data.votes) || isPollSentToday !== data.isPollSentToday || JSON.stringify(weatherForecast) !== JSON.stringify(data.weather) || JSON.stringify(passengers) !== JSON.stringify(data.passengers)) {
                 
-                // Detecta se houve novos votos para tocar o som
+                const votesChanged = JSON.stringify(rawDB) !== JSON.stringify(data.votes);
                 const oldVoteCount = countTotalVotes(rawDB);
-                const newVoteCount = countTotalVotes(data.votes || {});
                 
                 rawDB = data.votes || {};
                 passengers = data.passengers || [];
@@ -140,7 +142,7 @@ const fetchStats = async () => {
 
                 updateDash();
 
-                if (newVoteCount > oldVoteCount && oldVoteCount > 0) {
+                if (votesChanged && oldVoteCount > 0) {
                     playNotificationSound();
                 }
 
