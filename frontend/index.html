@@ -31,14 +31,17 @@
 
             <div style="display: flex; gap: 15px; flex-wrap: wrap; justify-content: center; align-items: center;">
                 <select id="periodSelect" onchange="handlePeriodChange(this.value)">
-                    <option value="today">Hoje</option>
-                    <option value="yesterday">Ontem</option>
-                    <option value="7" selected>Últimos 7 dias</option>
+                    <option value="this_month" selected>Mês Atual</option>
+                    <option value="7">Últimos 7 dias</option>
                     <option value="15">Últimos 15 dias</option>
                     <option value="30">Últimos 30 dias</option>
-                    <option value="this_month">Mês Atual</option>
                     <option value="60">Últimos 2 meses</option>
-                    <option value="custom">Intervalo Personalizado</option>
+                    <option value="90">Últimos 3 meses</option>
+                    <option value="180">Últimos 6 meses</option>
+                    <option value="365">Último ano</option>
+                    <!-- <option value="custom">Intervalo Personalizado</option> -->
+                    <option value="today">Hoje</option>
+                    <option value="yesterday">Ontem</option>
                 </select>
 
                 <div id="customRangeContainer" style="display: none; gap: 8px; align-items: center;">
@@ -134,8 +137,8 @@
 
         <!-- Cards de Máximos e Mínimos -->
         <div class="highlights" style="margin-bottom: 12px;">
-            <div class="highlight-card" style="background: linear-gradient(90deg, #182818, #281818);">
-                <div class="card-title"><h3>Ida/Volta</h3></div>
+            <div class="highlight-card" style="background: linear-gradient(90deg, #182818, #182828);">
+                <div class="card-title"><h3>Lotação</h3></div>
                 <div class="split-container">
                     <div class="split-half split-peak">
                         <span class="label">MÁXIMO</span>
