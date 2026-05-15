@@ -212,7 +212,9 @@ const processData = (targetGroup, targetPeriod) => {
         endMoment = today.clone();
     }
 
-    const totalDaysCount = endMoment.diff(startMoment, 'days') + 1;
+    const periodLength = endMoment.diff(startMoment, 'days') + 1;
+    const prevStartMoment = startMoment.clone().subtract(periodLength, 'days');
+    const prevEndMoment = startMoment.clone().subtract(1, 'day');
     const labelPeriod = targetPeriod === "custom" ? `${startMoment.format('DD/MM')} - ${endMoment.format('DD/MM')}` : targetPeriod;
 
     let barLabels = [];
@@ -246,24 +248,26 @@ const processData = (targetGroup, targetPeriod) => {
     let totalPresenceVotes = 0;
     let daysWithData = 0;
 
-    // Cálculo da base (últimos 7 dias) para contexto
-    let baseStats = {
+    // Cálculo da base (período anterior de mesma duração) para contexto
+    let prevStats = {
         totalVotes: 0,
         presence: 0,
         soIda: 0,
         soVolta: 0,
         ausencia: 0,
         idaVolta: 0,
-        voteTimestamps: []
+        voteTimestamps: [],
+        daysWithData: 0
     };
-    const baseDays = 7;
 
-    for (let day = startMoment.clone(); day.isSameOrBefore(endMoment); day.add(1, 'day')) {
+    // Iteramos desde o início do período anterior até o fim do atual
+    for (let day = prevStartMoment.clone(); day.isSameOrBefore(endMoment); day.add(1, 'day')) {
         const dateStr = day.format('YYYY-MM-DD');
         const displayDate = day.format('DD/MM');
-        barLabels.push(displayDate);
+        const isCurrent = day.isSameOrAfter(startMoment);
         
-        let dayTotal = 0;
+        if (isCurrent) barLabels.push(displayDate);
+        
         let dayCounts = {
             "Irei, ida e volta.": 0, "Irei, mas não retornarei.": 0,
             "Não irei, apenas retornarei.": 0, "Não irei à faculdade hoje.": 0
@@ -292,77 +296,84 @@ const processData = (targetGroup, targetPeriod) => {
             });
 
             let dailyPresence = 0;
+            let dayTotal = 0;
             dayUniqueVoters.forEach((vData) => {
                 const opt = vData.opt;
                 dayTotal++;
-                if (globalOptionCounts[opt] !== undefined) globalOptionCounts[opt]++;
-                if (dayCounts[opt] !== undefined) dayCounts[opt]++;
-                if (vData.ts) voteTimestamps.push(moment(vData.ts));
+                
+                if (isCurrent) {
+                    if (globalOptionCounts[opt] !== undefined) globalOptionCounts[opt]++;
+                    if (dayCounts[opt] !== undefined) dayCounts[opt]++;
+                    if (vData.ts) voteTimestamps.push(moment(vData.ts));
+                } else {
+                    prevStats.totalVotes++;
+                    if (opt === "Irei, mas não retornarei.") prevStats.soIda++;
+                    if (opt === "Não irei, apenas retornarei.") prevStats.soVolta++;
+                    if (opt === "Não irei à faculdade hoje.") prevStats.ausencia++;
+                    if (opt === "Irei, ida e volta.") prevStats.idaVolta++;
+                    if (vData.ts) prevStats.voteTimestamps.push(moment(vData.ts));
+                }
 
                 if (opt === "Irei, ida e volta." || opt === "Irei, mas não retornarei." || opt === "Não irei, apenas retornarei.") {
                     dailyPresence++;
                 }
-
-                // Dados para o baseline de 7 dias (contexto para tendências)
-                const daysFromEnd = endMoment.diff(day, 'days');
-                if (daysFromEnd < baseDays) {
-                    baseStats.totalVotes++;
-                    if (opt === "Irei, ida e volta." || opt === "Irei, mas não retornarei." || opt === "Não irei, apenas retornarei.") {
-                        baseStats.presence++;
-                    }
-                    if (opt === "Irei, mas não retornarei.") baseStats.soIda++;
-                    if (opt === "Não irei, apenas retornarei.") baseStats.soVolta++;
-                    if (opt === "Não irei à faculdade hoje.") baseStats.ausencia++;
-                    if (opt === "Irei, ida e volta.") baseStats.idaVolta++;
-                    if (vData.ts) baseStats.voteTimestamps.push(moment(vData.ts));
-                }
             });
 
             if (dailyPresence > 0) {
-                totalPresenceVotes += dailyPresence;
-                daysWithData++;
-                const dow = day.day();
-                weekdayPresence[dow].presence += dailyPresence;
-                weekdayPresence[dow].days++;
+                if (isCurrent) {
+                    totalPresenceVotes += dailyPresence;
+                    daysWithData++;
+                    const dow = day.day();
+                    weekdayPresence[dow].presence += dailyPresence;
+                    weekdayPresence[dow].days++;
+                } else {
+                    prevStats.presence += dailyPresence;
+                    prevStats.daysWithData++;
+                }
             }
+
+            if (isCurrent) {
+                const updatePeak = (val, peak, valley, date, total) => {
+                    if (val > peak.val) { peak.val = val; peak.date = date; }
+                    if (val < valley.val && total > 0) { valley.val = val; valley.date = date; }
+                };
+                updatePeak(dayCounts["Irei, ida e volta."], peakLotacao, valleyLotacao, displayDate, dayTotal);
+                updatePeak(dayCounts["Não irei à faculdade hoje."], peakAusencia, valleyAusencia, displayDate, dayTotal);
+                updatePeak(dayCounts["Irei, mas não retornarei."], peakSoIda, valleySoIda, displayDate, dayTotal);
+                updatePeak(dayCounts["Não irei, apenas retornarei."], peakSoVolta, valleySoVolta, displayDate, dayTotal);
+
+                Object.keys(stackedData).forEach(k => stackedData[k].push(dayCounts[k]));
+                barData.push(dayTotal);
+                accumTotalVotes += dayTotal;
+            }
+        } else if (isCurrent) {
+            // Preenche gráficos com zero para dias sem dados no período atual
+            Object.keys(stackedData).forEach(k => stackedData[k].push(0));
+            barData.push(0);
         }
-
-        const updatePeak = (val, peak, valley, date, total) => {
-            if (val > peak.val) { peak.val = val; peak.date = date; }
-            if (val < valley.val && total > 0) { valley.val = val; valley.date = date; }
-        };
-        updatePeak(dayCounts["Irei, ida e volta."], peakLotacao, valleyLotacao, displayDate, dayTotal);
-        updatePeak(dayCounts["Não irei à faculdade hoje."], peakAusencia, valleyAusencia, displayDate, dayTotal);
-        updatePeak(dayCounts["Irei, mas não retornarei."], peakSoIda, valleySoIda, displayDate, dayTotal);
-        updatePeak(dayCounts["Não irei, apenas retornarei."], peakSoVolta, valleySoVolta, displayDate, dayTotal);
-
-        Object.keys(stackedData).forEach(k => stackedData[k].push(dayCounts[k]));
-        barData.push(dayTotal);
-        accumTotalVotes += dayTotal;
     }
 
     const avgPresence = daysWithData > 0 ? totalPresenceVotes / daysWithData : 0;
     document.getElementById("lblAverage").innerText = avgPresence.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
-    const baselineDivisor = baseDays;
-    const bAvgPresence = baseStats.presence / baselineDivisor;
-    const bAvgTotalVotes = baseStats.totalVotes / baselineDivisor;
-    const bAvgSoIda = baseStats.soIda / baselineDivisor;
-    const bAvgSoVolta = baseStats.soVolta / baselineDivisor;
-    const bAvgAusencia = baseStats.ausencia / baselineDivisor;
-    const bAvgIdaVolta = baseStats.idaVolta / baselineDivisor;
+    const prevAvgPresence = prevStats.daysWithData > 0 ? prevStats.presence / prevStats.daysWithData : 0;
+    const prevAvgTotalVotes = prevStats.totalVotes / periodLength;
+    const prevAvgSoIda = prevStats.soIda / periodLength;
+    const prevAvgSoVolta = prevStats.soVolta / periodLength;
+    const prevAvgAusencia = prevStats.ausencia / periodLength;
+    const prevAvgIdaVolta = prevStats.idaVolta / periodLength;
 
-    updateTrendBadge("lblAverageTrend", avgPresence, bAvgPresence);
-    updateTrendBadge("lblTotalVotesTrend", accumTotalVotes / totalDaysCount, bAvgTotalVotes);
+    updateTrendBadge("lblAverageTrend", avgPresence, prevAvgPresence);
+    updateTrendBadge("lblTotalVotesTrend", accumTotalVotes / periodLength, prevAvgTotalVotes);
 
-    updateTrendBadge("hlLotacaoTrend", peakLotacao.val, bAvgIdaVolta);
-    updateTrendBadge("hlLotacaoMinTrend", valleyLotacao.val, bAvgIdaVolta);
-    updateTrendBadge("hlAusenciaTrend", peakAusencia.val, bAvgAusencia, true);
-    updateTrendBadge("hlAusenciaMinTrend", valleyAusencia.val, bAvgAusencia, true);
-    updateTrendBadge("hlSoIdaTrend", peakSoIda.val, bAvgSoIda);
-    updateTrendBadge("hlSoIdaMinTrend", valleySoIda.val, bAvgSoIda);
-    updateTrendBadge("hlSoVoltaTrend", peakSoVolta.val, bAvgSoVolta);
-    updateTrendBadge("hlSoVoltaMinTrend", valleySoVolta.val, bAvgSoVolta);
+    updateTrendBadge("hlLotacaoTrend", peakLotacao.val, prevAvgIdaVolta);
+    updateTrendBadge("hlLotacaoMinTrend", valleyLotacao.val, prevAvgIdaVolta);
+    updateTrendBadge("hlAusenciaTrend", peakAusencia.val, prevAvgAusencia, true);
+    updateTrendBadge("hlAusenciaMinTrend", valleyAusencia.val, prevAvgAusencia, true);
+    updateTrendBadge("hlSoIdaTrend", peakSoIda.val, prevAvgSoIda);
+    updateTrendBadge("hlSoIdaMinTrend", valleySoIda.val, prevAvgSoIda);
+    updateTrendBadge("hlSoVoltaTrend", peakSoVolta.val, prevAvgSoVolta);
+    updateTrendBadge("hlSoVoltaMinTrend", valleySoVolta.val, prevAvgSoVolta);
 
     // Destaques de dias da semana
     let peakWeekday = { val: -1, day: "" }, valleyWeekday = { val: Infinity, day: "" };
@@ -396,7 +407,7 @@ const processData = (targetGroup, targetPeriod) => {
     if (totalTitle) totalTitle.innerText = "Total Votos (" + labelPeriod + ")";
     
     const currentAvgTime = calculateAverageInterval(voteTimestamps);
-    const baselineAvgTime = calculateAverageInterval(baseStats.voteTimestamps);
+    const baselineAvgTime = calculateAverageInterval(prevStats.voteTimestamps);
     updateTrendBadge("lblAvgVoteTimeTrend", currentAvgTime, baselineAvgTime, true);
 
     const timeLabel = document.getElementById("lblAvgVoteTime");
@@ -433,18 +444,18 @@ const processData = (targetGroup, targetPeriod) => {
     setHighlight("hlSoVoltaVal", "hlSoVoltaDate", peakSoVolta);
     setHighlight("hlSoVoltaMinVal", "hlSoVoltaMinDate", valleySoVolta);
 
-    const diffPercent = bAvgPresence > 0 ? ((avgPresence - bAvgPresence) / bAvgPresence) * 100 : 0;
+    const diffPercent = prevAvgPresence > 0 ? ((avgPresence - prevAvgPresence) / prevAvgPresence) * 100 : 0;
     
     // Expor dados para outros scripts (insights, etc)
     window.lastProcessedStats = {
         avgPresence,
-        bAvgPresence,
+        prevAvgPresence,
         diffPercent,
         peakWeekday,
         valleyWeekday,
         peakHour: document.getElementById("hlPeakHour")?.innerText || "--",
         accumTotalVotes,
-        totalDaysCount
+        periodLength
     };
 
     updateCapacityCard(targetGroup);
