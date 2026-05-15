@@ -117,8 +117,10 @@ const updateRanking = (targetGroupFromDash, _targetDaysStr) => {
                     absenceCount: 0,
                     totalSeconds: 0,
                     voteCountForAvg: 0,
-                    votesByDate: {}, // Para cálculo de streak
-                    lastVoteDate: null
+                    votesByDate: {},
+                    lastVoteDate: null,
+                    idaVoltaCount: 0,
+                    soloCount: 0
                 });
             }
 
@@ -132,12 +134,12 @@ const updateRanking = (targetGroupFromDash, _targetDaysStr) => {
             const opt = vData.opt;
             stats.votesByDate[dateStr] = opt;
 
-            if (
-                opt === "Irei, ida e volta." ||
-                opt === "Irei, mas não retornarei." ||
-                opt === "Não irei, apenas retornarei."
-            ) {
+            if (opt === "Irei, ida e volta.") {
                 stats.presenceCount++;
+                stats.idaVoltaCount++;
+            } else if (opt === "Irei, mas não retornarei." || opt === "Não irei, apenas retornarei.") {
+                stats.presenceCount++;
+                stats.soloCount++;
             } else if (opt === "Não irei à faculdade hoje.") {
                 stats.absenceCount++;
             }
@@ -344,6 +346,38 @@ const updateRanking = (targetGroupFromDash, _targetDaysStr) => {
         // Comprometimento Total: nunca votou que não iria
         if (user.absenceCount === 0 && user.presenceCount > 0) {
             userBadgesHtml += `<span class="user-badge-icon" title="Comprometimento Total (0 faltas)" style="color: #8bc34a;"><i data-lucide="check-circle"></i></span>`;
+        }
+
+        // --- NOVOS BADGES CRIATIVOS ---
+
+        // Sentinela da Alvorada: Média antes das 05:45
+        if (user.avgSeconds < 20700 && user.avgSeconds !== Infinity) {
+            userBadgesHtml += `<span class="user-badge-icon" title="Sentinela da Alvorada (vota antes das 05:45)" style="color: #00bcd4;"><i data-lucide="eye"></i></span>`;
+        }
+
+        // Passageiro de Ouro: Sem faltas nos últimos 20 polls (ou todos se menos que 20)
+        if (user.absenceCount === 0 && user.presenceCount >= Math.min(20, totalPolls)) {
+            userBadgesHtml += `<span class="user-badge-icon" title="Passageiro de Ouro (Inabalável)" style="color: #ffd700;"><i data-lucide="crown"></i></span>`;
+        }
+
+        // Fiel Escudeiro: Mais de 90% das presenças são Ida e Volta
+        if (user.presenceCount > 5 && (user.idaVoltaCount / user.presenceCount) > 0.9) {
+            userBadgesHtml += `<span class="user-badge-icon" title="Fiel Escudeiro (Sempre Ida e Volta)" style="color: #795548;"><i data-lucide="shield"></i></span>`;
+        }
+
+        // Viajante Solo: Mais de 50% das presenças são apenas um trecho
+        if (user.presenceCount > 5 && (user.soloCount / user.presenceCount) > 0.5) {
+            userBadgesHtml += `<span class="user-badge-icon" title="Viajante Solo (Apenas um trecho)" style="color: #673ab7;"><i data-lucide="map"></i></span>`;
+        }
+
+        // Fantasma da Linha: Mais de 85% de ausência (mas já apareceu)
+        if (user.absenceRate > 85 && user.presenceCount > 0) {
+            userBadgesHtml += `<span class="user-badge-icon" title="Fantasma da Linha (Raramente visto)" style="color: #9e9e9e;"><i data-lucide="ghost"></i></span>`;
+        }
+
+        // Relâmpago: Vota muito cedo e tem streak
+        if (user.avgSeconds < 21600 && user.latestStreak >= 3) {
+            userBadgesHtml += `<span class="user-badge-icon" title="Relâmpago (Rápido e Constante)" style="color: #ffeb3b;"><i data-lucide="cloud-lightning"></i></span>`;
         }
 
         if (rankingType === 'presence') {
