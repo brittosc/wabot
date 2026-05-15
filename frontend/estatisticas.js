@@ -344,17 +344,17 @@ const processData = (targetGroup, targetPeriod) => {
                 }
             }
 
-            if (isCurrent) {
-                const updatePeak = (val, peak, valley, date, total) => {
-                    if (val > peak.val) { peak.val = val; peak.date = date; }
-                    // Consideramos o mínimo apenas em dias com pelo menos 10 votos totais para evitar feriados/outliers
-                    if (val < valley.val && total >= 10) { valley.val = val; valley.date = date; }
-                };
-                updatePeak(dailyPresence, peakLotacao, valleyLotacao, displayDate, dayTotal);
-                updatePeak(dayCounts["Não irei à faculdade hoje."], peakAusencia, valleyAusencia, displayDate, dayTotal);
-                updatePeak(dayCounts["Irei, mas não retornarei."], peakSoIda, valleySoIda, displayDate, dayTotal);
-                updatePeak(dayCounts["Não irei, apenas retornarei."], peakSoVolta, valleySoVolta, displayDate, dayTotal);
+            const updatePeak = (val, peak, valley, date, total) => {
+                if (val > peak.val) { peak.val = val; peak.date = date; }
+                // Consideramos o mínimo apenas em dias com pelo menos 10 votos totais para evitar feriados/outliers
+                if (val < valley.val && total >= 10) { valley.val = val; valley.date = date; }
+            };
+            updatePeak(dailyPresence, peakLotacao, valleyLotacao, displayDate, dayTotal);
+            updatePeak(dayCounts["Não irei à faculdade hoje."], peakAusencia, valleyAusencia, displayDate, dayTotal);
+            updatePeak(dayCounts["Irei, mas não retornarei."], peakSoIda, valleySoIda, displayDate, dayTotal);
+            updatePeak(dayCounts["Não irei, apenas retornarei."], peakSoVolta, valleySoVolta, displayDate, dayTotal);
 
+            if (isCurrent) {
                 Object.keys(stackedData).forEach(k => stackedData[k].push(dayCounts[k]));
                 barData.push(dayTotal);
                 accumTotalVotes += dayTotal;
