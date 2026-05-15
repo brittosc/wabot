@@ -27,12 +27,8 @@ const updateNextPollsCalendar = (limitDays = 7) => {
 
     let displayLimit = 7;
     const parsed = parseInt(limitDays, 10);
-    if (!isNaN(parsed)) {
+    if (!isNaN(parsed) && parsed > 7) {
         displayLimit = Math.min(30, parsed);
-    } else if (limitDays === "this_month") {
-        displayLimit = 14; // Mostrar as próximas 2 semanas se for o mês atual
-    } else if (limitDays === "today" || limitDays === "yesterday") {
-        displayLimit = 3;
     }
     const now = moment();
     let current = moment();
