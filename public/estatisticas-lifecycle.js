@@ -104,7 +104,8 @@ const checkMidnightReset = () => {
 const fetchStats = async () => {
     checkMidnightReset();
     try {
-        const res = await fetch('/api/stats');
+        const baseUrl = (window.BACKEND_URL || '').replace(/\/$/, '');
+        const res = await fetch(`${baseUrl}/api/stats?t=${Date.now()}`);
         if (res.ok) {
             const data = await res.json();
             if (JSON.stringify(rawDB) !== JSON.stringify(data.votes) || isPollSentToday !== data.isPollSentToday || JSON.stringify(weatherForecast) !== JSON.stringify(data.weather) || JSON.stringify(passengers) !== JSON.stringify(data.passengers)) {
