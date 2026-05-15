@@ -299,7 +299,7 @@ const updateRanking = (targetGroupFromDash, _targetDaysStr) => {
         // Frequência Exemplar: 75% de presença
         const presenceRate = (user.presenceCount / totalPolls) * 100;
         if (presenceRate >= 75) {
-            userBadgesHtml += `<span class="user-badge-icon" title="Frequência Exemplar (75%+)" style="color: #4caf50;"><i data-lucide="shield-check"></i></span>`;
+            userBadgesHtml += `<span class="user-badge-icon" title="Frequência Exemplar (${presenceRate.toFixed(0)}%)" style="color: #4caf50;"><i data-lucide="shield-check"></i></span>`;
         }
 
         // Madrugadores
