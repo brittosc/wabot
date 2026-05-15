@@ -244,6 +244,14 @@ const updateRanking = (targetGroupFromDash, _targetDaysStr) => {
         );
     }
 
+    let minAvg = Infinity, maxAvg = -Infinity;
+    fullRanking.forEach(u => {
+        if (u.avgSeconds !== Infinity && u.avgSeconds > 0) {
+            if (u.avgSeconds < minAvg) minAvg = u.avgSeconds;
+            if (u.avgSeconds > maxAvg) maxAvg = u.avgSeconds;
+        }
+    });
+
     const body = document.getElementById("rankingBody");
     const btnContainer = document.getElementById("rankingPaginationContainer");
     if (!body) return;
@@ -279,25 +287,44 @@ const updateRanking = (targetGroupFromDash, _targetDaysStr) => {
         
         // Cálculo de Badges
         let userBadgesHtml = '';
+        
+        // Sequência (Streak)
         if (user.latestStreak >= 5) {
             const streakTitle = user.latestStreak >= 10 ? `Super Streak de ${user.latestStreak} dias` : `Streak de ${user.latestStreak} dias`;
             const streakColor = user.latestStreak >= 10 ? '#ff5722' : '#ffc107';
             const streakIcon = user.latestStreak >= 10 ? 'flame' : 'zap';
             userBadgesHtml += `<span class="user-badge-icon" title="${streakTitle}" style="color: ${streakColor};"><i data-lucide="${streakIcon}"></i></span>`;
         }
-        if (user.absenceRate < 15 && user.presenceCount > 5) {
-            userBadgesHtml += `<span class="user-badge-icon" title="Frequência Exemplar" style="color: #4caf50;"><i data-lucide="shield-check"></i></span>`;
+
+        // Frequência Exemplar: 75% de presença
+        const presenceRate = (user.presenceCount / totalPolls) * 100;
+        if (presenceRate >= 75) {
+            userBadgesHtml += `<span class="user-badge-icon" title="Frequência Exemplar (75%+)" style="color: #4caf50;"><i data-lucide="shield-check"></i></span>`;
         }
-        if (user.avgSeconds < 23400 && user.avgSeconds !== Infinity) { // Antes das 06:30
-            const earlyTitle = user.avgSeconds < 21600 ? "Madrugador Elite (antes das 06h)" : "Madrugador";
+
+        // Madrugadores
+        if (user.avgSeconds < 25200 && user.avgSeconds !== Infinity) { // Antes das 07:00
+            const earlyTitle = user.avgSeconds < 21600 ? "Madrugador Elite (antes das 06h)" : "Madrugador (antes das 07h)";
             const earlyIcon = user.avgSeconds < 21600 ? "coffee" : "sunrise";
             userBadgesHtml += `<span class="user-badge-icon" title="${earlyTitle}" style="color: #ff9800;"><i data-lucide="${earlyIcon}"></i></span>`;
         }
+
+        // Atrasado / Madrugador Extremo
         if (user.avgSeconds > 64800 && user.avgSeconds !== Infinity) { // Depois das 18:00
             userBadgesHtml += `<span class="user-badge-icon" title="Atrasado (vota após as 18h)" style="color: #9c27b0;"><i data-lucide="moon"></i></span>`;
         }
-        if (user.presenceCount >= 20) {
-            let honorTitle = "Veterano";
+
+        // Recordes de Tempo (Mais Rápido / Mais Lento)
+        if (user.avgSeconds === minAvg && user.avgSeconds !== Infinity) {
+            userBadgesHtml += `<span class="user-badge-icon" title="O Mais Rápido (Recorde)" style="color: #ffeb3b;"><i data-lucide="zap"></i></span>`;
+        }
+        if (user.avgSeconds === maxAvg && user.avgSeconds !== -Infinity) {
+            userBadgesHtml += `<span class="user-badge-icon" title="O Mais Lento" style="color: #9e9e9e;"><i data-lucide="snail"></i></span>`;
+        }
+
+        // Títulos de Veterano
+        if (user.presenceCount >= 30) {
+            let honorTitle = "Veterano (+30 presenças)";
             let honorColor = "#2196f3";
             let honorIcon = "award";
             
@@ -313,7 +340,9 @@ const updateRanking = (targetGroupFromDash, _targetDaysStr) => {
             
             userBadgesHtml += `<span class="user-badge-icon" title="${honorTitle}" style="color: ${honorColor};"><i data-lucide="${honorIcon}"></i></span>`;
         }
-        if (user.absenceRate === 0 && user.presenceCount >= 10) {
+
+        // Comprometimento Total: nunca votou que não iria
+        if (user.absenceCount === 0 && user.presenceCount > 0) {
             userBadgesHtml += `<span class="user-badge-icon" title="Comprometimento Total (0 faltas)" style="color: #8bc34a;"><i data-lucide="check-circle"></i></span>`;
         }
 
