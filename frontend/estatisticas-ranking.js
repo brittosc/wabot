@@ -163,12 +163,13 @@ const updateRanking = (targetGroupFromDash, _targetDaysStr) => {
             userVotesNormalized[moment(d).format('YYYY-MM-DD')] = stats.votesByDate[d];
         });
 
-        // Cálculo da sequência (streak)
+        // Cálculo da sequência (streak) - Apenas presenças contam
         let currentStreak = 0;
         let maxStreak = 0;
         for (let i = 0; i < sortedPollDates.length; i++) {
             const d = sortedPollDates[i];
-            if (userVotesNormalized[d]) {
+            const opt = userVotesNormalized[d];
+            if (opt === "Irei, ida e volta." || opt === "Irei, mas não retornarei." || opt === "Não irei, apenas retornarei.") {
                 currentStreak++;
                 if (currentStreak > maxStreak) maxStreak = currentStreak;
             } else {
@@ -180,7 +181,8 @@ const updateRanking = (targetGroupFromDash, _targetDaysStr) => {
         let latestStreak = 0;
         for (let i = 0; i < sortedPollDates.length; i++) {
             const d = sortedPollDates[i];
-            if (userVotesNormalized[d]) {
+            const opt = userVotesNormalized[d];
+            if (opt === "Irei, ida e volta." || opt === "Irei, mas não retornarei." || opt === "Não irei, apenas retornarei.") {
                 latestStreak++;
             } else {
                 break;

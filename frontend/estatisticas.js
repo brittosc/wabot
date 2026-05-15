@@ -215,7 +215,19 @@ const processData = (targetGroup, targetPeriod) => {
     const periodLength = endMoment.diff(startMoment, 'days') + 1;
     const prevStartMoment = startMoment.clone().subtract(periodLength, 'days');
     const prevEndMoment = startMoment.clone().subtract(1, 'day');
-    const labelPeriod = targetPeriod === "custom" ? `${startMoment.format('DD/MM')} - ${endMoment.format('DD/MM')}` : targetPeriod;
+    const periodLabels = {
+        "today": "Hoje",
+        "yesterday": "Ontem",
+        "this_month": "Mês Atual",
+        "7": "7 dias",
+        "15": "15 dias",
+        "30": "30 dias",
+        "60": "2 meses",
+        "90": "3 meses",
+        "180": "6 meses",
+        "365": "1 ano"
+    };
+    const labelPeriod = targetPeriod === "custom" ? `${startMoment.format('DD/MM')} - ${endMoment.format('DD/MM')}` : (periodLabels[targetPeriod] || targetPeriod);
 
     let barLabels = [];
     let barData = [];
