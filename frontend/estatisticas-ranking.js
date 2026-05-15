@@ -193,7 +193,6 @@ const updateRanking = (targetGroupFromDash, _targetDaysStr) => {
             ? stats.totalSeconds / stats.voteCountForAvg
             : Infinity;
         
-        const totalPolls = pollHistory.length || 1;
         const absenceRate = (stats.absenceCount / totalPolls) * 100;
         
         // Pontuação de consistência: peso para streak, peso para baixa ausência, peso para pontualidade
@@ -256,6 +255,8 @@ const updateRanking = (targetGroupFromDash, _targetDaysStr) => {
     const btnContainer = document.getElementById("rankingPaginationContainer");
     if (!body) return;
     body.innerHTML = "";
+
+    const totalPolls = pollHistory.length || 1;
 
     const fmtTime = (secs) => {
         if (secs === Infinity || isNaN(secs)) return "--:--";
