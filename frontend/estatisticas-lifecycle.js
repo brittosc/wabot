@@ -28,7 +28,11 @@ const updateNextPollsCalendar = (limitDays = 7) => {
     if (!list) return;
     list.innerHTML = "";
 
-    const displayLimit = Math.min(30, parseInt(limitDays, 10));
+    let displayLimit = 7;
+    const parsed = parseInt(limitDays, 10);
+    if (!isNaN(parsed) && parsed > 7) {
+        displayLimit = Math.min(30, parsed);
+    }
     const now = moment();
     let current = moment();
     const timeParts = pollTime.split(':');

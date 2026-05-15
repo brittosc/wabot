@@ -1,29 +1,37 @@
 
 const renderPrediction = (targetGroup) => {
-    const elParticipation = document.getElementById("predParticipation");
-    const elOccupancy = document.getElementById("predOccupancy");
-    const elPeakHour = document.getElementById("predPeakHour");
-    const elConfidence = document.getElementById("predConfidence");
-    const elTargetDate = document.getElementById("predictionTargetDate");
+    const container = document.getElementById("predictionSection");
+    if (!container) return;
+    container.innerHTML = "";
 
-    if (!elParticipation) return;
+    const groups = targetGroup === "Todos" ? extractGroups() : [targetGroup];
 
+    groups.forEach(groupName => {
+        const stats = calculatePredictionForGroup(groupName);
+        if (stats) {
+            const card = createPredictionCard(groupName, stats);
+            container.appendChild(card);
+        }
+    });
+
+    if (window.lucide) lucide.createIcons();
+};
+
+const calculatePredictionForGroup = (groupName) => {
     // 1. Identificar a data da próxima enquete
-    // Se hoje ainda não foi enviada a enquete, a próxima é HOJE.
-    // Se já foi enviada, a próxima é AMANHÃ (ou o próximo dia útil/configurado).
     let nextPollMoment = moment().tz("America/Sao_Paulo");
     if (isPollSentToday) {
         nextPollMoment.add(1, 'day');
     }
 
-    // Pular finais de semana ou datas de skip (simplificado para amanhã/próximo dia útil)
-    while (nextPollMoment.day() === 0 || nextPollMoment.day() === 6 || skipDates[nextPollMoment.format('DD/MM/YYYY')]) {
+    // Pular finais de semana ou datas de skip
+    while (nextPollMoment.day() === 0 || nextPollMoment.day() === 6 || (skipDates && skipDates[nextPollMoment.format('DD/MM/YYYY')])) {
         nextPollMoment.add(1, 'day');
     }
 
-    const weekdayIndex = nextPollMoment.day(); // 0-6
+    const weekdayIndex = nextPollMoment.day();
     const weekdayName = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'][weekdayIndex];
-    elTargetDate.textContent = `Previsão para ${weekdayName} (${nextPollMoment.format('DD/MM')})`;
+    const targetDateStr = `${weekdayName} (${nextPollMoment.format('DD/MM')})`;
 
     // 2. Analisar histórico para esse dia da semana
     const historicalDays = [];
@@ -33,13 +41,7 @@ const renderPrediction = (targetGroup) => {
         }
     });
 
-    if (historicalDays.length === 0) {
-        elParticipation.textContent = "--";
-        elOccupancy.textContent = "Sem dados";
-        elPeakHour.textContent = "--";
-        elConfidence.textContent = "Baixa";
-        return;
-    }
+    if (historicalDays.length === 0) return null;
 
     let totalVotesSum = 0;
     let occupancySum = 0;
@@ -48,11 +50,12 @@ const renderPrediction = (targetGroup) => {
     historicalDays.forEach(dateStr => {
         const dayEntry = rawDB[dateStr];
         let groupsToProcess = [];
+        
         if (dayEntry.Version2 && dayEntry.grupos) {
-            if (targetGroup === "Todos") groupsToProcess = Object.values(dayEntry.grupos);
-            else if (dayEntry.grupos[targetGroup]) groupsToProcess = [dayEntry.grupos[targetGroup]];
+            if (groupName === "Todos") groupsToProcess = Object.values(dayEntry.grupos);
+            else if (dayEntry.grupos[groupName]) groupsToProcess = [dayEntry.grupos[groupName]];
         } else if (!dayEntry.Version2) {
-            if (targetGroup === "Todos" || targetGroup === "Grupo Geral (Legado)") groupsToProcess = [dayEntry];
+            if (groupName === "Todos" || groupName === "Grupo Geral (Legado)") groupsToProcess = [dayEntry];
         }
 
         let dayTotalVotes = 0;
@@ -81,7 +84,6 @@ const renderPrediction = (targetGroup) => {
     const avgVotes = Math.round(totalVotesSum / historicalDays.length);
     const avgOccupancy = Math.round(occupancySum / historicalDays.length);
     
-    // Encontrar hora de pico
     let peakHour = "--";
     let maxHourVotes = -1;
     Object.entries(hourCounts).forEach(([hr, count]) => {
@@ -91,17 +93,65 @@ const renderPrediction = (targetGroup) => {
         }
     });
 
-    // Confiança baseada na quantidade de dados históricos
     let confidence = "Baixa";
     if (historicalDays.length >= 8) confidence = "Altíssima";
     else if (historicalDays.length >= 4) confidence = "Alta";
     else if (historicalDays.length >= 2) confidence = "Média";
 
-    // 3. Atualizar UI
-    elParticipation.textContent = avgVotes;
-    elOccupancy.textContent = `${avgOccupancy} vagas`;
-    elPeakHour.textContent = peakHour;
-    elConfidence.textContent = confidence;
+    return {
+        targetDate: targetDateStr,
+        avgVotes,
+        avgOccupancy,
+        peakHour,
+        confidence
+    };
+};
+
+const createPredictionCard = (groupName, stats) => {
+    const card = document.createElement("div");
+    card.className = "prediction-card";
+    
+    const displayName = window.groupAliases && window.groupAliases[groupName] ? window.groupAliases[groupName] : groupName;
+
+    card.innerHTML = `
+        <div class="prediction-header">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <div class="ai-icon"><i data-lucide="sparkles" style="width: 18px; height: 18px;"></i></div>
+                <div style="display: flex; flex-direction: column;">
+                    <h2 style="margin: 0; font-size: 1.1rem; color: #fff; font-weight: 700;">Previsão Inteligente</h2>
+                    <span style="font-size: 0.75rem; color: rgba(255,255,255,0.7); font-weight: 600;">${displayName}</span>
+                </div>
+            </div>
+            <div style="font-size: 0.8rem; color: rgba(255,255,255,0.5); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">${stats.targetDate}</div>
+        </div>
+        <div class="prediction-body">
+            <div class="prediction-main">
+                <div style="display: flex; flex-direction: column;">
+                    <span class="prediction-label">Participação Estimada</span>
+                    <div style="display: flex; align-items: baseline; gap: 8px;">
+                        <span class="prediction-value">${stats.avgVotes}</span>
+                        <span class="prediction-unit">estudantes</span>
+                    </div>
+                </div>
+            </div>
+            <div class="prediction-divider"></div>
+            <div class="prediction-stats">
+                <div class="p-stat">
+                    <span class="p-label">Lotação Média</span>
+                    <span class="p-val">${stats.avgOccupancy} vagas</span>
+                </div>
+                <div class="p-stat">
+                    <span class="p-label">Horário de Pico</span>
+                    <span class="p-val">${stats.peakHour}</span>
+                </div>
+                <div class="p-stat">
+                    <span class="p-label">Nível de Confiança</span>
+                    <span class="p-val">${stats.confidence}</span>
+                </div>
+            </div>
+        </div>
+    `;
+    return card;
 };
 
 window.renderPrediction = renderPrediction;

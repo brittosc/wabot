@@ -64,42 +64,8 @@
     </div>
 
     <!-- Previsão Inteligente -->
-    <div id="predictionSection" style="width: 100%; max-width: 1100px; margin: 0 auto 25px auto;">
-        <div class="prediction-card">
-            <div class="prediction-header">
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <div class="ai-icon"><i data-lucide="sparkles" style="width: 18px; height: 18px;"></i></div>
-                    <h2 style="margin: 0; font-size: 1.1rem; color: #fff; font-weight: 700;">Previsão Inteligente</h2>
-                </div>
-                <div id="predictionTargetDate" style="font-size: 0.8rem; color: rgba(255,255,255,0.5); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Calculando...</div>
-            </div>
-            <div class="prediction-body">
-                <div class="prediction-main">
-                    <div style="display: flex; flex-direction: column;">
-                        <span class="prediction-label">Participação Estimada</span>
-                        <div style="display: flex; align-items: baseline; gap: 8px;">
-                            <span class="prediction-value" id="predParticipation">--</span>
-                            <span class="prediction-unit">estudantes</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="prediction-divider"></div>
-                <div class="prediction-stats">
-                    <div class="p-stat">
-                        <span class="p-label">Lotação Média</span>
-                        <span class="p-val" id="predOccupancy">--</span>
-                    </div>
-                    <div class="p-stat">
-                        <span class="p-label">Horário de Pico</span>
-                        <span class="p-val" id="predPeakHour">--</span>
-                    </div>
-                    <div class="p-stat">
-                        <span class="p-label">Nível de Confiança</span>
-                        <span class="p-val" id="predConfidence">--</span>
-                    </div>
-                </div>
-            </div>
-        </div>
+    <div id="predictionSection" style="width: 100%; max-width: 1100px; margin: 0 auto 25px auto; display: grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 20px;">
+        <!-- Preenchido via JS -->
     </div>
 
     <!-- Insights Automáticos -->

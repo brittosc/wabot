@@ -26,9 +26,14 @@ const updateNextPollsCalendar = (limitDays = 7) => {
     list.innerHTML = "";
 
     let displayLimit = 7;
-    const parsed = parseInt(limitDays, 10);
-    if (!isNaN(parsed) && parsed > 7) {
-        displayLimit = Math.min(30, parsed);
+    if (typeof limitDays === 'string' && limitDays.includes('_')) {
+        // Trata "this_month" ou outros períodos especiais como padrão 7
+        displayLimit = 7;
+    } else {
+        const parsed = parseInt(limitDays, 10);
+        if (!isNaN(parsed) && parsed > 7) {
+            displayLimit = Math.min(30, parsed);
+        }
     }
     const now = moment();
     let current = moment();
