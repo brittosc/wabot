@@ -130,7 +130,16 @@ const updateChartsOnly = () => {
 };
 
 const processData = (targetGroup, targetDaysStr) => {
-    const targetDays = parseInt(targetDaysStr, 10);
+    let targetDays = 7;
+    if (targetDaysStr === "this_month") {
+        targetDays = moment().date();
+    } else if (targetDaysStr === "today") {
+        targetDays = 1;
+    } else if (targetDaysStr === "yesterday") {
+        targetDays = 2;
+    } else {
+        targetDays = parseInt(targetDaysStr, 10) || 7;
+    }
     const todayMoment = moment().startOf('day');
 
     let barLabels = [];
