@@ -127,9 +127,9 @@ const createPredictionCard = (groupName, stats) => {
         <div class="prediction-body">
             <div class="prediction-main">
                 <div style="display: flex; flex-direction: column;">
-                    <span class="prediction-label">Participação Estimada</span>
+                    <span class="prediction-label">Presença Estimada</span>
                     <div style="display: flex; align-items: baseline; gap: 8px;">
-                        <span class="prediction-value">${stats.avgVotes}</span>
+                        <span class="prediction-value">${stats.avgOccupancy}</span>
                         <span class="prediction-unit">estudantes</span>
                     </div>
                 </div>
@@ -137,8 +137,8 @@ const createPredictionCard = (groupName, stats) => {
             <div class="prediction-divider"></div>
             <div class="prediction-stats">
                 <div class="p-stat">
-                    <span class="p-label">Lotação Média</span>
-                    <span class="p-val">${stats.avgOccupancy} vagas</span>
+                    <span class="p-label">Total de Votos</span>
+                    <span class="p-val">${stats.avgVotes}</span>
                 </div>
                 <div class="p-stat">
                     <span class="p-label">Horário de Pico</span>

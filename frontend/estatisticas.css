@@ -526,10 +526,20 @@ select option {
         gap: 10px;
     }
     .prediction-value {
-        font-size: 2.5rem;
+        font-size: 2.2rem;
     }
     .p-val {
-        font-size: 1rem;
+        font-size: 0.9rem;
+    }
+    .prediction-stats {
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+    .prediction-card {
+        padding: 16px;
+    }
+    .p-label {
+        font-size: 0.65rem;
     }
 }
 
