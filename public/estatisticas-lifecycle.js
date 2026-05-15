@@ -25,7 +25,15 @@ const updateNextPollsCalendar = (limitDays = 7) => {
     if (!list) return;
     list.innerHTML = "";
 
-    const displayLimit = Math.min(30, parseInt(limitDays, 10));
+    let displayLimit = 7;
+    const parsed = parseInt(limitDays, 10);
+    if (!isNaN(parsed)) {
+        displayLimit = Math.min(30, parsed);
+    } else if (limitDays === "this_month") {
+        displayLimit = 14; // Mostrar as próximas 2 semanas se for o mês atual
+    } else if (limitDays === "today" || limitDays === "yesterday") {
+        displayLimit = 3;
+    }
     const now = moment();
     let current = moment();
     const timeParts = pollTime.split(':');
@@ -116,6 +124,7 @@ const fetchStats = async () => {
                 groupAliases = data.aliases || {};
                 skipDates = data.skipDates || {};
                 weatherForecast = data.weather || [];
+                pollTime = data.pollTime || '05:30';
                 
                 if (window.populateGroupSelect) {
                     window.populateGroupSelect();
