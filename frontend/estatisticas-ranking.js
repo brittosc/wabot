@@ -55,6 +55,7 @@ window.goToPageRanking = (page) => {
 const updateRanking = (targetGroupFromDash, _targetDaysStr) => {
     const rkSelect = document.getElementById("rankingRouteSelect");
     const targetGroup = rankingRoute; 
+    const totalPolls = pollHistory.length || 1;
     const userStats = new Map();
 
     const normalizeJidKey = (jid) => {
@@ -255,8 +256,6 @@ const updateRanking = (targetGroupFromDash, _targetDaysStr) => {
     const btnContainer = document.getElementById("rankingPaginationContainer");
     if (!body) return;
     body.innerHTML = "";
-
-    const totalPolls = pollHistory.length || 1;
 
     const fmtTime = (secs) => {
         if (secs === Infinity || isNaN(secs)) return "--:--";
