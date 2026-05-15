@@ -285,13 +285,16 @@ const updateRanking = (targetGroupFromDash, _targetDaysStr) => {
             const streakIcon = user.latestStreak >= 10 ? 'flame' : 'zap';
             userBadgesHtml += `<span class="user-badge-icon" title="${streakTitle}" style="color: ${streakColor};"><i data-lucide="${streakIcon}"></i></span>`;
         }
-        if (user.absenceRate < 5 && user.presenceCount > 5) {
+        if (user.absenceRate < 15 && user.presenceCount > 5) {
             userBadgesHtml += `<span class="user-badge-icon" title="Frequência Exemplar" style="color: #4caf50;"><i data-lucide="shield-check"></i></span>`;
         }
         if (user.avgSeconds < 23400 && user.avgSeconds !== Infinity) { // Antes das 06:30
             const earlyTitle = user.avgSeconds < 21600 ? "Madrugador Elite (antes das 06h)" : "Madrugador";
             const earlyIcon = user.avgSeconds < 21600 ? "coffee" : "sunrise";
             userBadgesHtml += `<span class="user-badge-icon" title="${earlyTitle}" style="color: #ff9800;"><i data-lucide="${earlyIcon}"></i></span>`;
+        }
+        if (user.avgSeconds > 64800 && user.avgSeconds !== Infinity) { // Depois das 18:00
+            userBadgesHtml += `<span class="user-badge-icon" title="Atrasado (vota após as 18h)" style="color: #9c27b0;"><i data-lucide="moon"></i></span>`;
         }
         if (user.presenceCount >= 20) {
             let honorTitle = "Veterano";
