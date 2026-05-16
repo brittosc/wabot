@@ -4,6 +4,7 @@ const { Poll } = require("whatsapp-web.js");
 const dashboard = require("./dashboard");
 const configService = require("./configService");
 const supabase = require("../database/supabaseClient");
+const statistics = require("./statistics");
 
 const INFO_MESSAGE = `Prezados alunos, 
 
@@ -188,6 +189,12 @@ const scheduleJob = (sock) => {
     // Atualização de clima às 00:00, 06:00, 12:00, 18:00
     const h = now.hours();
     const m = now.minutes();
+    
+    // À meia-noite, zera os votos do terminal
+    if (h === 0 && m === 0) {
+      statistics.updateTerminalOccupancy();
+    }
+
     if (m === 0 && [0, 6, 12, 18].includes(h)) {
       weatherService.updateWeather();
     }
