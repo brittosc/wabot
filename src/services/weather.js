@@ -35,7 +35,7 @@ const saveToDisk = () => {
 };
 
 const updateWeather = async () => {
-  dashboard.addLog("Iniciando atualização agendada do clima...");
+  // dashboard.addLog("Iniciando atualização agendada do clima...");
   try {
     await withRetry(
       async () => {
@@ -53,7 +53,7 @@ const updateWeather = async () => {
             }));
             weatherCache.lastUpdate = Date.now();
             saveToDisk();
-            dashboard.addLog(`Clima atualizado com sucesso via API.`);
+            // dashboard.addLog(`Clima atualizado com sucesso via API.`);
           }
         } else {
           throw new Error(`HTTP ${weatherRes.status}`);
