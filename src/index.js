@@ -31,8 +31,9 @@ async function resolveContactInfo(client, voterId) {
 
   try {
     // 1. Tenta buscar a foto via Puppeteer/Store avançado primeiro (100% livre de rede travante se já estiver no cache local do navegador)
+    let pupRes = null;
     try {
-      photoUrl = await withTimeout(
+      pupRes = await withTimeout(
         client.pupPage.evaluate(async (jidStr) => {
           try {
             const Store = window.Store;
@@ -44,13 +45,26 @@ async function resolveContactInfo(client, voterId) {
             const wid = WidFactory.createWid(jidStr);
             const Contacts = Store.Contact || Store.ContactCollection;
 
+            let name = null;
+            let photoUrl = null;
+            let realJid = jidStr;
+
             // A. Tenta ler o cache em memória síncrono instantaneamente
             const contactObj = Contacts ? Contacts.get(wid) : null;
             if (contactObj) {
+              name = contactObj.name || contactObj.pushname || contactObj.formattedName || contactObj.displayName || null;
+              if (contactObj.id && contactObj.id._serialized) {
+                realJid = contactObj.id._serialized;
+              }
               const p = contactObj.profilePicThumb || contactObj.__x_profilePicThumb;
               if (p && (p.__x_imgFull || p.__x_img || p.imgFull || p.img)) {
-                return p.__x_imgFull || p.__x_img || p.imgFull || p.img || null;
+                photoUrl = p.__x_imgFull || p.__x_img || p.imgFull || p.img || null;
               }
+            }
+
+            // Se já achou a foto, retorna direto!
+            if (photoUrl) {
+              return { photoUrl, name, jid: realJid };
             }
 
             // B. Dispara consulta de mídia com timeout rígido interno de 1.2s
@@ -84,7 +98,8 @@ async function resolveContactInfo(client, voterId) {
             }
 
             if (netRes && (netRes.eurl || netRes.previewEurl)) {
-              return netRes.eurl || netRes.previewEurl;
+              photoUrl = netRes.eurl || netRes.previewEurl;
+              return { photoUrl, name, jid: realJid };
             }
 
             // Pausa rápida de respiro se foi buscar na rede
@@ -92,27 +107,38 @@ async function resolveContactInfo(client, voterId) {
 
             const updatedContact = Contacts ? Contacts.get(wid) : null;
             if (updatedContact) {
+              name = updatedContact.name || updatedContact.pushname || updatedContact.formattedName || updatedContact.displayName || name;
+              if (updatedContact.id && updatedContact.id._serialized) {
+                realJid = updatedContact.id._serialized;
+              }
               const p = updatedContact.profilePicThumb || updatedContact.__x_profilePicThumb;
               if (p) {
-                return p.__x_imgFull || p.__x_img || p.imgFull || p.img || null;
+                photoUrl = p.__x_imgFull || p.__x_img || p.imgFull || p.img || null;
               }
+            }
+
+            if (photoUrl) {
+              return { photoUrl, name, jid: realJid };
             }
 
             // Fallback próprio bot
             if (Store.Conn && Store.Conn.wid && (Store.Conn.wid._serialized === jidStr || Store.Conn.wid.user === jidStr.split('@')[0])) {
               const myHeaderImg = document.querySelector('header img') || document.querySelector('div[title="Foto do perfil"] img') || document.querySelector('div[title="Profile photo"] img');
               if (myHeaderImg && myHeaderImg.src && (myHeaderImg.src.includes('http') || myHeaderImg.src.includes('blob'))) {
-                return myHeaderImg.src;
+                photoUrl = myHeaderImg.src;
+              } else {
+                const thumb = Store.Conn.profilePicThumb || Store.Conn.__x_profilePicThumb;
+                if (thumb) {
+                  photoUrl = thumb.__x_imgFull || thumb.__x_img || thumb.eurl || thumb.img || thumb.eurlFull || thumb.imgFull || null;
+                }
               }
-              const thumb = Store.Conn.profilePicThumb || Store.Conn.__x_profilePicThumb;
-              if (thumb) {
-                return thumb.__x_imgFull || thumb.__x_img || thumb.eurl || thumb.img || thumb.eurlFull || thumb.imgFull || null;
-              }
+              name = Store.Conn.pushname || name;
+              return { photoUrl, name, jid: Store.Conn.wid._serialized };
             }
 
-            return null;
+            return { photoUrl: null, name, jid: realJid };
           } catch (e) {
-            return null;
+            return { photoUrl: null, name: null, jid: jidStr };
           }
         }, jid || voterId),
         2500, // Timeout rígido para o evaluate do Puppeteer inteiro
@@ -120,50 +146,65 @@ async function resolveContactInfo(client, voterId) {
       );
     } catch (e) {}
 
-    // 2. Tenta obter o contato básico do Node.js com timeout rígido de 1.5s
-    const contact = await withTimeout(
-      client.getContactById(voterId),
-      1500,
-      null
-    ).catch(() => null);
-
-    if (contact) {
-      name = contact.pushname || contact.name;
-      if (contact.number) {
-        jid = `${contact.number}@c.us`;
-      } else if (contact.id && contact.id._serialized) {
-        jid = contact.id._serialized;
+    if (pupRes) {
+      if (pupRes.photoUrl) {
+        photoUrl = pupRes.photoUrl;
+      }
+      if (pupRes.name) {
+        name = pupRes.name;
+      }
+      if (pupRes.jid) {
+        jid = pupRes.jid;
       }
     }
 
-    // 3. Fallback LID para converter para c.us e buscar com timeout rígido de 1.5s
-    if (!photoUrl && (voterId.includes("@lid") || jid.includes("@lid"))) {
-      try {
-        const contactObj = contact || await withTimeout(client.getContactById(voterId), 1500, null).catch(() => null);
-        if (contactObj) {
-          const contactNumber = contactObj.number || (contactObj.id && contactObj.id.user);
-          if (contactNumber && !contactNumber.includes("@")) {
-            const realJid = `${contactNumber}@c.us`;
-            try { 
-              await withTimeout(client.getChatById(realJid), 1200, null); 
-            } catch (e) {}
-            photoUrl = await withTimeout(client.getProfilePicUrl(realJid), 1500, null).catch(() => null);
-            if (photoUrl) jid = realJid;
-          }
-        }
-      } catch (e) {}
-    }
-
-    // 4. Última tentativa oficial com ID original e timeout de 1.5s
+    // Se já encontramos a foto via Puppeteer, pulamos o Node.js pesado!
     if (!photoUrl) {
-      photoUrl = await withTimeout(client.getProfilePicUrl(jid || voterId), 1500, null).catch(() => null);
+      // 2. Tenta obter o contato básico do Node.js com timeout rígido de 1.5s
+      const contact = await withTimeout(
+        client.getContactById(voterId),
+        1500,
+        null
+      ).catch(() => null);
+
+      if (contact) {
+        name = name || contact.pushname || contact.name;
+        if (contact.number) {
+          jid = `${contact.number}@c.us`;
+        } else if (contact.id && contact.id._serialized) {
+          jid = contact.id._serialized;
+        }
+      }
+
+      // 3. Fallback LID para converter para c.us e buscar com timeout rígido de 1.5s
+      if (voterId.includes("@lid") || jid.includes("@lid")) {
+        try {
+          const contactObj = contact || await withTimeout(client.getContactById(voterId), 1500, null).catch(() => null);
+          if (contactObj) {
+            const contactNumber = contactObj.number || (contactObj.id && contactObj.id.user);
+            if (contactNumber && !contactNumber.includes("@")) {
+              const realJid = `${contactNumber}@c.us`;
+              try { 
+                await withTimeout(client.getChatById(realJid), 1200, null); 
+              } catch (e) {}
+              photoUrl = await withTimeout(client.getProfilePicUrl(realJid), 1500, null).catch(() => null);
+              if (photoUrl) jid = realJid;
+            }
+          }
+        } catch (e) {}
+      }
+
+      // 4. Última tentativa oficial com ID original e timeout de 1.5s
+      if (!photoUrl) {
+        photoUrl = await withTimeout(client.getProfilePicUrl(jid || voterId), 1500, null).catch(() => null);
+      }
     }
   } catch (err) {
     /* erro silencioso */
   }
 
-  // Preenche retornos adicionais de fallback se necessário
-  if (photoUrl && !name) {
+  // Preenche retornos adicionais de fallback se necessário para o nome
+  if (!name) {
     try {
       const contactObj = await withTimeout(client.getContactById(voterId), 1200, null).catch(() => null);
       if (contactObj) name = contactObj.pushname || contactObj.name;
