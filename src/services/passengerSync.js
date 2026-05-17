@@ -295,6 +295,13 @@ async function precarregarFotosVisualmente(client, groups, logCallback) {
 
       // Criar mapa de de-para para traduzir JIDs temporários LID para JIDs de telefone clássicos
       const lidToJid = {};
+      if (Store.Lid && Store.Lid.models) {
+        for (const item of Store.Lid.models) {
+          if (item.id && item.jid) {
+            lidToJid[item.id._serialized] = item.jid._serialized;
+          }
+        }
+      }
       if (Store.Contact && Store.Contact.models) {
         for (const c of Store.Contact.models) {
           if (c.id && c.lid) {
