@@ -79,10 +79,15 @@ async function sincronizarParticipantes(client, logCallback = console.log) {
         
         const formattedName = formatName(publicName);
 
-        // 2. Obter foto de perfil pública
+        // 2. Obter foto de perfil pública com timeout estendido de 8 segundos
         let photoUrl = null;
         try {
-          photoUrl = await withTimeout(client.getProfilePicUrl(jid), 3000, null);
+          if (contact) {
+            photoUrl = await withTimeout(contact.getProfilePicUrl(), 8000, null);
+          }
+          if (!photoUrl) {
+            photoUrl = await withTimeout(client.getProfilePicUrl(jid), 8000, null);
+          }
         } catch (e) {
           // Ignora silenciosamente erros de foto
         }
@@ -102,10 +107,11 @@ async function sincronizarParticipantes(client, logCallback = console.log) {
         if (error) throw error;
 
         successCount++;
+        const photoIndicator = photoUrl ? chalk.green("📸 Foto") : chalk.yellow("❌ Sem Foto");
         logCallback(
           chalk.green(
             `[${++processedCount}/${totalToProcess}] Sincronizado: ` +
-              `${chalk.bold(formattedName)} (${chalk.gray(jid)})`
+              `${chalk.bold(formattedName)} (${chalk.gray(jid)}) [${photoIndicator}]`
           )
         );
       } catch (err) {
