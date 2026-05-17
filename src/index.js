@@ -455,6 +455,120 @@ async function startBot() {
 }
 
 /**
+ * Tenta obter a URL da foto de perfil de um contato usando múltiplas estratégias comprovadas.
+ */
+async function getProfilePhoto(client, id) {
+  if (!id || !id.includes("@")) return null;
+
+  try {
+    let photoUrl = null;
+
+    // 1. Tenta via objeto de contato (método mais simples)
+    try {
+      const contact = await Promise.race([
+        client.getContactById(id),
+        new Promise((resolve) => setTimeout(() => resolve(null), 3000))
+      ]).catch(() => null);
+      
+      if (contact) {
+        photoUrl = await Promise.race([
+          contact.getProfilePicUrl(),
+          new Promise((resolve) => setTimeout(() => resolve(null), 3000))
+        ]).catch(() => null);
+      }
+    } catch (e) {}
+
+    // 2. Se falhou e for LID, tenta converter para JID real (c.us)
+    if (!photoUrl && id.includes("@lid")) {
+      try {
+        const contact = await Promise.race([
+          client.getContactById(id),
+          new Promise((resolve) => setTimeout(() => resolve(null), 3000))
+        ]).catch(() => null);
+        
+        if (contact) {
+          const contactNumber = contact.number || (contact.id && contact.id.user);
+          if (contactNumber && !contactNumber.includes("@")) {
+            const jid = `${contactNumber}@c.us`;
+            // Força o carregamento do chat antes de pedir a foto
+            try { await client.getChatById(jid); } catch (e) {}
+            photoUrl = await Promise.race([
+              client.getProfilePicUrl(jid),
+              new Promise((resolve) => setTimeout(() => resolve(null), 3000))
+            ]).catch(() => null);
+          }
+        }
+      } catch (e) {}
+    }
+
+    // 3. Tenta via Puppeteer/Store (método avançado com profilePicThumbObj)
+    if (!photoUrl) {
+      try {
+        photoUrl = await Promise.race([
+          client.pupPage.evaluate(async (jidStr) => {
+            try {
+              const Store = window.Store;
+              if (!Store) return null;
+              
+              const WidFactory = Store.WidFactory || (Store.Wid && Store.Wid.WidFactory);
+              if (!WidFactory) return null;
+
+              const wid = WidFactory.createWid(jidStr);
+              const Contacts = Store.Contact || Store.ContactCollection;
+              
+              if (Store.ProfilePic && Store.ProfilePic.requestProfilePicFromServer) {
+                try {
+                  await Store.ProfilePic.requestProfilePicFromServer(wid);
+                } catch (e) {}
+              }
+              
+              await new Promise(resolve => setTimeout(resolve, 2000));
+              
+              const contactObj = Contacts ? Contacts.get(wid) : null;
+              if (contactObj) {
+                const p = contactObj.profilePicThumbObj || contactObj.profilePicThumb || contactObj.__x_profilePicThumb;
+                if (p) {
+                  const url = p.imgFull || p.eurl || p.img || p.previewEurl || p.__x_imgFull || p.__x_img || null;
+                  if (url && typeof url === "string" && !url.includes("/default-user")) {
+                    return url;
+                  }
+                }
+              }
+              
+              if (Store.ProfilePic && Store.ProfilePic.profilePicFind) {
+                const pic = await Store.ProfilePic.profilePicFind(wid);
+                if (pic) {
+                  const url = pic.imgFull || pic.eurl || pic.img || pic.previewEurl || pic.__x_imgFull || pic.__x_img || null;
+                  if (url && typeof url === "string" && !url.includes("/default-user")) {
+                    return url;
+                  }
+                }
+              }
+              return null;
+            } catch (e) { return null; }
+          }, id),
+          new Promise((resolve) => setTimeout(() => resolve(null), 7000))
+        ]).catch(() => null);
+      } catch (e) {}
+    }
+
+    // 4. Última tentativa oficial com ID original
+    if (!photoUrl) {
+      try {
+        photoUrl = await Promise.race([
+          client.getProfilePicUrl(id),
+          new Promise((resolve) => setTimeout(() => resolve(null), 3000))
+        ]).catch(() => null);
+      } catch (e) {}
+    }
+
+    return photoUrl;
+  } catch (error) {
+    return null;
+  }
+}
+
+/**
  * Busca fotos de perfil para todos os membros dos grupos alvo, 1 a 1,
  * e salva na tabela passengers e retroativamente na tabela votes.
  * Usa client.getProfilePicUrl() que funciona para qualquer membro de grupo,
@@ -601,130 +715,31 @@ async function syncRecentPhotos(client) {
         } catch (e) {}
 
         // -------------------------------------------------------
-        // BUSCA DE FOTO DEFINITIVA (Híbrida e Resiliente)
+        // BUSCA DE FOTO DEFINITIVA (Híbrida, Resiliente e Comprovada)
         // -------------------------------------------------------
         try {
-          // Fallback A: Tenta obter fotos via API nativa da biblioteca (getProfilePicUrl)
           const targetJids = new Set([id]);
           if (member.cUs) targetJids.add(member.cUs);
           if (member.lid) targetJids.add(member.lid);
 
           for (const targetJid of targetJids) {
-            try {
-              const nativeUrl = await Promise.race([
-                client.getProfilePicUrl(targetJid),
-                new Promise((resolve) => setTimeout(() => resolve(null), 3000))
-              ]).catch(() => null);
-
-              if (nativeUrl && typeof nativeUrl === "string" && !nativeUrl.includes("/default-user")) {
-                photoUrl = nativeUrl;
-                break;
-              }
-            } catch (e) {}
-          }
-
-          // Fallback B: Se a API nativa falhar, usa o Resolvedor Puppeteer Injetado
-          if (!photoUrl) {
-            photoUrl = await Promise.race([
-              client.pupPage.evaluate(async (jidOriginal, jidCUs, jidLid) => {
-                try {
-                  const Store = window.Store;
-                  if (!Store || !Store.WidFactory) return null;
-
-                  const Contacts = Store.Contact || Store.ContactCollection;
-                  const widsToTry = [];
-
-                  if (jidOriginal) widsToTry.push(Store.WidFactory.createWid(jidOriginal));
-                  if (jidLid) widsToTry.push(Store.WidFactory.createWid(jidLid));
-                  if (jidCUs) widsToTry.push(Store.WidFactory.createWid(jidCUs));
-
-                  const uniqueWids = [];
-                  const seenWids = new Set();
-                  for (const w of widsToTry) {
-                    if (w && w._serialized && !seenWids.has(w._serialized)) {
-                      seenWids.add(w._serialized);
-                      uniqueWids.push(w);
-                    }
-                  }
-
-                  // Pré-aquecimento assíncrono NÃO-BLOQUEANTE na memória (sem await para evitar estouro de timeout de 8.5s)
-                  if (Store.Contact && Store.Contact.find) {
-                    for (const targetWid of uniqueWids) {
-                      Store.Contact.find(targetWid).catch(() => null);
-                    }
-                  }
-
-                  const extractUrl = (obj) => {
-                    if (!obj) return null;
-                    const url = obj.imgFull || obj.img || obj.eurl || obj.previewEurl || 
-                                obj.__x_imgFull || obj.__x_img || obj.img_full ||
-                                (obj.raw ? obj.raw.imgFull || obj.raw.img : null);
-                    if (url && typeof url === "string" && !url.includes("/default-user")) {
-                      return url;
-                    }
-                    return null;
-                  };
-
-                  // A. Tenta método principal: ProfilePicThumb.find()
-                  if (Store.ProfilePicThumb && Store.ProfilePicThumb.find) {
-                    for (const targetWid of uniqueWids) {
-                      try {
-                        const pic = await Store.ProfilePicThumb.find(targetWid);
-                        const url = extractUrl(pic);
-                        if (url) return url;
-                      } catch (e) {}
-                    }
-                  }
-
-                  // B. Tenta requisição remota ao servidor: requestProfilePicFromServer
-                  if (Store.ProfilePic && Store.ProfilePic.requestProfilePicFromServer) {
-                    for (const targetWid of uniqueWids) {
-                      try {
-                        const contactObj = Contacts ? Contacts.get(targetWid) : null;
-                        const target = contactObj || targetWid;
-                        const result = await Promise.race([
-                          Store.ProfilePic.requestProfilePicFromServer(target),
-                          new Promise(resolve => setTimeout(() => resolve(null), 3000))
-                        ]).catch(() => null);
-
-                        const url = extractUrl(result);
-                        if (url) return url;
-                      } catch (e) {}
-                    }
-                  }
-
-                  // C. Lê do cache do Backbone como último recurso
-                  for (const targetWid of uniqueWids) {
-                    const contactObj = Contacts ? Contacts.get(targetWid) : null;
-                    if (contactObj) {
-                      const p = contactObj.profilePicThumb || contactObj.__x_profilePicThumb;
-                      const url = extractUrl(p);
-                      if (url) return url;
-                    }
-                  }
-
-                  return null;
-                } catch (e) {
-                  return null;
-                }
-              }, member.id, member.cUs, member.lid),
-              new Promise((resolve) => setTimeout(() => resolve(null), 8500))
-            ]).catch(() => null);
-          }
-        } catch (e) {
-          photoUrl = null;
-        }
-
-        // Tenta obter o nome real do contato
-        try {
-          const contact = await Promise.race([
-            client.getContactById(id),
-            new Promise((resolve) => setTimeout(() => resolve(null), 3000))
-          ]).catch(() => null);
-          if (contact && (contact.pushname || contact.name)) {
-            name = formatName(contact.pushname || contact.name) || "Desconhecido";
+            photoUrl = await getProfilePhoto(client, targetJid);
+            if (photoUrl) break;
           }
         } catch (e) {}
+
+        // Tenta obter o nome real do contato se ainda desconhecido
+        if (name === "Desconhecido") {
+          try {
+            const contact = await Promise.race([
+              client.getContactById(id),
+              new Promise((resolve) => setTimeout(() => resolve(null), 3000))
+            ]).catch(() => null);
+            if (contact && (contact.pushname || contact.name)) {
+              name = formatName(contact.pushname || contact.name) || "Desconhecido";
+            }
+          } catch (e) {}
+        }
 
         if (photoUrl) {
           // -------------------------------------------------------
