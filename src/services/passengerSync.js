@@ -167,14 +167,7 @@ async function sincronizarParticipantes(client, logCallback = console.log) {
 async function precarregarFotosVisualmente(client, groups, logCallback) {
   const page = client.pupPage;
   const photoCache = new Map();
-  // 1. Recarregar a página para limpar qualquer aba de mídias globais, modais persistentes ou estado instável do navegador
-  logCallback(chalk.gray("⏳ Recarregando a página para garantir interface 100% limpa..."));
-  try {
-    await page.reload({ waitUntil: 'domcontentloaded' });
-    await new Promise(r => setTimeout(r, 4000));
-  } catch (reloadErr) {}
-
-  // 2. Fechar qualquer modal, pop-up ou visualizador de mídias globais remanescente que possa cobrir a tela
+  // 1. Fechar qualquer modal, pop-up ou visualizador de mídias globais remanescente que possa cobrir a tela (sem dar reload para não quebrar a injeção do whatsapp-web.js)
   try {
     for (let i = 0; i < 3; i++) {
       await page.keyboard.press('Escape');
