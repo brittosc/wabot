@@ -289,6 +289,33 @@ async function precarregarFotosVisualmente(client, groups, logCallback) {
   // 5. Extrair todas as fotos da coleção ProfilePicThumb de forma ultra-resiliente com tradução LID -> JID clássico
   logCallback(chalk.blue("\n📥 Extraindo cache de fotos obtidas visualmente..."));
   try {
+    try {
+      const dumpData = await page.evaluate(() => {
+        const Store = window.Store;
+        if (!Store) return { storeExists: false };
+        return {
+          storeExists: true,
+          lidCollectionExists: !!Store.Lid,
+          lidModelsCount: Store.Lid && Store.Lid.models ? Store.Lid.models.length : 0,
+          contactCollectionExists: !!Store.Contact,
+          contactModelsCount: Store.Contact && Store.Contact.models ? Store.Contact.models.length : 0,
+          profilePicThumbCount: Store.ProfilePicThumb && Store.ProfilePicThumb.models ? Store.ProfilePicThumb.models.length : 0,
+          sampleLids: Store.Lid && Store.Lid.models ? Store.Lid.models.slice(0, 15).map(m => ({
+            id: m.id ? m.id._serialized : null,
+            jid: m.jid ? m.jid._serialized : null
+          })) : [],
+          sampleThumbs: Store.ProfilePicThumb && Store.ProfilePicThumb.models ? Store.ProfilePicThumb.models.slice(0, 15).map(m => ({
+            id: m.id ? m.id._serialized : null,
+            img: !!m.img,
+            eurl: !!m.eurl,
+            imgFull: !!m.imgFull
+          })) : []
+        };
+      });
+      const fs = require('fs');
+      fs.writeFileSync('d:\\Github\\wabot\\scratch\\memory_dump.json', JSON.stringify(dumpData, null, 2));
+    } catch (dumpErr) {}
+
     const extractedPhotos = await page.evaluate(() => {
       const Store = window.Store;
       if (!Store || !Store.ProfilePicThumb) return {};
