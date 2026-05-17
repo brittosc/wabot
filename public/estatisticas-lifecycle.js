@@ -128,14 +128,23 @@ const fetchStats = async () => {
                 const oldVoteCount = countTotalVotes(rawDB);
                 const newVoteCount = countTotalVotes(data.votes || {});
                 
-                rawDB = data.votes || {};
-                passengers = data.passengers || [];
-                isPollSentToday = !!data.isPollSentToday;
-                capacities = data.capacities || {};
-                groupAliases = data.aliases || {};
-                skipDates = data.skipDates || {};
-                weatherForecast = data.weather || [];
-                pollTime = data.pollTime || '05:30';
+                window.rawDB = data.votes || {};
+                window.passengers = data.passengers || [];
+                window.isPollSentToday = !!data.isPollSentToday;
+                window.capacities = data.capacities || {};
+                window.groupAliases = data.aliases || {};
+                window.skipDates = data.skipDates || {};
+                window.weatherForecast = data.weather || [];
+                window.pollTime = data.pollTime || '05:30';
+
+                rawDB = window.rawDB;
+                passengers = window.passengers;
+                isPollSentToday = window.isPollSentToday;
+                capacities = window.capacities;
+                groupAliases = window.groupAliases;
+                skipDates = window.skipDates;
+                weatherForecast = window.weatherForecast;
+                pollTime = window.pollTime;
                 
                 if (window.populateGroupSelect) {
                     window.populateGroupSelect();
