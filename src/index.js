@@ -528,11 +528,10 @@ async function syncRecentPhotos(client) {
         let name = "Desconhecido";
 
         // -------------------------------------------------------
-        // BUSCA DE FOTO VIA PUPPETEER (requestProfilePicFromServer)
-        // Funciona para QUALQUER membro de grupo — contato ou não.
-        // client.getProfilePicUrl() retorna null para não-contatos
-        // e para o próprio número do bot, por isso usamos o Store.
-        // Timeout interno de 5s (não-contatos levam 2-5s para resolver).
+        // BUSCA DE FOTO via Store.ProfilePicThumb.find(wid)
+        // Este é o método CORRETO para qualquer usuário do WhatsApp,
+        // incluindo não-contatos e membros de grupo desconhecidos.
+        // Faz requisição real ao servidor se não estiver em cache.
         // -------------------------------------------------------
         try {
           photoUrl = await Promise.race([
@@ -542,38 +541,32 @@ async function syncRecentPhotos(client) {
                 if (!Store || !Store.WidFactory) return null;
 
                 const wid = Store.WidFactory.createWid(jidStr);
-                const Contacts = Store.Contact || Store.ContactCollection;
 
-                // A. Verifica primeiro o cache em memória (resposta imediata)
-                const contactObj = Contacts ? Contacts.get(wid) : null;
-                if (contactObj) {
-                  const p = contactObj.profilePicThumb || contactObj.__x_profilePicThumb;
-                  if (p && (p.__x_imgFull || p.__x_img || p.imgFull || p.img)) {
-                    return p.__x_imgFull || p.__x_img || p.imgFull || p.img;
-                  }
+                // MÉTODO PRINCIPAL: ProfilePicThumb.find() faz request ao
+                // servidor para QUALQUER usuário (contato ou não-contato)
+                if (Store.ProfilePicThumb && Store.ProfilePicThumb.find) {
+                  const pic = await Store.ProfilePicThumb.find(wid);
+                  if (pic && pic.eurl) return pic.eurl;
+                  if (pic && pic.previewEurl) return pic.previewEurl;
                 }
 
-                // B. Faz requisição real ao servidor do WhatsApp com timeout de 5s
-                // (funciona para contatos E não-contatos, inclusive o próprio número)
+                // FALLBACK A: requestProfilePicFromServer (para contatos em cache)
+                const Contacts = Store.Contact || Store.ContactCollection;
+                const contactObj = Contacts ? Contacts.get(wid) : null;
                 if (Store.ProfilePic && Store.ProfilePic.requestProfilePicFromServer) {
                   const target = contactObj || wid;
                   const result = await Promise.race([
                     Store.ProfilePic.requestProfilePicFromServer(target),
-                    new Promise(resolve => setTimeout(() => resolve(null), 5000))
+                    new Promise(resolve => setTimeout(() => resolve(null), 4000))
                   ]).catch(() => null);
+                  if (result && result.eurl) return result.eurl;
+                  if (result && result.previewEurl) return result.previewEurl;
+                }
 
-                  if (result && (result.eurl || result.previewEurl)) {
-                    return result.eurl || result.previewEurl;
-                  }
-
-                  // C. Após a requisição, tenta ler o cache novamente (pode ter sido populado)
-                  const fresh = Contacts ? Contacts.get(wid) : null;
-                  if (fresh) {
-                    const p = fresh.profilePicThumb || fresh.__x_profilePicThumb;
-                    if (p && (p.__x_imgFull || p.__x_img || p.imgFull || p.img)) {
-                      return p.__x_imgFull || p.__x_img || p.imgFull || p.img;
-                    }
-                  }
+                // FALLBACK B: lê do cache do Backbone (contatos já carregados)
+                if (contactObj) {
+                  const p = contactObj.profilePicThumb || contactObj.__x_profilePicThumb;
+                  if (p) return p.__x_imgFull || p.__x_img || p.imgFull || p.img || null;
                 }
 
                 return null;
@@ -587,17 +580,7 @@ async function syncRecentPhotos(client) {
           photoUrl = null;
         }
 
-        // Fallback: getProfilePicUrl para contatos salvos (rápido quando funciona)
-        if (!photoUrl) {
-          try {
-            photoUrl = await Promise.race([
-              client.getProfilePicUrl(id),
-              new Promise((resolve) => setTimeout(() => resolve(null), 3000))
-            ]).catch(() => null);
-          } catch (e) {}
-        }
-
-        // Tenta obter nome (melhoria visual no log e no banco)
+        // Tenta obter nome do contato
         try {
           const contact = await Promise.race([
             client.getContactById(id),
@@ -609,31 +592,28 @@ async function syncRecentPhotos(client) {
         } catch (e) {}
 
         if (photoUrl) {
-          // 1. Atualiza metadados na tabela passengers (por whatsapp_id E por phone como fallback)
+          // 1. Atualiza na tabela passengers
           try {
             await statistics.syncPassengerMetadata(id, name, photoUrl);
           } catch (metadataErr) {}
           
-          // 2. Atualiza foto nos votos existentes com voter_id exato (ex: 554896864290@c.us)
-          try {
-            await supabase
-              .from("votes")
-              .update({ photo_url: photoUrl })
-              .eq("voter_id", id);
-          } catch (dbErr) {
-            dashboard.addLog(`[SYNC FOTO ERR] votes@voter_id ${cleanNumber}: ${dbErr.message}`);
+          // 2. Atualiza votes pelo voter_id exato — verifica erro explicitamente
+          const { error: errExato } = await supabase
+            .from("votes")
+            .update({ photo_url: photoUrl })
+            .eq("voter_id", id);
+          if (errExato) {
+            dashboard.addLog(`[SYNC FOTO ERR] votes@eq ${cleanNumber}: ${errExato.message}`);
           }
 
-          // 3. Atualiza votos onde voter_id contém o número (cobre formatos @lid e variações)
-          //    mas só onde a foto ainda está vazia (não sobrescreve registros já atualizados)
-          try {
-            await supabase
-              .from("votes")
-              .update({ photo_url: photoUrl })
-              .like("voter_id", `%${cleanNumber}%`)
-              .is("photo_url", null);
-          } catch (dbErr) {
-            dashboard.addLog(`[SYNC FOTO ERR] votes@like ${cleanNumber}: ${dbErr.message}`);
+          // 3. Atualiza votes onde voter_id contém o número (formato @lid, variações)
+          const { error: errLike } = await supabase
+            .from("votes")
+            .update({ photo_url: photoUrl })
+            .like("voter_id", `%${cleanNumber}%`)
+            .is("photo_url", null);
+          if (errLike) {
+            dashboard.addLog(`[SYNC FOTO ERR] votes@like ${cleanNumber}: ${errLike.message}`);
           }
 
           count++;
