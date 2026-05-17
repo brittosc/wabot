@@ -10,6 +10,7 @@ const statistics = require("./services/statistics");
 const configService = require("./services/configService");
 const { startServer } = require("./server");
 const { formatName } = require("./utils/nameFormatter");
+const supabase = require("./database/supabaseClient");
 
 /**
  * Tenta resolver informações de contato (nome e foto) de forma robusta,
