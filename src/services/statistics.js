@@ -181,35 +181,9 @@ const registerVote = async (vote, voterName, photoUrl) => {
 
   const voterId = vote.voter;
 
-  // Sincroniza metadados do passageiro (nome e foto) na tabela passengers
-  if (voterName || photoUrl) {
-    await syncPassengerMetadata(voterId, formatName(voterName), photoUrl, groupName);
-  }
-
-  let finalPhotoUrl = photoUrl;
-  if (!finalPhotoUrl) {
-    try {
-      const { data: psg } = await supabase
-        .from("passengers")
-        .select("photo_url")
-        .eq("whatsapp_id", voterId)
-        .maybeSingle();
-      if (psg && psg.photo_url) {
-        finalPhotoUrl = psg.photo_url;
-      } else {
-        const cleanNumber = normalizePhone(voterId.split('@')[0]);
-        if (cleanNumber) {
-          const { data: psgPhone } = await supabase
-            .from("passengers")
-            .select("photo_url")
-            .eq("phone", cleanNumber)
-            .maybeSingle();
-          if (psgPhone && psgPhone.photo_url) {
-            finalPhotoUrl = psgPhone.photo_url;
-          }
-        }
-      }
-    } catch (e) {}
+  // Sincroniza metadados do passageiro (apenas nome) na tabela passengers
+  if (voterName) {
+    await syncPassengerMetadata(voterId, formatName(voterName), null, groupName);
   }
 
   if (vote.selectedOptions && vote.selectedOptions.length > 0) {
@@ -223,7 +197,7 @@ const registerVote = async (vote, voterName, photoUrl) => {
           option: selectedOption,
           poll_name: pollName,
           voter_name: formatName(voterName),
-          photo_url: finalPhotoUrl || null,
+          photo_url: null,
         },
         { onConflict: "voter_id,group_name,vote_date" }
       )
@@ -245,7 +219,7 @@ const registerVote = async (vote, voterName, photoUrl) => {
 
 /**
  * Sincroniza metadados básicos do passageiro na tabela passengers.
- * Útil para garantir que o dashboard tenha o nome e a foto atualizados.
+ * Útil para garantir que o dashboard tenha o nome atualizado.
  */
 const syncPassengerMetadata = async (whatsappId, name, photoUrl, groupName) => {
   try {
@@ -255,7 +229,6 @@ const syncPassengerMetadata = async (whatsappId, name, photoUrl, groupName) => {
     };
     
     if (name) updateData.name = formatName(name);
-    if (photoUrl) updateData.photo_url = photoUrl;
 
     const cleanNumber = normalizePhone(whatsappId.split('@')[0]);
 
