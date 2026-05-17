@@ -112,6 +112,12 @@ const fetchStats = async () => {
         const baseUrl = (window.BACKEND_URL || '').replace(/\/$/, '');
         const res = await fetch(`${baseUrl}/api/stats?t=${Date.now()}`);
         if (res.ok) {
+            const contentType = res.headers.get("content-type");
+            if (!contentType || !contentType.includes("application/json")) {
+                console.warn("Auto-Refresh: API de estatísticas retornou um formato não-JSON (provavelmente página HTML de erro ou fallback). Ignorando atualização.");
+                return;
+            }
+            
             const data = await res.json();
             if (JSON.stringify(rawDB) !== JSON.stringify(data.votes) || isPollSentToday !== data.isPollSentToday || JSON.stringify(weatherForecast) !== JSON.stringify(data.weather) || JSON.stringify(passengers) !== JSON.stringify(data.passengers)) {
                 
