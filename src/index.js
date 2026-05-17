@@ -66,20 +66,31 @@ async function resolveContactInfo(client, voterId) {
             const wid = WidFactory.createWid(jidStr);
             const Contacts = Store.Contact || Store.ContactCollection;
 
+            // 1. Verifica se já está no cache local para evitar delay desnecessário
+            const contactObj = Contacts ? Contacts.get(wid) : null;
+            if (contactObj) {
+              const p = contactObj.profilePicThumb || contactObj.__x_profilePicThumb;
+              if (p && (p.__x_imgFull || p.__x_img || p.imgFull || p.img)) {
+                return p.__x_imgFull || p.__x_img || p.imgFull || p.img || null;
+              }
+            }
+
+            // 2. Dispara requisição ao servidor de mídia do WhatsApp
             if (Store.ProfilePic && Store.ProfilePic.requestProfilePicFromServer) {
               await Store.ProfilePic.requestProfilePicFromServer(wid).catch(() => null);
             } else if (Store.ProfilePic && Store.ProfilePic.profilePicResync) {
               await Store.ProfilePic.profilePicResync(wid).catch(() => null);
             }
 
-            // DELAY CRÍTICO DE 2 SEGUNDOS na página para a rede responder e gravar no cache!
+            // DELAY CRÍTICO DE 2 SEGUNDOS na página apenas se fomos buscar da rede
             await new Promise(resolve => setTimeout(resolve, 2000));
 
-            const contactObj = Contacts ? Contacts.get(wid) : null;
-            if (contactObj) {
-              const p = contactObj.profilePicThumb || contactObj.__x_profilePicThumb;
+            // 3. Lê o contato atualizado
+            const updatedContact = Contacts ? Contacts.get(wid) : null;
+            if (updatedContact) {
+              const p = updatedContact.profilePicThumb || updatedContact.__x_profilePicThumb;
               if (p) {
-                return p.imgFull || p.eurl || p.img || null;
+                return p.__x_imgFull || p.__x_img || p.imgFull || p.img || null;
               }
             }
 
@@ -87,7 +98,7 @@ async function resolveContactInfo(client, voterId) {
             if (Store.Conn && Store.Conn.wid && (Store.Conn.wid._serialized === jidStr || Store.Conn.wid.user === jidStr.split('@')[0])) {
               const thumb = Store.Conn.profilePicThumb || Store.Conn.__x_profilePicThumb;
               if (thumb) {
-                return thumb.eurl || thumb.img || thumb.eurlFull || thumb.imgFull || null;
+                return thumb.__x_imgFull || thumb.__x_img || thumb.eurl || thumb.img || thumb.eurlFull || thumb.imgFull || null;
               }
             }
 
