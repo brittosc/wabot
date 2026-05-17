@@ -112,13 +112,16 @@ const fetchStats = async () => {
         const baseUrl = (window.BACKEND_URL || '').replace(/\/$/, '');
         const res = await fetch(`${baseUrl}/api/stats?t=${Date.now()}`);
         if (res.ok) {
-            const contentType = res.headers.get("content-type");
-            if (!contentType || !contentType.includes("application/json")) {
-                console.warn("Auto-Refresh: API de estatísticas retornou um formato não-JSON (provavelmente página HTML de erro ou fallback). Ignorando atualização.");
+            const text = await res.text();
+            let data;
+            try {
+                data = JSON.parse(text);
+            } catch (jsonErr) {
+                console.warn("Auto-Refresh: Resposta do servidor não pôde ser interpretada como JSON (provavelmente fallback HTML ou bloqueio local). Ignorando atualização.");
+                console.debug("Conteúdo recebido do servidor (primeiros 200 caracteres):", text.substring(0, 200));
                 return;
             }
             
-            const data = await res.json();
             if (JSON.stringify(rawDB) !== JSON.stringify(data.votes) || isPollSentToday !== data.isPollSentToday || JSON.stringify(weatherForecast) !== JSON.stringify(data.weather) || JSON.stringify(passengers) !== JSON.stringify(data.passengers)) {
                 
                 // Detecta se houve novos votos para tocar o som
