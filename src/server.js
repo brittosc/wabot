@@ -28,7 +28,8 @@ const startServer = () => {
     }
 
     // Rota API de Stats para o frontend de estatísticas
-    if (req.url === "/api/stats") {
+    const path = req.url.split("?")[0];
+    if (path === "/api/stats") {
       setCorsHeaders(res);
 
       try {
