@@ -196,6 +196,18 @@ const registerVote = async (vote, voterName, photoUrl) => {
         .maybeSingle();
       if (psg && psg.photo_url) {
         finalPhotoUrl = psg.photo_url;
+      } else {
+        const cleanNumber = normalizePhone(voterId.split('@')[0]);
+        if (cleanNumber) {
+          const { data: psgPhone } = await supabase
+            .from("passengers")
+            .select("photo_url")
+            .eq("phone", cleanNumber)
+            .maybeSingle();
+          if (psgPhone && psgPhone.photo_url) {
+            finalPhotoUrl = psgPhone.photo_url;
+          }
+        }
       }
     } catch (e) {}
   }
