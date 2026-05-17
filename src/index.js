@@ -446,54 +446,51 @@ async function syncRecentPhotos(client) {
     let skipped = 0;
     let errors = 0;
 
-    const batchSize = 5;
     const idsArray = Array.from(voterIds);
 
-    for (let i = 0; i < idsArray.length; i += batchSize) {
-      const batch = idsArray.slice(i, i + batchSize);
-      await Promise.all(
-        batch.map(async (id) => {
+    for (const id of idsArray) {
+      try {
+        if (!id || !id.includes("@")) {
+          skipped++;
+          continue;
+        }
+
+        const contactInfo = await resolveContactInfo(client, id);
+        const name = formatName(contactInfo.name) || "Desconhecido";
+        const photoUrl = contactInfo.photoUrl;
+
+        if (photoUrl) {
+          const cleanNumber = id.split('@')[0];
+
+          // 1. Atualiza metadados na tabela passengers se o passageiro existir
           try {
-            if (!id || !id.includes("@")) {
-              skipped++;
-              return;
-            }
-
-            const contactInfo = await resolveContactInfo(client, id);
-            const name = formatName(contactInfo.name) || "Desconhecido";
-            const photoUrl = contactInfo.photoUrl;
-
-            if (photoUrl) {
-              // 1. Atualiza metadados na tabela passengers se o passageiro existir
-              try {
-                await statistics.syncPassengerMetadata(id, name, photoUrl);
-              } catch (metadataErr) {}
-              
-              // 2. Atualiza retroativamente a foto em todas as linhas de votos históricos dele
-              try {
-                await supabase
-                  .from("votes")
-                  .update({ photo_url: photoUrl })
-                  .eq("voter_id", id);
-              } catch (dbErr) {
-                dashboard.addLog(`[SYNC FOTO ERR] Erro ao atualizar votos no Supabase para ${id.split('@')[0]}: ${dbErr.message}`);
-              }
-
-              count++;
-              dashboard.addLog(
-                `[SYNC FOTO] Foto obtida para ${name} (${id.split('@')[0]}): ${photoUrl.substring(0, 60)}...`
-              );
-            } else {
-              semFoto++;
-            }
-          } catch (err) {
-            errors++;
-            dashboard.addLog(`[SYNC FOTO ERR] ID: ${id.split('@')[0]} | Erro: ${err.message}`);
+            await statistics.syncPassengerMetadata(id, name, photoUrl);
+          } catch (metadataErr) {}
+          
+          // 2. Atualiza retroativamente a foto em todas as linhas de votos históricos dele (suporta @c.us e @lid)
+          try {
+            await supabase
+              .from("votes")
+              .update({ photo_url: photoUrl })
+              .or(`voter_id.eq.${id},voter_id.like.%${cleanNumber}%`);
+          } catch (dbErr) {
+            dashboard.addLog(`[SYNC FOTO ERR] Erro ao atualizar votos no Supabase para ${cleanNumber}: ${dbErr.message}`);
           }
-        })
-      );
-      // Breve pausa para respiro de rede e do Puppeteer entre os lotes
-      await new Promise((resolve) => setTimeout(resolve, 800));
+
+          count++;
+          dashboard.addLog(
+            `[SYNC FOTO] Foto obtida para ${name} (${cleanNumber}): ${photoUrl.substring(0, 60)}...`
+          );
+        } else {
+          semFoto++;
+        }
+      } catch (err) {
+        errors++;
+        dashboard.addLog(`[SYNC FOTO ERR] ID: ${id.split('@')[0]} | Erro: ${err.message}`);
+      }
+      
+      // Breve pausa para respiro de rede e do Puppeteer entre cada participante
+      await new Promise((resolve) => setTimeout(resolve, 300));
     }
 
     dashboard.addLog(
