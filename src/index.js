@@ -278,8 +278,8 @@ async function syncRecentPhotos(client) {
       }
 
       const contactInfo = await resolveContactInfo(client, id);
-      name = formatName(contactInfo.name) || "Desconhecido";
-      photoUrl = contactInfo.photoUrl;
+      const name = formatName(contactInfo.name) || "Desconhecido";
+      const photoUrl = contactInfo.photoUrl;
 
       if (photoUrl) {
         await statistics.syncPassengerMetadata(id, name, photoUrl);
