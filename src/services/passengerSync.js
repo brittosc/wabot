@@ -313,8 +313,12 @@ async function precarregarFotosVisualmente(client, groups, logCallback) {
         };
       });
       const fs = require('fs');
-      fs.writeFileSync('d:\\Github\\wabot\\scratch\\memory_dump.json', JSON.stringify(dumpData, null, 2));
-    } catch (dumpErr) {}
+      const path = require('path');
+      const dumpPath = path.join(__dirname, '../../memory_dump.json');
+      fs.writeFileSync(dumpPath, JSON.stringify(dumpData, null, 2));
+    } catch (dumpErr) {
+      logCallback(chalk.red(`⚠️ Falha ao salvar dump de memória: ${dumpErr.message}`));
+    }
 
     const extractedPhotos = await page.evaluate(() => {
       const Store = window.Store;
