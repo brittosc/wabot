@@ -167,8 +167,14 @@ async function sincronizarParticipantes(client, logCallback = console.log) {
 async function precarregarFotosVisualmente(client, groups, logCallback) {
   const page = client.pupPage;
   const photoCache = new Map();
+  // 1. Recarregar a página para limpar qualquer aba de mídias globais, modais persistentes ou estado instável do navegador
+  logCallback(chalk.gray("⏳ Recarregando a página para garantir interface 100% limpa..."));
+  try {
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await new Promise(r => setTimeout(r, 4000));
+  } catch (reloadErr) {}
 
-  // 1. Fechar qualquer modal, pop-up ou visualizador de mídias globais que possa cobrir a tela
+  // 2. Fechar qualquer modal, pop-up ou visualizador de mídias globais remanescente que possa cobrir a tela
   try {
     for (let i = 0; i < 3; i++) {
       await page.keyboard.press('Escape');
@@ -182,10 +188,16 @@ async function precarregarFotosVisualmente(client, groups, logCallback) {
       const chatsBtn = document.querySelector('[data-testid="menu-bar-chats"]') || 
                        document.querySelector('[aria-label="Conversas"]') ||
                        document.querySelector('[data-testid="chats"]') ||
-                       document.querySelector('button[title="Conversas"]');
+                       document.querySelector('button[title="Conversas"]') ||
+                       document.querySelector('div[role="button"][title="Conversas"]');
       if (chatsBtn) chatsBtn.click();
     });
-    await new Promise(r => setTimeout(r, 1000));
+    
+    // Clica também com Puppeteer externo para simular mouse real na coordenada
+    const chatsBtnSelector = '[data-testid="menu-bar-chats"], [aria-label="Conversas"], [data-testid="chats"], button[title="Conversas"], div[role="button"][title="Conversas"]';
+    await page.click(chatsBtnSelector).catch(() => null);
+    
+    await new Promise(r => setTimeout(r, 1500));
   } catch (modalErr) {}
 
   logCallback(chalk.gray("⏳ Aguardando renderização completa da barra lateral de chats..."));
@@ -212,7 +224,9 @@ async function precarregarFotosVisualmente(client, groups, logCallback) {
         window.location.hash = `#/chat/${jid}`;
       }, groupJid);
 
-      await new Promise(r => setTimeout(r, 2000)); // Aguarda carregar o chat na tela
+      // Aguarda carregar o chat na tela e renderizar o cabeçalho
+      await page.waitForSelector('[data-testid="conversation-info-header-chat-title"], #main header', { timeout: 10000 }).catch(() => null);
+      await new Promise(r => setTimeout(r, 1500)); // Aguarda carregar o chat na tela
 
       // 2. Clicar no cabeçalho do chat ativo de forma ultra-precisa e recursiva nos filhos
       const headerOpened = await page.evaluate(() => {
@@ -252,12 +266,12 @@ async function precarregarFotosVisualmente(client, groups, logCallback) {
 
       await new Promise(r => setTimeout(r, 3000)); // Aguarda abrir a barra lateral
 
-      // Salva screenshot para auditoria visual
+      // Salva screenshot técnico do navegador para fins de diagnóstico e auditoria visual
       try {
         const path = require('path');
-        const ssPath = path.join(__dirname, `../../screenshot_grupo_${groups.indexOf(group) + 1}.png`);
+        const ssPath = path.join(__dirname, `../../debug_full_browser_screenshot_group_${groups.indexOf(group) + 1}.png`);
         await page.screenshot({ path: ssPath });
-        logCallback(chalk.gray(`  • Screenshot de auditoria salvo em: ${ssPath}`));
+        logCallback(chalk.gray(`  • Captura técnica de tela inteira do navegador salva em: ${ssPath}`));
       } catch (ssErr) {}
 
       // 3. Procurar e clicar no botão "Ver todos" membros com scroll prévio no painel lateral
