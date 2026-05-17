@@ -245,15 +245,26 @@ const syncPassengerMetadata = async (whatsappId, name, photoUrl, groupName) => {
     if (name) updateData.name = formatName(name);
     if (photoUrl) {
       updateData.photo_url = photoUrl;
-      // dashboard.addLog(`DEBUG: Salvando foto para ${whatsappId}`);
     }
     
-    // Só atualiza se o passageiro já existe — nunca insere (evita erro de NOT NULL em registration_number)
-    await withRetry(() =>
+    const cleanNumber = normalizePhone(whatsappId.split('@')[0]);
+
+    // Primeiro tenta atualizar pelo whatsapp_id
+    const { data } = await withRetry(() =>
       supabase.from("passengers")
         .update(updateData)
         .eq("whatsapp_id", whatsappId)
-    , 2, 1000, "Supabase:SyncPassenger");
+        .select()
+    , 2, 1000, "Supabase:SyncPassengerJid");
+
+    // Se não encontrou/atualizou ninguém e temos o telefone limpo, tenta atualizar pelo phone
+    if ((!data || data.length === 0) && cleanNumber) {
+      await withRetry(() =>
+        supabase.from("passengers")
+          .update(updateData)
+          .eq("phone", cleanNumber)
+      , 2, 1000, "Supabase:SyncPassengerPhone");
+    }
   } catch (e) {
     // Silencioso — falha de sync de foto não é crítica
   }
