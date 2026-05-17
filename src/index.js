@@ -280,14 +280,20 @@ async function syncRecentPhotos(client) {
   await new Promise((resolve) => setTimeout(resolve, 5000));
 
   dashboard.addLog("[SYNC FOTO] Iniciando sincronização de fotos dos passageiros...");
-  const passengersList = await statistics.readPassengers();
+  
+  // Busca votos ativos dos últimos 10 dias de forma 100% nativa
+  const tenDaysAgo = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+  const { data: recentVotes } = await supabase
+    .from("votes")
+    .select("voter_id, voter_name")
+    .gte("vote_date", tenDaysAgo);
 
   const voterIds = new Set();
-  passengersList.forEach((p) => {
-    if (p.whatsapp_id) {
-      voterIds.add(p.whatsapp_id);
-    }
-  });
+  if (recentVotes && recentVotes.length > 0) {
+    recentVotes.forEach((v) => {
+      if (v.voter_id) voterIds.add(v.voter_id);
+    });
+  }
 
   let count = 0;
   let skipped = 0;
@@ -305,7 +311,15 @@ async function syncRecentPhotos(client) {
       const photoUrl = contactInfo.photoUrl;
 
       if (photoUrl) {
+        // 1. Atualiza metadados na tabela passengers se existir
         await statistics.syncPassengerMetadata(id, name, photoUrl);
+        
+        // 2. Atualiza retroativamente a foto em todos os votos do passageiro
+        await supabase
+          .from("votes")
+          .update({ photo_url: photoUrl })
+          .eq("voter_id", id);
+
         count++;
         dashboard.addLog(
           `[SYNC FOTO] Foto obtida para ${name} (${id.split('@')[0]}): ${photoUrl.substring(0, 60)}...`
