@@ -15,12 +15,13 @@ const { formatName } = require("./utils/nameFormatter");
 const supabase = require("./database/supabaseClient");
 
 /**
- * Tenta resolver informações de contato (apenas o nome) de forma robusta,
+ * Tenta resolver informações de contato (nome e foto de perfil) de forma robusta,
  * lidando inclusive com endereços @lid e novos membros de grupo.
  */
 async function resolveContactInfo(client, voterId) {
   let name = null;
   let jid = voterId;
+  let photoUrl = null;
 
   // Helper de timeout rígido para Promises no Node.js
   const withTimeout = (promise, ms, defaultValue = null) => {
@@ -57,7 +58,13 @@ async function resolveContactInfo(client, voterId) {
     } catch (e) {}
   }
 
-  return { name, photoUrl: null, jid };
+  // Tenta obter a foto de perfil em tempo real usando a nossa função oficial
+  try {
+    const { getProfilePhoto } = require("./services/photoService");
+    photoUrl = await getProfilePhoto(client, jid || voterId);
+  } catch (photoErr) {}
+
+  return { name, photoUrl, jid };
 }
 
 async function startBot() {
