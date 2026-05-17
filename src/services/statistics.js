@@ -255,30 +255,36 @@ const syncPassengerMetadata = async (whatsappId, name, photoUrl, groupName) => {
     };
     
     if (name) updateData.name = formatName(name);
-    if (photoUrl) {
-      updateData.photo_url = photoUrl;
-    }
-    
+    if (photoUrl) updateData.photo_url = photoUrl;
+
     const cleanNumber = normalizePhone(whatsappId.split('@')[0]);
 
-    // Primeiro tenta atualizar pelo whatsapp_id
-    const { data } = await withRetry(() =>
+    // Tenta atualizar pelo whatsapp_id (formato completo: 554896864290@c.us)
+    const { data: byJid, error: errJid } = await withRetry(() =>
       supabase.from("passengers")
         .update(updateData)
         .eq("whatsapp_id", whatsappId)
-        .select()
+        .select("id")
     , 2, 1000, "Supabase:SyncPassengerJid");
 
-    // Se não encontrou/atualizou ninguém e temos o telefone limpo, tenta atualizar pelo phone
-    if ((!data || data.length === 0) && cleanNumber) {
-      await withRetry(() =>
+    if (errJid) {
+      dashboard.addLog(`[SYNC META ERR] passengers@jid ${cleanNumber}: ${errJid.message}`);
+    }
+
+    // Se não atualizou nenhuma linha, tenta pelo phone (número limpo)
+    if ((!byJid || byJid.length === 0) && cleanNumber) {
+      const { error: errPhone } = await withRetry(() =>
         supabase.from("passengers")
           .update(updateData)
           .eq("phone", cleanNumber)
       , 2, 1000, "Supabase:SyncPassengerPhone");
+
+      if (errPhone) {
+        dashboard.addLog(`[SYNC META ERR] passengers@phone ${cleanNumber}: ${errPhone.message}`);
+      }
     }
   } catch (e) {
-    // Silencioso — falha de sync de foto não é crítica
+    // Silencioso — erro de rede ou timeout
   }
 };
 
