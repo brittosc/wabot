@@ -75,19 +75,33 @@ async function resolveContactInfo(client, voterId) {
               }
             }
 
-            // 2. Dispara requisição ao servidor de mídia do WhatsApp passando o objeto de contato
+            // 2. Dispara requisição ao servidor de mídia do WhatsApp com timeout rígido de 1.5s
             let netRes = null;
+            const timeoutPromise = new Promise(resolve => setTimeout(() => resolve(null), 1500));
+
             if (contactObj) {
               if (Store.ProfilePic && Store.ProfilePic.requestProfilePicFromServer) {
-                netRes = await Store.ProfilePic.requestProfilePicFromServer(contactObj).catch(() => null);
+                netRes = await Promise.race([
+                  Store.ProfilePic.requestProfilePicFromServer(contactObj),
+                  timeoutPromise
+                ]).catch(() => null);
               } else if (Store.ProfilePic && Store.ProfilePic.profilePicResync) {
-                netRes = await Store.ProfilePic.profilePicResync(contactObj).catch(() => null);
+                netRes = await Promise.race([
+                  Store.ProfilePic.profilePicResync(contactObj),
+                  timeoutPromise
+                ]).catch(() => null);
               }
             } else {
               if (Store.ProfilePic && Store.ProfilePic.requestProfilePicFromServer) {
-                netRes = await Store.ProfilePic.requestProfilePicFromServer(wid).catch(() => null);
+                netRes = await Promise.race([
+                  Store.ProfilePic.requestProfilePicFromServer(wid),
+                  timeoutPromise
+                ]).catch(() => null);
               } else if (Store.ProfilePic && Store.ProfilePic.profilePicResync) {
-                netRes = await Store.ProfilePic.profilePicResync(wid).catch(() => null);
+                netRes = await Promise.race([
+                  Store.ProfilePic.profilePicResync(wid),
+                  timeoutPromise
+                ]).catch(() => null);
               }
             }
 
@@ -96,8 +110,8 @@ async function resolveContactInfo(client, voterId) {
               return netRes.eurl || netRes.previewEurl;
             }
 
-            // DELAY CRÍTICO DE 2 SEGUNDOS na página apenas se fomos buscar da rede
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            // DELAY CRÍTICO DE 800MS na página apenas se fomos buscar da rede e não retornou direto
+            await new Promise(resolve => setTimeout(resolve, 800));
 
             // 3. Lê o contato atualizado
             const updatedContact = Contacts ? Contacts.get(wid) : null;
