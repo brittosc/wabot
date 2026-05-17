@@ -185,15 +185,18 @@ async function precarregarFotosVisualmente(client, groups, logCallback) {
 
       await new Promise(r => setTimeout(r, 2000)); // Aguarda carregar o chat na tela
 
-      // 2. Clicar no cabeçalho do chat ativo de forma ultra-precisa
+      // 2. Clicar no cabeçalho do chat ativo de forma ultra-precisa e recursiva nos filhos
       const headerOpened = await page.evaluate(() => {
-        let header = document.querySelector('header');
-        if (!header) {
-          header = document.querySelector('#main header') || 
-                   document.querySelector('[data-testid="conversation-header"]');
-        }
+        const header = document.querySelector('[data-testid="conversation-header"]') || 
+                       document.querySelector('#main header') || 
+                       document.querySelector('header');
         if (header) {
           header.click();
+          // Dispara clique recursivo em elementos internos do título ou avatar para forçar abertura
+          const childs = Array.from(header.querySelectorAll('div, span, img'));
+          for (const c of childs) {
+            try { c.click(); } catch (e) {}
+          }
           return true;
         }
         return false;
@@ -206,11 +209,12 @@ async function precarregarFotosVisualmente(client, groups, logCallback) {
 
       await new Promise(r => setTimeout(r, 2000)); // Aguarda abrir a barra lateral
 
-      // 3. Procurar e clicar no botão "Ver todos" membros, restrito à barra lateral direita
+      // 3. Procurar e clicar no botão "Ver todos" membros com clique recursivo em cascata nos filhos
       const verTodosClicked = await page.evaluate(() => {
-        const rightPane = document.querySelector('#app div[style*="overflow-y"]') || 
-                          document.querySelector('#app div[role="region"]') ||
-                          document.querySelector('#app') || document;
+        const rightPane = document.querySelector('[style*="overflow-y"] [role="region"]') || 
+                          document.querySelector('#app [role="region"]') || 
+                          document.querySelector('#app div[style*="overflow-y"]') || 
+                          document;
 
         const elementos = Array.from(rightPane.querySelectorAll('span, div, [role="button"]'));
         const btn = elementos.find(el => {
@@ -219,6 +223,11 @@ async function precarregarFotosVisualmente(client, groups, logCallback) {
         });
         if (btn) {
           btn.click();
+          // Dispara clique em cascata nos filhos para garantir evento no React
+          const childs = Array.from(btn.querySelectorAll('span, div'));
+          for (const c of childs) {
+            try { c.click(); } catch (e) {}
+          }
           return true;
         }
         return false;
