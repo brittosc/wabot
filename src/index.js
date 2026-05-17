@@ -76,18 +76,24 @@ async function resolveContactInfo(client, voterId) {
             }
 
             // 2. Dispara requisição ao servidor de mídia do WhatsApp passando o objeto de contato
+            let netRes = null;
             if (contactObj) {
               if (Store.ProfilePic && Store.ProfilePic.requestProfilePicFromServer) {
-                await Store.ProfilePic.requestProfilePicFromServer(contactObj).catch(() => null);
+                netRes = await Store.ProfilePic.requestProfilePicFromServer(contactObj).catch(() => null);
               } else if (Store.ProfilePic && Store.ProfilePic.profilePicResync) {
-                await Store.ProfilePic.profilePicResync(contactObj).catch(() => null);
+                netRes = await Store.ProfilePic.profilePicResync(contactObj).catch(() => null);
               }
             } else {
               if (Store.ProfilePic && Store.ProfilePic.requestProfilePicFromServer) {
-                await Store.ProfilePic.requestProfilePicFromServer(wid).catch(() => null);
+                netRes = await Store.ProfilePic.requestProfilePicFromServer(wid).catch(() => null);
               } else if (Store.ProfilePic && Store.ProfilePic.profilePicResync) {
-                await Store.ProfilePic.profilePicResync(wid).catch(() => null);
+                netRes = await Store.ProfilePic.profilePicResync(wid).catch(() => null);
               }
+            }
+
+            // Retorna imediatamente se a rede devolveu o link direto
+            if (netRes && (netRes.eurl || netRes.previewEurl)) {
+              return netRes.eurl || netRes.previewEurl;
             }
 
             // DELAY CRÍTICO DE 2 SEGUNDOS na página apenas se fomos buscar da rede
