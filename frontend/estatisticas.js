@@ -25,6 +25,7 @@ let notificationEnabled = false;
 let currentFeedTab = 'votes';
 let feedLimit = 10;
 let currentTargetGroup = "Todos";
+window.currentTargetGroup = currentTargetGroup;
 
 const optionColors = {
     "Irei, ida e volta.": "#4caf50",
@@ -80,6 +81,7 @@ const getPassengerByJid = (jid) => {
 
     return found;
 };
+window.getPassengerByJid = getPassengerByJid;
 
 const extractGroups = () => {
     const groups = new Set();
