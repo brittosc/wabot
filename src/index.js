@@ -64,8 +64,23 @@ async function resolveContactInfo(client, voterId) {
             pic = contact.profilePicThumbObj.eurl || contact.profilePicThumbObj.img || contact.profilePicThumbObj.imgFull;
           }
           if (!pic) {
-            const picObj = await Store.ProfilePic.profilePicFind(wid).catch(() => null);
-            pic = picObj ? (picObj.eurl || picObj.img) : null;
+            let picObj = null;
+            if (Store.ProfilePic.requestProfilePicFromServer) {
+              picObj = await Store.ProfilePic.requestProfilePicFromServer(wid).catch(() => null);
+            } else if (Store.ProfilePic.profilePicResync) {
+              picObj = await Store.ProfilePic.profilePicResync(wid).catch(() => null);
+            }
+
+            if (picObj) {
+              pic = picObj.eurl || picObj.img || null;
+            }
+
+            if (!pic) {
+              const updatedContact = Store.Contact.get(wid);
+              if (updatedContact && updatedContact.profilePicThumbObj) {
+                pic = updatedContact.profilePicThumbObj.eurl || updatedContact.profilePicThumbObj.img || updatedContact.profilePicThumbObj.imgFull;
+              }
+            }
           }
           return {
             pushname: contact.pushname || contact.name || null,
