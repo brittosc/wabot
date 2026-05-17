@@ -161,13 +161,11 @@ const renderCompactBar = (name, count, cap, pending, avg) => {
       fireExt.innerHTML = "🔥";
       fireExt.style.cssText = `
         position: absolute;
-        right: -10px;
-        top: -15px;
-        font-size: 1.3rem;
-        filter: drop-shadow(0 0 8px orange);
-        animation: fire-pulse 0.6s infinite alternate ease-in-out;
-        pointer-events: none;
-        z-index: 20;
+        right: -8px;
+        top: -12px;
+        font-size: 1.2rem;
+        filter: drop-shadow(0 0 5px orange);
+        animation: fire-shake 0.5s infinite alternate;
       `;
       progressBar.appendChild(fireExt);
       
@@ -175,9 +173,9 @@ const renderCompactBar = (name, count, cap, pending, avg) => {
           const style = document.createElement("style");
           style.id = "fire-styles";
           style.innerHTML = `
-            @keyframes fire-pulse {
-                from { transform: translateY(0) scale(1); filter: drop-shadow(0 0 5px orange); }
-                to { transform: translateY(-4px) scale(1.15); filter: drop-shadow(0 0 12px orange); }
+            @keyframes fire-shake {
+                from { transform: translateY(0) scale(1); }
+                to { transform: translateY(-2px) scale(1.1); }
             }
           `;
           document.head.appendChild(style);
