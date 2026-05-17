@@ -455,14 +455,16 @@ async function startBot() {
 }
 
 /**
- * Busca fotos de perfil para usuários que votaram nos últimos 7 dias
- * e ainda não possuem foto ou precisam de atualização.
+ * Busca fotos de perfil para todos os membros dos grupos alvo, 1 a 1,
+ * e salva na tabela passengers e retroativamente na tabela votes.
+ * Usa client.getProfilePicUrl() que funciona para qualquer membro de grupo,
+ * contato salvo ou não.
  */
 async function syncRecentPhotos(client) {
   // Delay de 5s para não brigar com as mensagens de inicialização
   await new Promise((resolve) => setTimeout(resolve, 5000));
 
-  dashboard.addLog("[SYNC FOTO] Iniciando varredura rápida de membros dos grupos do WhatsApp...");
+  dashboard.addLog("[SYNC FOTO] Iniciando varredura de membros dos grupos do WhatsApp...");
 
   try {
     const config = configService.getConfig();
@@ -506,14 +508,13 @@ async function syncRecentPhotos(client) {
       return;
     }
 
-    dashboard.addLog(`[SYNC FOTO] Total de membros únicos identificados: ${voterIds.size}. Sincronizando fotos...`);
+    const idsArray = Array.from(voterIds);
+    dashboard.addLog(`[SYNC FOTO] ${idsArray.length} membros identificados. Buscando fotos 1 a 1...`);
 
     let count = 0;
     let semFoto = 0;
     let skipped = 0;
     let errors = 0;
-
-    const idsArray = Array.from(voterIds);
 
     for (const id of idsArray) {
       try {
@@ -522,50 +523,84 @@ async function syncRecentPhotos(client) {
           continue;
         }
 
-        const contactInfo = await resolveContactInfo(client, id);
-        const name = formatName(contactInfo.name) || "Desconhecido";
-        const photoUrl = contactInfo.photoUrl;
+        const cleanNumber = id.split('@')[0];
+        let photoUrl = null;
+        let name = "Desconhecido";
+
+        // -------------------------------------------------------
+        // BUSCA DE FOTO: client.getProfilePicUrl() funciona para
+        // QUALQUER membro de grupo, mesmo sem ser contato salvo.
+        // Timeout de 8s pois é batch sem urgência de tempo real.
+        // -------------------------------------------------------
+        try {
+          photoUrl = await Promise.race([
+            client.getProfilePicUrl(id),
+            new Promise((resolve) => setTimeout(() => resolve(null), 8000))
+          ]).catch(() => null);
+        } catch (e) {
+          photoUrl = null;
+        }
+
+        // Tenta obter nome (melhoria visual no log e no banco)
+        try {
+          const contact = await Promise.race([
+            client.getContactById(id),
+            new Promise((resolve) => setTimeout(() => resolve(null), 3000))
+          ]).catch(() => null);
+          if (contact && (contact.pushname || contact.name)) {
+            name = formatName(contact.pushname || contact.name) || "Desconhecido";
+          }
+        } catch (e) {}
 
         if (photoUrl) {
-          const cleanNumber = id.split('@')[0];
-
-          // 1. Atualiza metadados na tabela passengers se o passageiro existir
+          // 1. Atualiza metadados na tabela passengers (por whatsapp_id E por phone como fallback)
           try {
             await statistics.syncPassengerMetadata(id, name, photoUrl);
           } catch (metadataErr) {}
           
-          // 2. Atualiza retroativamente a foto em todas as linhas de votos históricos dele (suporta @c.us e @lid)
+          // 2. Atualiza foto nos votos existentes com voter_id exato (ex: 554896864290@c.us)
           try {
             await supabase
               .from("votes")
               .update({ photo_url: photoUrl })
-              .or(`voter_id.eq.${id},voter_id.like.%${cleanNumber}%`);
+              .eq("voter_id", id);
           } catch (dbErr) {
-            dashboard.addLog(`[SYNC FOTO ERR] Erro ao atualizar votos no Supabase para ${cleanNumber}: ${dbErr.message}`);
+            dashboard.addLog(`[SYNC FOTO ERR] votes@voter_id ${cleanNumber}: ${dbErr.message}`);
+          }
+
+          // 3. Atualiza votos onde voter_id contém o número (cobre formatos @lid e variações)
+          //    mas só onde a foto ainda está vazia (não sobrescreve registros já atualizados)
+          try {
+            await supabase
+              .from("votes")
+              .update({ photo_url: photoUrl })
+              .like("voter_id", `%${cleanNumber}%`)
+              .is("photo_url", null);
+          } catch (dbErr) {
+            dashboard.addLog(`[SYNC FOTO ERR] votes@like ${cleanNumber}: ${dbErr.message}`);
           }
 
           count++;
-          dashboard.addLog(
-            `[SYNC FOTO] Foto obtida para ${name} (${cleanNumber}): ${photoUrl.substring(0, 60)}...`
-          );
+          dashboard.addLog(`[SYNC FOTO] ✅ ${name} (${cleanNumber}): foto salva`);
         } else {
           semFoto++;
+          dashboard.addLog(`[SYNC FOTO] 🔒 ${cleanNumber}: sem foto pública`);
         }
       } catch (err) {
         errors++;
-        dashboard.addLog(`[SYNC FOTO ERR] ID: ${id.split('@')[0]} | Erro: ${err.message}`);
+        dashboard.addLog(`[SYNC FOTO ERR] ${id.split('@')[0]}: ${err.message}`);
       }
       
-      // Breve pausa para respiro de rede e do Puppeteer entre cada participante
-      await new Promise((resolve) => setTimeout(resolve, 300));
+      // Pausa entre cada membro para não sobrecarregar o WebSocket
+      await new Promise((resolve) => setTimeout(resolve, 800));
     }
 
     dashboard.addLog(
-      `[SYNC FOTO] Concluído! Fotos atualizadas no banco: ${count} | Sem foto pública: ${semFoto} | Pulados: ${skipped} | Erros: ${errors}`
+      `[SYNC FOTO] Concluído! ✅ Com foto: ${count} | 🔒 Sem foto pública: ${semFoto} | Pulados: ${skipped} | Erros: ${errors}`
     );
 
   } catch (globalErr) {
-    dashboard.addLog(`[SYNC FOTO] Erro crítico no processo de varredura: ${globalErr.message}`);
+    dashboard.addLog(`[SYNC FOTO] Erro crítico: ${globalErr.message}`);
   }
 }
 
