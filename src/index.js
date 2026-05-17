@@ -103,6 +103,21 @@ async function startBot() {
     const currentStats = await statistics.readStats();
     await statistics.updateTerminalOccupancy(currentStats);
 
+    if (process.argv.includes("--sync-passageiros")) {
+      dashboard.addLog("Parâmetro --sync-passageiros detectado. Iniciando sincronização...");
+      const { sincronizarParticipantes } = require("./services/passengerSync");
+      try {
+        await sincronizarParticipantes(client, (msg) => dashboard.addLog(msg));
+        dashboard.addLog("Sincronização concluída com sucesso! 🎉");
+      } catch (err) {
+        dashboard.addLog(`Erro ao sincronizar: ${err.message}`);
+      } finally {
+        dashboard.addLog("Encerrando bot...");
+        await client.destroy();
+        process.exit(0);
+      }
+    }
+
     if (process.argv.includes("--now")) {
       dashboard.addLog("Parâmetro --now detectado. Forçando envio imediato 🎉");
       cronJob.sendPolls(client);
