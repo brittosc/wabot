@@ -17,14 +17,25 @@ const newDataBlock = `
         window.BACKEND_URL = 'https://api.grupobritto.com.br';
         const BACKEND_URL = window.BACKEND_URL;
 
-        let rawDB = {};
-        let passengers = [];
-        let isPollSentToday = false;
-        let capacities = {};
-        let groupAliases = {};
-        let skipDates = {};
-        let pollTime = '05:30';
-        let targetGroups = [];
+        window.rawDB = {};
+        window.passengers = [];
+        window.isPollSentToday = false;
+        window.capacities = {};
+        window.groupAliases = {};
+        window.skipDates = {};
+        window.pollTime = '05:30';
+        window.targetGroups = [];
+        window.weatherForecast = [];
+
+        let rawDB = window.rawDB;
+        let passengers = window.passengers;
+        let isPollSentToday = window.isPollSentToday;
+        let capacities = window.capacities;
+        let groupAliases = window.groupAliases;
+        let skipDates = window.skipDates;
+        let pollTime = window.pollTime;
+        let targetGroups = window.targetGroups;
+        let weatherForecast = window.weatherForecast;
 
 `;
 
