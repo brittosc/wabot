@@ -279,64 +279,98 @@ async function syncRecentPhotos(client) {
   // Delay de 5s para não brigar com as mensagens de inicialização
   await new Promise((resolve) => setTimeout(resolve, 5000));
 
-  dashboard.addLog("[SYNC FOTO] Iniciando sincronização de fotos dos passageiros...");
-  
-  // Busca votos ativos dos últimos 10 dias de forma 100% nativa
-  const tenDaysAgo = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-  const { data: recentVotes } = await supabase
-    .from("votes")
-    .select("voter_id, voter_name")
-    .gte("vote_date", tenDaysAgo);
+  dashboard.addLog("[SYNC FOTO] Iniciando varredura rápida de membros dos grupos do WhatsApp...");
 
-  const voterIds = new Set();
-  if (recentVotes && recentVotes.length > 0) {
-    recentVotes.forEach((v) => {
-      if (v.voter_id) voterIds.add(v.voter_id);
-    });
-  }
+  try {
+    const config = configService.getConfig();
+    const targetGroupNames = config.targetGroups || [];
 
-  let count = 0;
-  let skipped = 0;
-  let errors = 0;
-
-  for (const id of voterIds) {
-    try {
-      if (!id || !id.includes("@")) {
-        skipped++;
-        continue;
-      }
-
-      const contactInfo = await resolveContactInfo(client, id);
-      const name = formatName(contactInfo.name) || "Desconhecido";
-      const photoUrl = contactInfo.photoUrl;
-
-      if (photoUrl) {
-        // 1. Atualiza metadados na tabela passengers se existir
-        await statistics.syncPassengerMetadata(id, name, photoUrl);
-        
-        // 2. Atualiza retroativamente a foto em todos os votos do passageiro
-        await supabase
-          .from("votes")
-          .update({ photo_url: photoUrl })
-          .eq("voter_id", id);
-
-        count++;
-        dashboard.addLog(
-          `[SYNC FOTO] Foto obtida para ${name} (${id.split('@')[0]}): ${photoUrl.substring(0, 60)}...`
-        );
-      } else {
-        // dashboard.addLog(`[SYNC FOTO] Sem foto pública para ${name}`);
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, 500));
-    } catch (err) {
-      errors++;
+    if (targetGroupNames.length === 0) {
+      dashboard.addLog("[SYNC FOTO] Nenhum grupo alvo configurado no targetGroups.");
+      return;
     }
-  }
 
-  dashboard.addLog(
-    `[SYNC FOTO] Concluído! Fotos atualizadas: ${count} | Ignorados: ${skipped} | Erros: ${errors}`
-  );
+    const chats = await client.getChats().catch(() => []);
+    const allGroups = chats.filter((c) => c.isGroup);
+
+    const voterIds = new Set();
+
+    for (const targetName of targetGroupNames) {
+      const group = allGroups.find((g) => g.name === targetName);
+      if (group) {
+        dashboard.addLog(`[SYNC FOTO] Varrendo participantes do grupo: ${targetName}`);
+        
+        let participants = group.participants || [];
+        if (participants.length === 0) {
+          const groupChat = await client.getChatById(group.id._serialized).catch(() => null);
+          if (groupChat && groupChat.participants) {
+            participants = groupChat.participants;
+          }
+        }
+
+        participants.forEach((p) => {
+          if (p.id && p.id._serialized) {
+            voterIds.add(p.id._serialized);
+          }
+        });
+      } else {
+        dashboard.addLog(`[SYNC FOTO] Grupo não encontrado nos chats ativos: ${targetName}`);
+      }
+    }
+
+    if (voterIds.size === 0) {
+      dashboard.addLog("[SYNC FOTO] Nenhum participante encontrado nos grupos ativos.");
+      return;
+    }
+
+    dashboard.addLog(`[SYNC FOTO] Total de membros únicos identificados: ${voterIds.size}. Sincronizando fotos...`);
+
+    let count = 0;
+    let skipped = 0;
+    let errors = 0;
+
+    for (const id of voterIds) {
+      try {
+        if (!id || !id.includes("@")) {
+          skipped++;
+          continue;
+        }
+
+        const contactInfo = await resolveContactInfo(client, id);
+        const name = formatName(contactInfo.name) || "Desconhecido";
+        const photoUrl = contactInfo.photoUrl;
+
+        if (photoUrl) {
+          // 1. Atualiza metadados na tabela passengers se o passageiro existir
+          await statistics.syncPassengerMetadata(id, name, photoUrl);
+          
+          // 2. Atualiza retroativamente a foto em todas as linhas de votos históricos dele
+          await supabase
+            .from("votes")
+            .update({ photo_url: photoUrl })
+            .eq("voter_id", id);
+
+          count++;
+          dashboard.addLog(
+            `[SYNC FOTO] Foto obtida para ${name} (${id.split('@')[0]}): ${photoUrl.substring(0, 60)}...`
+          );
+        } else {
+          // Sem foto pública ou indisponível
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      } catch (err) {
+        errors++;
+      }
+    }
+
+    dashboard.addLog(
+      `[SYNC FOTO] Concluído! Fotos atualizadas no banco: ${count} | Pulados/Sem foto: ${skipped} | Erros: ${errors}`
+    );
+
+  } catch (globalErr) {
+    dashboard.addLog(`[SYNC FOTO] Erro crítico no processo de varredura: ${globalErr.message}`);
+  }
 }
 
 // Inicia Dashboard no terminal
