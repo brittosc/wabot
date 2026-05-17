@@ -178,7 +178,7 @@ async function precarregarFotosVisualmente(client, groups, logCallback) {
     logCallback(chalk.blue(`📸 Executando varredura visual no grupo: ${chalk.bold(groupName)}...`));
 
     try {
-      // 1. Clicar no grupo na barra lateral (tentando JID ou nome)
+      // 1. Clicar no grupo na barra lateral com simulação de coordenadas e mousedown/mouseup
       const chatOpened = await page.evaluate(async (jid, name) => {
         // Tenta achar pelo JID
         let el = document.querySelector(`[data-id*="${jid}"]`) || 
@@ -204,9 +204,15 @@ async function precarregarFotosVisualmente(client, groups, logCallback) {
         
         if (el) {
           el.scrollIntoView({ block: 'center' });
-          // Simula eventos de mouse completos para garantir o foco e clique no chat
-          el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
-          el.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+          
+          // Dispara eventos de mouse completos e simulados com coordenadas reais para garantir foco/clique
+          const rect = el.getBoundingClientRect();
+          const x = rect.left + rect.width / 2;
+          const y = rect.top + rect.height / 2;
+          
+          el.dispatchEvent(new MouseEvent('mouseover', { bubbles: true, view: window }));
+          el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, view: window, clientX: x, clientY: y }));
+          el.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, view: window, clientX: x, clientY: y }));
           el.click();
           return true;
         }
@@ -220,9 +226,13 @@ async function precarregarFotosVisualmente(client, groups, logCallback) {
 
       await new Promise(r => setTimeout(r, 2000)); // Aguarda carregar o chat na tela
 
-      // 2. Clicar no cabeçalho para abrir o painel lateral "Dados do grupo"
+      // 2. Clicar no cabeçalho do chat ativo de forma ultra-precisa
       const headerOpened = await page.evaluate(() => {
-        const header = document.querySelector('header');
+        let header = document.querySelector('header');
+        if (!header) {
+          header = document.querySelector('#main header') || 
+                   document.querySelector('[data-testid="conversation-header"]');
+        }
         if (header) {
           header.click();
           return true;
@@ -237,9 +247,13 @@ async function precarregarFotosVisualmente(client, groups, logCallback) {
 
       await new Promise(r => setTimeout(r, 2000)); // Aguarda abrir a barra lateral
 
-      // 3. Procurar e clicar no botão "Ver todos" membros
+      // 3. Procurar e clicar no botão "Ver todos" membros, restrito à barra lateral direita
       const verTodosClicked = await page.evaluate(() => {
-        const elementos = Array.from(document.querySelectorAll('span, div, [role="button"]'));
+        const rightPane = document.querySelector('#app div[style*="overflow-y"]') || 
+                          document.querySelector('#app div[role="region"]') ||
+                          document.querySelector('#app') || document;
+
+        const elementos = Array.from(rightPane.querySelectorAll('span, div, [role="button"]'));
         const btn = elementos.find(el => {
           const txt = el.textContent || "";
           return txt.includes("Ver todos") || txt.includes("Ver mais") || txt.includes("Mostrar todos");
@@ -255,7 +269,7 @@ async function precarregarFotosVisualmente(client, groups, logCallback) {
         logCallback(chalk.gray(`  • Modal de participantes aberta. Rolando lista...`));
         await new Promise(r => setTimeout(r, 2000)); // Aguarda abrir a modal
 
-        // 4. Rolar a modal suavemente em etapas
+        // 4. Rolar a modal suavemente em etapas para forçar o carregamento de LIDs e avatares
         await page.evaluate(async () => {
           const scrollContainer = document.querySelector('div[role="dialog"] div[style*="overflow-y"]') || 
                                   document.querySelector('div[role="dialog"] .vcard') ||
@@ -264,7 +278,7 @@ async function precarregarFotosVisualmente(client, groups, logCallback) {
           if (scrollContainer) {
             for (let i = 0; i < 20; i++) {
               scrollContainer.scrollTop += 350;
-              await new Promise(r => setTimeout(r, 200));
+              await new Promise(r => setTimeout(r, 250));
             }
           }
         });
@@ -287,7 +301,7 @@ async function precarregarFotosVisualmente(client, groups, logCallback) {
                        document.querySelector('#app div[role="region"]') ||
                        document.querySelector('.vcard')?.parentElement;
           if (pane) {
-            for (let i = 0; i < 5; i++) {
+            for (let i = 0; i < 8; i++) {
               pane.scrollTop += 300;
               await new Promise(r => setTimeout(r, 200));
             }
