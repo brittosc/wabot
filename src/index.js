@@ -133,8 +133,17 @@ async function startBot() {
         dashboard.addLog(
           `[FOTO BOT] JID: ${botJid} | Foto: ${botInfo.photoUrl ? botInfo.photoUrl.substring(0, 80) + '...' : "Nenhuma/Não encontrada"}`
         );
+
+        // Diagnóstico avançado: Inspeciona métodos de ProfilePic
+        const methods = await client.pupPage.evaluate(() => {
+          const Store = window.Store;
+          if (!Store) return "Store inexistente";
+          if (!Store.ProfilePic) return "ProfilePic inexistente";
+          return Object.keys(Store.ProfilePic);
+        }).catch((e) => e.message);
+        dashboard.addLog(`[DIAG PROFILEPIC] Métodos disponíveis: ${JSON.stringify(methods)}`);
       } catch (e) {
-        dashboard.addLog(`[FOTO BOT] Erro ao obter foto do bot: ${e.message}`);
+        dashboard.addLog(`[FOTO BOT] Erro no diagnóstico: ${e.message}`);
       }
     }, 3000);
 
@@ -326,6 +335,7 @@ async function syncRecentPhotos(client) {
     dashboard.addLog(`[SYNC FOTO] Total de membros únicos identificados: ${voterIds.size}. Sincronizando fotos...`);
 
     let count = 0;
+    let semFoto = 0;
     let skipped = 0;
     let errors = 0;
 
@@ -355,7 +365,7 @@ async function syncRecentPhotos(client) {
             `[SYNC FOTO] Foto obtida para ${name} (${id.split('@')[0]}): ${photoUrl.substring(0, 60)}...`
           );
         } else {
-          // Sem foto pública ou indisponível
+          semFoto++;
         }
 
         await new Promise((resolve) => setTimeout(resolve, 500));
@@ -365,7 +375,7 @@ async function syncRecentPhotos(client) {
     }
 
     dashboard.addLog(
-      `[SYNC FOTO] Concluído! Fotos atualizadas no banco: ${count} | Pulados/Sem foto: ${skipped} | Erros: ${errors}`
+      `[SYNC FOTO] Concluído! Fotos atualizadas no banco: ${count} | Sem foto pública: ${semFoto} | Pulados: ${skipped} | Erros: ${errors}`
     );
 
   } catch (globalErr) {
