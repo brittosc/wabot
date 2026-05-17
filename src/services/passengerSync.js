@@ -168,6 +168,26 @@ async function precarregarFotosVisualmente(client, groups, logCallback) {
   const page = client.pupPage;
   const photoCache = new Map();
 
+  // 1. Fechar qualquer modal, pop-up ou visualizador de mídias globais que possa cobrir a tela
+  try {
+    for (let i = 0; i < 3; i++) {
+      await page.keyboard.press('Escape');
+      await new Promise(r => setTimeout(r, 150));
+    }
+    await page.evaluate(() => {
+      const closeButtons = Array.from(document.querySelectorAll('[data-testid="x-viewer"], [data-testid="popup-close"], [data-testid="visual-media-viewer-close-button"], button[aria-label="Fechar"], button span[data-testid="x"]'));
+      closeButtons.forEach(btn => { try { btn.click(); } catch(e) {} });
+      
+      // Garante que a aba de Conversas (Chats) está ativa no painel lateral esquerdo
+      const chatsBtn = document.querySelector('[data-testid="menu-bar-chats"]') || 
+                       document.querySelector('[aria-label="Conversas"]') ||
+                       document.querySelector('[data-testid="chats"]') ||
+                       document.querySelector('button[title="Conversas"]');
+      if (chatsBtn) chatsBtn.click();
+    });
+    await new Promise(r => setTimeout(r, 1000));
+  } catch (modalErr) {}
+
   logCallback(chalk.gray("⏳ Aguardando renderização completa da barra lateral de chats..."));
   await page.waitForSelector('#pane-side', { timeout: 15000 }).catch(() => null);
   await new Promise(r => setTimeout(r, 2000)); // Delay extra de estabilização
@@ -176,6 +196,15 @@ async function precarregarFotosVisualmente(client, groups, logCallback) {
     const groupJid = group.id._serialized;
     const groupName = group.name;
     logCallback(chalk.blue(`📸 Executando varredura visual no grupo: ${chalk.bold(groupName)}...`));
+
+    // Fechar modais novamente no início de cada grupo por garantia absoluta
+    try {
+      await page.keyboard.press('Escape');
+      await page.evaluate(() => {
+        const closeButtons = Array.from(document.querySelectorAll('[data-testid="x-viewer"], [data-testid="popup-close"], [data-testid="visual-media-viewer-close-button"], button[aria-label="Fechar"], button span[data-testid="x"]'));
+        closeButtons.forEach(btn => { try { btn.click(); } catch(e) {} });
+      });
+    } catch (e) {}
 
     try {
       // 1. Abrir o grupo de forma visual e ultra-estável navegando via hash de URL interna
