@@ -183,8 +183,8 @@ async function startBot() {
           
           return {
             keys: Object.keys(contact),
-            profilePicThumbObjKeys: contact.profilePicThumbObj ? Object.keys(contact.profilePicThumbObj) : "Inexistente",
-            profilePicThumbObjVal: contact.profilePicThumbObj ? contact.profilePicThumbObj : "Inexistente"
+            profilePicThumbObjKeys: contact.__x_profilePicThumb ? Object.keys(contact.__x_profilePicThumb) : "Inexistente",
+            profilePicThumbObjVal: contact.__x_profilePicThumb ? contact.__x_profilePicThumb : "Inexistente"
           };
         }, botJid).catch((e) => e.message);
         
