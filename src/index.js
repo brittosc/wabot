@@ -183,43 +183,46 @@ async function startBot() {
 
         dashboard.addLog(`[FOTO BOT] Buscando... JID: ${botJid}`);
 
-        // 2. Diagnóstico profundo de propriedades privadas do contato do bot
-        const contactState = await client.pupPage.evaluate((jidStr) => {
+        // 2. Diagnóstico de coleções de mídia no Store
+        const storePicKeys = await client.pupPage.evaluate(() => {
           const Store = window.Store;
-          if (!Store) return { error: "Sem Store" };
-          const Contacts = Store.Contact || Store.ContactCollection;
-          if (!Contacts) return { error: "Sem coleção de contatos" };
-          const wid = Store.WidFactory.createWid(jidStr);
-          const contact = Contacts.get(wid);
-          if (!contact) return { error: "Contato do bot não encontrado no cache" };
-          
-          return {
-            hasProfilePicThumb: !!contact.__x_profilePicThumb,
-            __x_img: contact.__x_profilePicThumb ? contact.__x_profilePicThumb.__x_img : null,
-            __x_imgFull: contact.__x_profilePicThumb ? contact.__x_profilePicThumb.__x_imgFull : null,
-            eurl: contact.__x_profilePicThumb ? contact.__x_profilePicThumb.eurl : null
-          };
+          if (!Store) return "Sem Store";
+          return Object.keys(Store).filter(k => k.toLowerCase().includes("profilepic") || k.toLowerCase().includes("thumb"));
+        }).catch((e) => e.message);
+        dashboard.addLog(`[DIAG STORE PIC] Coleções: ${JSON.stringify(storePicKeys)}`);
+
+        // 3. Execução direta e captura de retorno das Promises de rede
+        const serverResponse = await client.pupPage.evaluate(async (jidStr) => {
+          try {
+            const Store = window.Store;
+            if (!Store || !Store.ProfilePic) return "Sem ProfilePic no Store";
+            const wid = Store.WidFactory.createWid(jidStr);
+            
+            if (Store.ProfilePic.requestProfilePicFromServer) {
+              const res = await Store.ProfilePic.requestProfilePicFromServer(wid);
+              return { method: "requestProfilePicFromServer", raw: res };
+            }
+            if (Store.ProfilePic.profilePicResync) {
+              const res = await Store.ProfilePic.profilePicResync(wid);
+              return { method: "profilePicResync", raw: res };
+            }
+            return "Sem método de rede";
+          } catch (e) {
+            return { error: e.message };
+          }
         }, botJid).catch((e) => ({ error: e.message }));
+        dashboard.addLog(`[DIAG SERVER RES] Retorno: ${JSON.stringify(serverResponse)}`);
 
-        dashboard.addLog(`[FOTO BOT STATE] Contato: ${JSON.stringify(contactState)}`);
-
-        // 3. Varredura do DOM buscando imagens no HTML que representem o avatar do bot
-        const domImages = await client.pupPage.evaluate(() => {
+        // 4. Varredura irrestrita de todas as tags img do DOM (captura blobs e avatares locais)
+        const allDomImages = await client.pupPage.evaluate(() => {
           const imgs = Array.from(document.querySelectorAll("img"));
-          return imgs
-            .map(img => ({
-              src: img.src,
-              alt: img.alt || "Sem alt",
-              parentClass: img.parentElement ? img.parentElement.className : ""
-            }))
-            .filter(info => info.src.includes("pps.whatsapp.net") || info.src.includes("pp?"));
+          return imgs.map(img => ({
+            src: img.src.substring(0, 100) + (img.src.length > 100 ? "..." : ""),
+            alt: img.alt || "Sem alt",
+            tagName: img.tagName
+          }));
         }).catch(() => []);
-
-        if (domImages.length > 0) {
-          dashboard.addLog(`[FOTO BOT DOM IMGS] Encontradas no HTML: ${JSON.stringify(domImages)}`);
-        } else {
-          dashboard.addLog(`[FOTO BOT DOM IMGS] Nenhuma imagem de perfil renderizada no HTML ainda.`);
-        }
+        dashboard.addLog(`[DIAG DOM IMGS] Total imgs no HTML: ${allDomImages.length} | URLs: ${JSON.stringify(allDomImages)}`);
       } catch (e) {
         dashboard.addLog(`[FOTO BOT] Erro no loop de foco: ${e.message}`);
       }
