@@ -178,49 +178,21 @@ async function precarregarFotosVisualmente(client, groups, logCallback) {
     logCallback(chalk.blue(`📸 Executando varredura visual no grupo: ${chalk.bold(groupName)}...`));
 
     try {
-      // 1. Clicar no grupo na barra lateral com simulação de coordenadas e mousedown/mouseup
-      const chatOpened = await page.evaluate(async (jid, name) => {
-        // Tenta achar pelo JID
-        let el = document.querySelector(`[data-id*="${jid}"]`) || 
-                 document.querySelector(`[data-jid*="${jid}"]`);
-        
-        if (!el) {
-          // Tenta Nome do Grupo em spans de título
-          const spans = Array.from(document.querySelectorAll('span[title]'));
-          const targetSpan = spans.find(s => s.getAttribute('title') === name);
-          if (targetSpan) {
-            el = targetSpan.closest('[role="row"]') || targetSpan;
+      // 1. Abrir o grupo de forma ultra-estável usando comando nativo interno do WhatsApp Web
+      const chatOpened = await page.evaluate(async (jid) => {
+        try {
+          const Store = window.Store;
+          if (Store && Store.Cmds && Store.Cmds.openChatAt && Store.WidFactory) {
+            const wid = Store.WidFactory.createWid(jid);
+            await Store.Cmds.openChatAt(wid);
+            return true;
           }
-        }
-
-        if (!el) {
-          // Fallback final: procurar qualquer span que tenha o texto do nome do grupo
-          const allSpans = Array.from(document.querySelectorAll('span'));
-          const fallbackSpan = allSpans.find(s => s.textContent && s.textContent.trim() === name);
-          if (fallbackSpan) {
-            el = fallbackSpan.closest('[role="row"]') || fallbackSpan;
-          }
-        }
-        
-        if (el) {
-          el.scrollIntoView({ block: 'center' });
-          
-          // Dispara eventos de mouse completos e simulados com coordenadas reais para garantir foco/clique
-          const rect = el.getBoundingClientRect();
-          const x = rect.left + rect.width / 2;
-          const y = rect.top + rect.height / 2;
-          
-          el.dispatchEvent(new MouseEvent('mouseover', { bubbles: true, view: window }));
-          el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, view: window, clientX: x, clientY: y }));
-          el.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, view: window, clientX: x, clientY: y }));
-          el.click();
-          return true;
-        }
+        } catch (e) {}
         return false;
-      }, groupJid, groupName);
+      }, groupJid);
 
       if (!chatOpened) {
-        logCallback(chalk.yellow(`  ⚠️ Não foi possível clicar no chat do grupo "${groupName}" na barra lateral.`));
+        logCallback(chalk.yellow(`  ⚠️ Não foi possível abrir o chat do grupo "${groupName}" via comando interno.`));
         continue;
       }
 
