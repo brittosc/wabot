@@ -110,6 +110,17 @@ async function startBot() {
     dashboard.setStatus("Conectado!");
     dashboard.setQrCode(""); // Limpa QR
 
+    // Diagnóstico: Tenta obter e printar a foto do próprio bot no console do terminal
+    try {
+      const botJid = client.info.wid._serialized;
+      const botInfo = await resolveContactInfo(client, botJid);
+      dashboard.addLog(
+        `[FOTO BOT] JID: ${botJid} | Foto: ${botInfo.photoUrl ? botInfo.photoUrl.substring(0, 80) + '...' : "Nenhuma/Não encontrada"}`
+      );
+    } catch (e) {
+      dashboard.addLog(`[FOTO BOT] Erro ao obter foto do bot: ${e.message}`);
+    }
+
     // Garante que o agendamento e o check só ocorram uma única vez
     if (!global.isInitialized) {
       cronJob.scheduleJob(client);
