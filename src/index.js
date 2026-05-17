@@ -464,7 +464,7 @@ async function syncRecentPhotos(client) {
   // Delay de 5s para não brigar com as mensagens de inicialização
   await new Promise((resolve) => setTimeout(resolve, 5000));
 
-  dashboard.addLog("[SYNC FOTO] Iniciando varredura de membros dos grupos do WhatsApp...");
+  dashboard.addLog("[SYNC FOTO] Iniciando varredura rica de membros dos grupos (c.us e lid)...");
 
   try {
     const config = configService.getConfig();
@@ -478,109 +478,185 @@ async function syncRecentPhotos(client) {
     const chats = await client.getChats().catch(() => []);
     const allGroups = chats.filter((c) => c.isGroup);
 
-    const voterIds = new Set();
-
+    const targetGroupWids = [];
     for (const targetName of targetGroupNames) {
       const group = allGroups.find((g) => g.name === targetName);
       if (group) {
+        targetGroupWids.push(group.id._serialized);
         dashboard.addLog(`[SYNC FOTO] Varrendo participantes do grupo: ${targetName}`);
-        
-        let participants = group.participants || [];
-        if (participants.length === 0) {
-          const groupChat = await client.getChatById(group.id._serialized).catch(() => null);
-          if (groupChat && groupChat.participants) {
-            participants = groupChat.participants;
-          }
-        }
-
-        participants.forEach((p) => {
-          if (p.id && p.id._serialized) {
-            voterIds.add(p.id._serialized);
-          }
-        });
       } else {
         dashboard.addLog(`[SYNC FOTO] Grupo não encontrado nos chats ativos: ${targetName}`);
       }
     }
 
-    if (voterIds.size === 0) {
-      dashboard.addLog("[SYNC FOTO] Nenhum participante encontrado nos grupos ativos.");
+    if (targetGroupWids.length === 0) {
+      dashboard.addLog("[SYNC FOTO] Nenhum grupo alvo encontrado.");
       return;
     }
 
-    const idsArray = Array.from(voterIds);
-    dashboard.addLog(`[SYNC FOTO] ${idsArray.length} membros identificados. Buscando fotos 1 a 1...`);
+    // Extrai os participantes de forma rica do WhatsApp Web via Puppeteer
+    // Mapeia tanto o c.us quanto o lid de cada participante se disponível
+    const membersInfo = await client.pupPage.evaluate(async (groupJids) => {
+      try {
+        const Store = window.Store;
+        if (!Store || !Store.Chat || !Store.Contact) return [];
+
+        const result = [];
+        const seen = new Set();
+
+        for (const groupJid of groupJids) {
+          const chat = Store.Chat.get(groupJid);
+          if (!chat || !chat.groupMetadata || !chat.groupMetadata.participants) continue;
+
+          const participants = chat.groupMetadata.participants.toArray 
+            ? chat.groupMetadata.participants.toArray() 
+            : chat.groupMetadata.participants;
+
+          for (const p of participants) {
+            const pId = p.id ? p.id._serialized || p.id.toString() : null;
+            if (!pId) continue;
+
+            let lidStr = null;
+            let cUsStr = null;
+
+            if (pId.endsWith('@lid')) {
+              lidStr = pId;
+              const contact = Store.Contact.get(p.id);
+              if (contact && contact.wid && contact.wid._serialized && contact.wid._serialized.endsWith('@c.us')) {
+                cUsStr = contact.wid._serialized;
+              }
+            } else if (pId.endsWith('@c.us')) {
+              cUsStr = pId;
+              const contact = Store.Contact.get(p.id);
+              if (contact && contact.lid) {
+                lidStr = contact.lid._serialized || contact.lid.toString();
+              }
+            }
+
+            // Evitar duplicados na lista final
+            const uniqueKey = cUsStr || lidStr || pId;
+            if (!seen.has(uniqueKey)) {
+              seen.add(uniqueKey);
+              result.push({
+                id: pId,
+                cUs: cUsStr,
+                lid: lidStr
+              });
+            }
+          }
+        }
+        return result;
+      } catch (e) {
+        return [];
+      }
+    }, targetGroupWids).catch(() => []);
+
+    if (membersInfo.length === 0) {
+      dashboard.addLog("[SYNC FOTO] Nenhum participante mapeado com sucesso.");
+      return;
+    }
+
+    dashboard.addLog(`[SYNC FOTO] ${membersInfo.length} membros únicos mapeados. Buscando fotos...`);
 
     let count = 0;
     let semFoto = 0;
     let skipped = 0;
     let errors = 0;
 
-    for (const id of idsArray) {
+    for (const member of membersInfo) {
       try {
+        const id = member.id;
         if (!id || !id.includes("@")) {
           skipped++;
           continue;
         }
 
-        const cleanNumber = id.split('@')[0];
+        const cleanNumber = member.cUs ? member.cUs.split('@')[0] : id.split('@')[0];
         let photoUrl = null;
         let name = "Desconhecido";
 
         // -------------------------------------------------------
         // BUSCA DE FOTO via Store.ProfilePicThumb.find(wid)
-        // Este é o método CORRETO para qualquer usuário do WhatsApp,
-        // incluindo não-contatos e membros de grupo desconhecidos.
-        // Faz requisição real ao servidor se não estiver em cache.
+        // Este resolvedor é otimizado para testar de forma inteligente
+        // tanto o JID original quanto o seu c.us e lid mapeados.
         // -------------------------------------------------------
         try {
           photoUrl = await Promise.race([
-            client.pupPage.evaluate(async (jidStr) => {
+            client.pupPage.evaluate(async (jidOriginal, jidCUs, jidLid) => {
               try {
                 const Store = window.Store;
                 if (!Store || !Store.WidFactory) return null;
 
-                const wid = Store.WidFactory.createWid(jidStr);
-
-                // MÉTODO PRINCIPAL: ProfilePicThumb.find() faz request ao
-                // servidor para QUALQUER usuário (contato ou não-contato)
-                if (Store.ProfilePicThumb && Store.ProfilePicThumb.find) {
-                  const pic = await Store.ProfilePicThumb.find(wid);
-                  if (pic && pic.eurl) return pic.eurl;
-                  if (pic && pic.previewEurl) return pic.previewEurl;
-                }
-
-                // FALLBACK A: requestProfilePicFromServer (para contatos em cache)
                 const Contacts = Store.Contact || Store.ContactCollection;
-                const contactObj = Contacts ? Contacts.get(wid) : null;
-                if (Store.ProfilePic && Store.ProfilePic.requestProfilePicFromServer) {
-                  const target = contactObj || wid;
-                  const result = await Promise.race([
-                    Store.ProfilePic.requestProfilePicFromServer(target),
-                    new Promise(resolve => setTimeout(() => resolve(null), 4000))
-                  ]).catch(() => null);
-                  if (result && result.eurl) return result.eurl;
-                  if (result && result.previewEurl) return result.previewEurl;
+                const widsToTry = [];
+
+                // Cria os objetos Wid para cada variação de ID
+                if (jidOriginal) widsToTry.push(Store.WidFactory.createWid(jidOriginal));
+                if (jidLid) widsToTry.push(Store.WidFactory.createWid(jidLid));
+                if (jidCUs) widsToTry.push(Store.WidFactory.createWid(jidCUs));
+
+                // Remove wids inválidos ou duplicados
+                const uniqueWids = [];
+                const seenWids = new Set();
+                for (const w of widsToTry) {
+                  if (w && w._serialized && !seenWids.has(w._serialized)) {
+                    seenWids.add(w._serialized);
+                    uniqueWids.push(w);
+                  }
                 }
 
-                // FALLBACK B: lê do cache do Backbone (contatos já carregados)
-                if (contactObj) {
-                  const p = contactObj.profilePicThumb || contactObj.__x_profilePicThumb;
-                  if (p) return p.__x_imgFull || p.__x_img || p.imgFull || p.img || null;
+                // A. Tenta método principal: ProfilePicThumb.find()
+                if (Store.ProfilePicThumb && Store.ProfilePicThumb.find) {
+                  for (const targetWid of uniqueWids) {
+                    try {
+                      const pic = await Store.ProfilePicThumb.find(targetWid);
+                      if (pic && pic.eurl) return pic.eurl;
+                      if (pic && pic.previewEurl) return pic.previewEurl;
+                    } catch (e) {}
+                  }
+                }
+
+                // B. Tenta requisição remota ao servidor: requestProfilePicFromServer
+                if (Store.ProfilePic && Store.ProfilePic.requestProfilePicFromServer) {
+                  for (const targetWid of uniqueWids) {
+                    try {
+                      const contactObj = Contacts ? Contacts.get(targetWid) : null;
+                      const target = contactObj || targetWid;
+                      const result = await Promise.race([
+                        Store.ProfilePic.requestProfilePicFromServer(target),
+                        new Promise(resolve => setTimeout(() => resolve(null), 4000))
+                      ]).catch(() => null);
+
+                      if (result && result.eurl) return result.eurl;
+                      if (result && result.previewEurl) return result.previewEurl;
+                    } catch (e) {}
+                  }
+                }
+
+                // C. Lê do cache do Backbone como último recurso
+                for (const targetWid of uniqueWids) {
+                  const contactObj = Contacts ? Contacts.get(targetWid) : null;
+                  if (contactObj) {
+                    const p = contactObj.profilePicThumb || contactObj.__x_profilePicThumb;
+                    if (p) {
+                      const cachedUrl = p.__x_imgFull || p.__x_img || p.imgFull || p.img;
+                      if (cachedUrl) return cachedUrl;
+                    }
+                  }
                 }
 
                 return null;
               } catch (e) {
                 return null;
               }
-            }, id),
-            new Promise((resolve) => setTimeout(() => resolve(null), 7000))
+            }, member.id, member.cUs, member.lid),
+            new Promise((resolve) => setTimeout(() => resolve(null), 8500))
           ]).catch(() => null);
         } catch (e) {
           photoUrl = null;
         }
 
-        // Tenta obter nome do contato
+        // Tenta obter o nome real do contato
         try {
           const contact = await Promise.race([
             client.getContactById(id),
@@ -592,28 +668,53 @@ async function syncRecentPhotos(client) {
         } catch (e) {}
 
         if (photoUrl) {
-          // 1. Atualiza na tabela passengers
-          try {
-            await statistics.syncPassengerMetadata(id, name, photoUrl);
-          } catch (metadataErr) {}
-          
-          // 2. Atualiza votes pelo voter_id exato — verifica erro explicitamente
-          const { error: errExato } = await supabase
-            .from("votes")
-            .update({ photo_url: photoUrl })
-            .eq("voter_id", id);
-          if (errExato) {
-            dashboard.addLog(`[SYNC FOTO ERR] votes@eq ${cleanNumber}: ${errExato.message}`);
+          // -------------------------------------------------------
+          // PERSISTÊNCIA MULTI-ID (c.us e lid) NO SUPABASE
+          // -------------------------------------------------------
+
+          // 1. Sincroniza metadados dos passageiros (tenta salvar para ambos c.us e lid)
+          if (member.cUs) {
+            try {
+              await statistics.syncPassengerMetadata(member.cUs, name, photoUrl);
+            } catch (err) {}
+          }
+          if (member.lid) {
+            try {
+              await statistics.syncPassengerMetadata(member.lid, name, photoUrl);
+            } catch (err) {}
+          }
+          // Fallback caso id não seja cUs nem lid
+          if (id !== member.cUs && id !== member.lid) {
+            try {
+              await statistics.syncPassengerMetadata(id, name, photoUrl);
+            } catch (err) {}
           }
 
-          // 3. Atualiza votes onde voter_id contém o número (formato @lid, variações)
-          const { error: errLike } = await supabase
-            .from("votes")
-            .update({ photo_url: photoUrl })
-            .like("voter_id", `%${cleanNumber}%`)
-            .is("photo_url", null);
-          if (errLike) {
-            dashboard.addLog(`[SYNC FOTO ERR] votes@like ${cleanNumber}: ${errLike.message}`);
+          // 2. Atualiza fotos na tabela votes para TODAS as variações de IDs possíveis
+          const idsToUpdate = new Set([id]);
+          if (member.cUs) idsToUpdate.add(member.cUs);
+          if (member.lid) idsToUpdate.add(member.lid);
+
+          for (const targetId of idsToUpdate) {
+            const { error: errExato } = await supabase
+              .from("votes")
+              .update({ photo_url: photoUrl })
+              .eq("voter_id", targetId);
+            if (errExato) {
+              dashboard.addLog(`[SYNC FOTO ERR] votes@eq ${targetId}: ${errExato.message}`);
+            }
+          }
+
+          // 3. Atualiza votos onde o voter_id contém o número limpo (formato antigo ou variantes)
+          if (cleanNumber) {
+            const { error: errLike } = await supabase
+              .from("votes")
+              .update({ photo_url: photoUrl })
+              .like("voter_id", `%${cleanNumber}%`)
+              .is("photo_url", null);
+            if (errLike) {
+              dashboard.addLog(`[SYNC FOTO ERR] votes@like ${cleanNumber}: ${errLike.message}`);
+            }
           }
 
           count++;
@@ -624,10 +725,10 @@ async function syncRecentPhotos(client) {
         }
       } catch (err) {
         errors++;
-        dashboard.addLog(`[SYNC FOTO ERR] ${id.split('@')[0]}: ${err.message}`);
+        dashboard.addLog(`[SYNC FOTO ERR] ${member.id.split('@')[0]}: ${err.message}`);
       }
       
-      // Pausa entre cada membro para não sobrecarregar o WebSocket
+      // Pausa saudável entre os membros para evitar spam block no WebSocket
       await new Promise((resolve) => setTimeout(resolve, 800));
     }
 
