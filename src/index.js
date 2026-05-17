@@ -576,9 +576,32 @@ async function syncRecentPhotos(client) {
         let name = "Desconhecido";
 
         // -------------------------------------------------------
+        // FORÇA CARREGAMENTO E LEITURA: 3 a 5 segundos por contato
+        // Dispara getContactById para as variações de IDs possíveis para
+        // que o WhatsApp Web faça a busca de rede e popula o cache interno.
+        // -------------------------------------------------------
+        try {
+          client.getContactById(id).catch(() => null);
+          if (member.lid) client.getContactById(member.lid).catch(() => null);
+          if (member.cUs) client.getContactById(member.cUs).catch(() => null);
+        } catch (e) {}
+
+        // Aguarda 4 segundos de leitura ativa para processamento de rede
+        await new Promise((resolve) => setTimeout(resolve, 4000));
+
+        // Tenta obter o nome real do contato pós carregamento
+        try {
+          const contact = await Promise.race([
+            client.getContactById(id),
+            new Promise((resolve) => setTimeout(() => resolve(null), 2500))
+          ]).catch(() => null);
+          if (contact && (contact.pushname || contact.name)) {
+            name = formatName(contact.pushname || contact.name) || "Desconhecido";
+          }
+        } catch (e) {}
+
+        // -------------------------------------------------------
         // BUSCA DE FOTO via Store.ProfilePicThumb.find(wid)
-        // Este resolvedor é otimizado para testar de forma inteligente
-        // tanto o JID original quanto o seu c.us e lid mapeados.
         // -------------------------------------------------------
         try {
           photoUrl = await Promise.race([
