@@ -160,52 +160,70 @@ async function startBot() {
     dashboard.setStatus("Conectado!");
     dashboard.setQrCode(""); // Limpa QR
 
-    // Diagnóstico: Tenta obter e printar a foto do próprio bot no console do terminal com 3s de delay resiliente
-    setTimeout(async () => {
+    // Foco Total no Bot: Tenta obter e printar a foto do próprio bot repetidamente a cada 5s
+    const botInterval = setInterval(async () => {
       try {
+        if (!client.info || !client.info.wid) return;
         const botJid = client.info.wid._serialized;
-        const botInfo = await resolveContactInfo(client, botJid);
-        dashboard.addLog(
-          `[FOTO BOT] JID: ${botJid} | Foto: ${botInfo.photoUrl ? botInfo.photoUrl.substring(0, 80) + '...' : "Nenhuma/Não encontrada"}`
-        );
-
-        // Diagnóstico avançado: Inspeciona métodos de ProfilePic e chaves de Conn do bot logado
-        const info = await client.pupPage.evaluate(() => {
-          const Store = window.Store;
-          if (!Store) return { error: "Store inexistente" };
-          return {
-            methods: Store.ProfilePic ? Object.keys(Store.ProfilePic) : "ProfilePic inexistente",
-            connPicKeys: Store.Conn ? Object.keys(Store.Conn) : "Conn inexistente"
-          };
-        }).catch((e) => ({ error: e.message }));
         
-        dashboard.addLog(`[DIAG PROFILEPIC] Métodos disponíveis: ${JSON.stringify(info.methods)}`);
-        dashboard.addLog(`[DIAG CONN KEYS] Conn Keys: ${JSON.stringify(info.connPicKeys)}`);
+        // 1. Tenta obter pelo resolvedor avançado
+        const botInfo = await resolveContactInfo(client, botJid);
+        if (botInfo.photoUrl) {
+          dashboard.addLog(`[FOTO BOT] FOTO ENCONTRADA VIA RESOLVER! 🎉 URL: ${botInfo.photoUrl.substring(0, 80)}...`);
+          // Grava a foto do próprio bot no Supabase se puder
+          await supabase
+            .from("passengers")
+            .update({ photo_url: botInfo.photoUrl })
+            .eq("phone", botJid.split('@')[0])
+            .catch(() => null);
 
-        // Diagnóstico de objeto de contato
-        const contactKeys = await client.pupPage.evaluate((jidStr) => {
+          clearInterval(botInterval);
+          return;
+        }
+
+        dashboard.addLog(`[FOTO BOT] Buscando... JID: ${botJid}`);
+
+        // 2. Diagnóstico profundo de propriedades privadas do contato do bot
+        const contactState = await client.pupPage.evaluate((jidStr) => {
           const Store = window.Store;
-          if (!Store) return "Sem Store";
+          if (!Store) return { error: "Sem Store" };
           const Contacts = Store.Contact || Store.ContactCollection;
-          if (!Contacts) return "Sem coleção de contatos";
+          if (!Contacts) return { error: "Sem coleção de contatos" };
           const wid = Store.WidFactory.createWid(jidStr);
           const contact = Contacts.get(wid);
-          if (!contact) return "Contato não encontrado no cache";
+          if (!contact) return { error: "Contato do bot não encontrado no cache" };
+          
           return {
-            keys: Object.keys(contact),
-            profilePicThumbObjKeys: contact.__x_profilePicThumb ? Object.keys(contact.__x_profilePicThumb) : "Inexistente",
-            profilePicThumbObjVal: contact.__x_profilePicThumb ? {
-              __x_img: contact.__x_profilePicThumb.__x_img || null,
-              __x_imgFull: contact.__x_profilePicThumb.__x_imgFull || null
-            } : "Inexistente"
+            hasProfilePicThumb: !!contact.__x_profilePicThumb,
+            __x_img: contact.__x_profilePicThumb ? contact.__x_profilePicThumb.__x_img : null,
+            __x_imgFull: contact.__x_profilePicThumb ? contact.__x_profilePicThumb.__x_imgFull : null,
+            eurl: contact.__x_profilePicThumb ? contact.__x_profilePicThumb.eurl : null
           };
-        }, botJid).catch((e) => e.message);
-        
-        dashboard.addLog(`[DIAG CONTACT] Keys: ${JSON.stringify(contactKeys)}`);
+        }, botJid).catch((e) => ({ error: e.message }));
+
+        dashboard.addLog(`[FOTO BOT STATE] Contato: ${JSON.stringify(contactState)}`);
+
+        // 3. Varredura do DOM buscando imagens no HTML que representem o avatar do bot
+        const domImages = await client.pupPage.evaluate(() => {
+          const imgs = Array.from(document.querySelectorAll("img"));
+          return imgs
+            .map(img => ({
+              src: img.src,
+              alt: img.alt || "Sem alt",
+              parentClass: img.parentElement ? img.parentElement.className : ""
+            }))
+            .filter(info => info.src.includes("pps.whatsapp.net") || info.src.includes("pp?"));
+        }).catch(() => []);
+
+        if (domImages.length > 0) {
+          dashboard.addLog(`[FOTO BOT DOM IMGS] Encontradas no HTML: ${JSON.stringify(domImages)}`);
+        } else {
+          dashboard.addLog(`[FOTO BOT DOM IMGS] Nenhuma imagem de perfil renderizada no HTML ainda.`);
+        }
       } catch (e) {
-        dashboard.addLog(`[FOTO BOT] Erro no diagnóstico: ${e.message}`);
+        dashboard.addLog(`[FOTO BOT] Erro no loop de foco: ${e.message}`);
       }
-    }, 3000);
+    }, 5000);
 
     // Garante que o agendamento e o check só ocorram uma única vez
     if (!global.isInitialized) {
@@ -221,12 +239,14 @@ async function startBot() {
     const currentStats = await statistics.readStats();
     await statistics.updateTerminalOccupancy(currentStats);
 
-    // Sincroniza fotos de quem votou recentemente (últimos 7 dias)
+    // Suspenso temporariamente a pedido do usuário para focar 100% na foto do BOT
+    /*
     syncRecentPhotos(client).catch((err) => {
       dashboard.addLog(
         `Erro na sincronização inicial de fotos: ${err.message}`,
       );
     });
+    */
 
     if (process.argv.includes("--now")) {
       dashboard.addLog("Parâmetro --now detectado. Forçando envio imediato 🎉");
