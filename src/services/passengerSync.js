@@ -178,23 +178,10 @@ async function precarregarFotosVisualmente(client, groups, logCallback) {
     logCallback(chalk.blue(`📸 Executando varredura visual no grupo: ${chalk.bold(groupName)}...`));
 
     try {
-      // 1. Abrir o grupo de forma ultra-estável usando comando nativo interno do WhatsApp Web
-      const chatOpened = await page.evaluate(async (jid) => {
-        try {
-          const Store = window.Store;
-          if (Store && Store.Cmds && Store.Cmds.openChatAt && Store.WidFactory) {
-            const wid = Store.WidFactory.createWid(jid);
-            await Store.Cmds.openChatAt(wid);
-            return true;
-          }
-        } catch (e) {}
-        return false;
+      // 1. Abrir o grupo de forma visual e ultra-estável navegando via hash de URL interna
+      await page.evaluate((jid) => {
+        window.location.hash = `#/chat/${jid}`;
       }, groupJid);
-
-      if (!chatOpened) {
-        logCallback(chalk.yellow(`  ⚠️ Não foi possível abrir o chat do grupo "${groupName}" via comando interno.`));
-        continue;
-      }
 
       await new Promise(r => setTimeout(r, 2000)); // Aguarda carregar o chat na tela
 
