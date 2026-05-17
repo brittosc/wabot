@@ -21,6 +21,11 @@ async function getProfilePhoto(client, id) {
       } catch (e) {}
     }
 
+    // Garante a busca e instanciação do contato para contatos desconhecidos chamando a API oficial
+    try {
+      await client.getContactById(jidStr).catch(() => null);
+    } catch (e) {}
+
     // 1. Tenta a API padrão e oficial do whatsapp-web.js (prioritária sob User Agent real)
     try {
       photoUrl = await client.getProfilePicUrl(jidStr).catch(() => null);
@@ -85,6 +90,17 @@ async function getProfilePhoto(client, id) {
               }
             } catch (e) {}
 
+            // Força a query de contato no servidor para carregar metadados públicos de não-contatos
+            try {
+              if (Store.Contact) {
+                if (typeof Store.Contact.queryContact === 'function') {
+                  await Store.Contact.queryContact(contactWid);
+                } else if (typeof Store.Contact.find === 'function') {
+                  await Store.Contact.find(contactWid);
+                }
+              }
+            } catch (contactErr) {}
+
             // Estratégia Principal: Usar o método oficial de busca assíncrona do próprio WhatsApp Web
             if (Store.ProfilePic && typeof Store.ProfilePic.profilePicFind === 'function') {
               try {
@@ -94,6 +110,17 @@ async function getProfilePhoto(client, id) {
                   if (url) return url;
                 }
               } catch (picErr) {}
+            }
+
+            // Se ainda não obteve a foto, força a requisição da foto de perfil diretamente ao servidor do WhatsApp
+            if (Store.ProfilePic && typeof Store.ProfilePic.requestProfilePicFromServer === 'function') {
+              try {
+                const picResult = await Store.ProfilePic.requestProfilePicFromServer(contactWid);
+                if (picResult) {
+                  const url = picResult.imgFull || picResult.eurl || picResult.img || null;
+                  if (url) return url;
+                }
+              } catch (reqPicErr) {}
             }
 
             // Fallback: Estratégia de inserção direta na coleção ProfilePicThumb e resync manual
