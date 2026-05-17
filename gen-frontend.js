@@ -35,7 +35,6 @@ const newDataBlock = `
         let skipDates = window.skipDates;
         let pollTime = window.pollTime;
         let targetGroups = window.targetGroups;
-        let weatherForecast = window.weatherForecast;
 
 `;
 
