@@ -168,6 +168,10 @@ async function precarregarFotosVisualmente(client, groups, logCallback) {
   const page = client.pupPage;
   const photoCache = new Map();
 
+  logCallback(chalk.gray("⏳ Aguardando renderização completa da barra lateral de chats..."));
+  await page.waitForSelector('#pane-side', { timeout: 15000 }).catch(() => null);
+  await new Promise(r => setTimeout(r, 2000)); // Delay extra de estabilização
+
   for (const group of groups) {
     const groupJid = group.id._serialized;
     const groupName = group.name;
@@ -176,21 +180,33 @@ async function precarregarFotosVisualmente(client, groups, logCallback) {
     try {
       // 1. Clicar no grupo na barra lateral (tentando JID ou nome)
       const chatOpened = await page.evaluate(async (jid, name) => {
-        // Tenta JID
+        // Tenta achar pelo JID
         let el = document.querySelector(`[data-id*="${jid}"]`) || 
                  document.querySelector(`[data-jid*="${jid}"]`);
         
         if (!el) {
-          // Tenta Nome do Grupo
+          // Tenta Nome do Grupo em spans de título
           const spans = Array.from(document.querySelectorAll('span[title]'));
           const targetSpan = spans.find(s => s.getAttribute('title') === name);
           if (targetSpan) {
             el = targetSpan.closest('[role="row"]') || targetSpan;
           }
         }
+
+        if (!el) {
+          // Fallback final: procurar qualquer span que tenha o texto do nome do grupo
+          const allSpans = Array.from(document.querySelectorAll('span'));
+          const fallbackSpan = allSpans.find(s => s.textContent && s.textContent.trim() === name);
+          if (fallbackSpan) {
+            el = fallbackSpan.closest('[role="row"]') || fallbackSpan;
+          }
+        }
         
         if (el) {
           el.scrollIntoView({ block: 'center' });
+          // Simula eventos de mouse completos para garantir o foco e clique no chat
+          el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+          el.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
           el.click();
           return true;
         }
@@ -202,7 +218,7 @@ async function precarregarFotosVisualmente(client, groups, logCallback) {
         continue;
       }
 
-      await new Promise(r => setTimeout(r, 1500)); // Aguarda carregar o chat na tela
+      await new Promise(r => setTimeout(r, 2000)); // Aguarda carregar o chat na tela
 
       // 2. Clicar no cabeçalho para abrir o painel lateral "Dados do grupo"
       const headerOpened = await page.evaluate(() => {
@@ -219,7 +235,7 @@ async function precarregarFotosVisualmente(client, groups, logCallback) {
         continue;
       }
 
-      await new Promise(r => setTimeout(r, 1500)); // Aguarda abrir a barra lateral
+      await new Promise(r => setTimeout(r, 2000)); // Aguarda abrir a barra lateral
 
       // 3. Procurar e clicar no botão "Ver todos" membros
       const verTodosClicked = await page.evaluate(() => {
@@ -237,7 +253,7 @@ async function precarregarFotosVisualmente(client, groups, logCallback) {
 
       if (verTodosClicked) {
         logCallback(chalk.gray(`  • Modal de participantes aberta. Rolando lista...`));
-        await new Promise(r => setTimeout(r, 1500)); // Aguarda abrir a modal
+        await new Promise(r => setTimeout(r, 2000)); // Aguarda abrir a modal
 
         // 4. Rolar a modal suavemente em etapas
         await page.evaluate(async () => {
@@ -248,12 +264,12 @@ async function precarregarFotosVisualmente(client, groups, logCallback) {
           if (scrollContainer) {
             for (let i = 0; i < 20; i++) {
               scrollContainer.scrollTop += 350;
-              await new Promise(r => setTimeout(r, 150));
+              await new Promise(r => setTimeout(r, 200));
             }
           }
         });
 
-        await new Promise(r => setTimeout(r, 1000)); // Delay de estabilização
+        await new Promise(r => setTimeout(r, 1500)); // Delay de estabilização
 
         // Fechar a modal para liberar a tela para o próximo grupo
         await page.evaluate(() => {
@@ -273,7 +289,7 @@ async function precarregarFotosVisualmente(client, groups, logCallback) {
           if (pane) {
             for (let i = 0; i < 5; i++) {
               pane.scrollTop += 300;
-              await new Promise(r => setTimeout(r, 150));
+              await new Promise(r => setTimeout(r, 200));
             }
           }
         });
@@ -284,16 +300,29 @@ async function precarregarFotosVisualmente(client, groups, logCallback) {
     }
   }
 
-  // 5. Extrair todas as fotos da coleção ProfilePicThumb
+  // 5. Extrair todas as fotos da coleção ProfilePicThumb de forma ultra-resiliente
   logCallback(chalk.blue("\n📥 Extraindo cache de fotos obtidas visualmente..."));
   try {
     const extractedPhotos = await page.evaluate(() => {
       const Store = window.Store;
       if (!Store || !Store.ProfilePicThumb) return {};
-      const thumbs = Store.ProfilePicThumb.models;
+      
+      // Resiliência de leitura de coleção Backbone no WhatsApp Web
+      const collection = Store.ProfilePicThumb;
+      let models = [];
+      if (typeof collection.toArray === 'function') {
+        models = collection.toArray();
+      } else if (collection.models) {
+        models = collection.models;
+      } else if (collection._models) {
+        models = collection._models;
+      } else if (typeof collection.values === 'function') {
+        models = Array.from(collection.values());
+      }
+      
       const map = {};
-      for (const t of thumbs) {
-        if (t.id) {
+      for (const t of models) {
+        if (t && t.id) {
           const jid = t.id._serialized;
           const url = t.imgFull || t.eurl || t.img || null;
           if (url) map[jid] = url;
