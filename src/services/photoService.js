@@ -37,16 +37,40 @@ async function getProfilePhoto(client, id) {
             const WidFactory = Store.WidFactory || (Store.Wid && Store.Wid.WidFactory);
             if (!WidFactory) return null;
 
-            // Busca e assegura o carregamento do contato na memória, obtendo seu LID se houver
+            // Busca e assegura o carregamento do contato obtendo seu LID no IndexedDB ou Coleção
             let contactWid = WidFactory.createWid(targetJid);
-            if (Store.Contact && typeof Store.Contact.find === 'function') {
-              try {
-                const contact = await Store.Contact.find(contactWid);
+            try {
+              // 1. Tenta obter do IndexedDB local (100% resiliente e rápido)
+              const dbLid = await new Promise((resolve) => {
+                try {
+                  const req = indexedDB.open("wawc");
+                  req.onsuccess = (ev) => {
+                    const db = ev.target.result;
+                    try {
+                      const tx = db.transaction(["contact"], "readonly");
+                      const store = tx.objectStore("contact");
+                      const getReq = store.get(targetJid);
+                      getReq.onsuccess = (e) => {
+                        const res = e.target.result;
+                        resolve(res && res.lid ? res.lid : null);
+                      };
+                      getReq.onerror = () => resolve(null);
+                    } catch (e2) { resolve(null); }
+                  };
+                  req.onerror = () => resolve(null);
+                } catch (e1) { resolve(null); }
+              });
+
+              if (dbLid) {
+                contactWid = WidFactory.createWid(dbLid);
+              } else if (Store.Contact) {
+                // 2. Fallback: tenta buscar na coleção da memória
+                const contact = Store.Contact.get(contactWid);
                 if (contact && contact.lid) {
                   contactWid = contact.lid;
                 }
-              } catch (e) {}
-            }
+              }
+            } catch (e) {}
 
             const ProfilePicThumb = Store.ProfilePicThumb;
             if (!ProfilePicThumb) return null;
