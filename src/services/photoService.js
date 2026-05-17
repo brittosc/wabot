@@ -37,14 +37,24 @@ async function getProfilePhoto(client, id) {
             const WidFactory = Store.WidFactory || (Store.Wid && Store.Wid.WidFactory);
             if (!WidFactory) return null;
 
-            const wid = WidFactory.createWid(targetJid);
+            // Busca e assegura o carregamento do contato na memória, obtendo seu LID se houver
+            let contactWid = WidFactory.createWid(targetJid);
+            if (Store.Contact && typeof Store.Contact.find === 'function') {
+              try {
+                const contact = await Store.Contact.find(contactWid);
+                if (contact && contact.lid) {
+                  contactWid = contact.lid;
+                }
+              } catch (e) {}
+            }
+
             const ProfilePicThumb = Store.ProfilePicThumb;
             if (!ProfilePicThumb) return null;
 
-            let thumb = ProfilePicThumb.get(wid);
+            let thumb = ProfilePicThumb.get(contactWid);
             if (!thumb && ProfilePicThumb.modelClass) {
               try {
-                thumb = new ProfilePicThumb.modelClass({ id: wid });
+                thumb = new ProfilePicThumb.modelClass({ id: contactWid });
                 ProfilePicThumb.add(thumb);
               } catch (e) {}
             }
@@ -63,7 +73,8 @@ async function getProfilePhoto(client, id) {
               }
             }
 
-            await new Promise(resolve => setTimeout(resolve, 500));
+            // Atraso extra de segurança para a API do WhatsApp Web obter a foto do servidor
+            await new Promise(resolve => setTimeout(resolve, 800));
 
             if (thumb) {
               return thumb.imgFull || thumb.eurl || thumb.img || null;
