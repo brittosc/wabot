@@ -4,6 +4,8 @@ process.removeAllListeners("warning");
 const { Client, LocalAuth } = require("whatsapp-web.js");
 const qrcode = require("qrcode-terminal");
 const chalk = require("chalk");
+const fs = require("fs");
+const path = require("path");
 const dashboard = require("./services/dashboard");
 const cronJob = require("./services/cron-job");
 const statistics = require("./services/statistics");
@@ -61,20 +63,32 @@ async function resolveContactInfo(client, voterId) {
 async function startBot() {
   dashboard.setStatus("Processando inicialização...");
 
+  const edgePath = "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe";
+  const puppeteerOptions = {
+    headless: true,
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+      "--disable-accelerated-2d-canvas",
+      "--no-first-run",
+      "--no-zygote",
+      "--disable-gpu",
+    ],
+  };
+
+  if (fs.existsSync(edgePath)) {
+    puppeteerOptions.executablePath = edgePath;
+  }
+
   const client = new Client({
     authStrategy: new LocalAuth({ dataPath: "./auth_info" }),
-    puppeteer: {
-      headless: true,
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--disable-accelerated-2d-canvas",
-        "--no-first-run",
-        "--no-zygote",
-        "--disable-gpu",
-      ],
+    userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 Edg/122.0.0.0",
+    webVersionCache: {
+      type: "remote",
+      remotePath: "https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/{version}.html"
     },
+    puppeteer: puppeteerOptions,
   });
 
   client.on("qr", (qr) => {
