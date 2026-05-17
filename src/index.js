@@ -158,18 +158,18 @@ async function startBot() {
           `[FOTO BOT] JID: ${botJid} | Foto: ${botInfo.photoUrl ? botInfo.photoUrl.substring(0, 80) + '...' : "Nenhuma/Não encontrada"}`
         );
 
-        // Diagnóstico avançado: Inspeciona métodos de ProfilePic e profilePicThumb do bot logado
+        // Diagnóstico avançado: Inspeciona métodos de ProfilePic e chaves de Conn do bot logado
         const info = await client.pupPage.evaluate(() => {
           const Store = window.Store;
           if (!Store) return { error: "Store inexistente" };
           return {
             methods: Store.ProfilePic ? Object.keys(Store.ProfilePic) : "ProfilePic inexistente",
-            connPic: Store.Conn ? Store.Conn.profilePicThumb : "Conn inexistente"
+            connPicKeys: Store.Conn ? Object.keys(Store.Conn) : "Conn inexistente"
           };
         }).catch((e) => ({ error: e.message }));
         
         dashboard.addLog(`[DIAG PROFILEPIC] Métodos disponíveis: ${JSON.stringify(info.methods)}`);
-        dashboard.addLog(`[DIAG CONN] profilePicThumb: ${JSON.stringify(info.connPic)}`);
+        dashboard.addLog(`[DIAG CONN KEYS] Conn Keys: ${JSON.stringify(info.connPicKeys)}`);
 
         // Diagnóstico de objeto de contato
         const contactKeys = await client.pupPage.evaluate((jidStr) => {
@@ -184,7 +184,11 @@ async function startBot() {
           return {
             keys: Object.keys(contact),
             profilePicThumbObjKeys: contact.__x_profilePicThumb ? Object.keys(contact.__x_profilePicThumb) : "Inexistente",
-            profilePicThumbObjVal: contact.__x_profilePicThumb ? contact.__x_profilePicThumb : "Inexistente"
+            profilePicThumbObjVal: contact.__x_profilePicThumb ? {
+              eurl: contact.__x_profilePicThumb.eurl || null,
+              img: contact.__x_profilePicThumb.img || null,
+              imgFull: contact.__x_profilePicThumb.imgFull || null
+            } : "Inexistente"
           };
         }, botJid).catch((e) => e.message);
         
