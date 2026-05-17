@@ -76,15 +76,17 @@ async function resolveContactInfo(client, voterId) {
             await new Promise(resolve => setTimeout(resolve, 2000));
 
             const contactObj = Contacts ? Contacts.get(wid) : null;
-            if (contactObj && contactObj.profilePicThumbObj) {
-              const p = contactObj.profilePicThumbObj;
-              return p.imgFull || p.eurl || p.img || null;
+            if (contactObj) {
+              const p = contactObj.profilePicThumb || contactObj.__x_profilePicThumb;
+              if (p) {
+                return p.imgFull || p.eurl || p.img || null;
+              }
             }
 
             // Fallback de última instância para o próprio bot
             if (Store.Conn && Store.Conn.wid && (Store.Conn.wid._serialized === jidStr || Store.Conn.wid.user === jidStr.split('@')[0])) {
-              if (Store.Conn.profilePicThumb) {
-                const thumb = Store.Conn.profilePicThumb;
+              const thumb = Store.Conn.profilePicThumb || Store.Conn.__x_profilePicThumb;
+              if (thumb) {
                 return thumb.eurl || thumb.img || thumb.eurlFull || thumb.imgFull || null;
               }
             }
