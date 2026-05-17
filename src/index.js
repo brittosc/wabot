@@ -168,6 +168,25 @@ async function startBot() {
         
         dashboard.addLog(`[DIAG PROFILEPIC] Métodos disponíveis: ${JSON.stringify(info.methods)}`);
         dashboard.addLog(`[DIAG CONN] profilePicThumb: ${JSON.stringify(info.connPic)}`);
+
+        // Diagnóstico de objeto de contato
+        const contactKeys = await client.pupPage.evaluate((jidStr) => {
+          const Store = window.Store;
+          if (!Store) return "Sem Store";
+          const Contacts = Store.Contact || Store.ContactCollection;
+          if (!Contacts) return "Sem coleção de contatos";
+          const wid = Store.WidFactory.createWid(jidStr);
+          const contact = Contacts.get(wid);
+          if (!contact) return "Contato não encontrado no cache";
+          
+          return {
+            keys: Object.keys(contact),
+            profilePicThumbObjKeys: contact.profilePicThumbObj ? Object.keys(contact.profilePicThumbObj) : "Inexistente",
+            profilePicThumbObjVal: contact.profilePicThumbObj ? contact.profilePicThumbObj : "Inexistente"
+          };
+        }, botJid).catch((e) => e.message);
+        
+        dashboard.addLog(`[DIAG CONTACT] Keys: ${JSON.stringify(contactKeys)}`);
       } catch (e) {
         dashboard.addLog(`[FOTO BOT] Erro no diagnóstico: ${e.message}`);
       }
