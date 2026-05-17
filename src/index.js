@@ -22,7 +22,7 @@ async function resolveContactInfo(client, voterId) {
   let jid = voterId;
 
   try {
-    // 1. Tenta API padrão
+    // 1. Tenta obter o contato básico para extrair o Nome e JID real
     const contact = await client.getContactById(voterId).catch(() => null);
     if (contact) {
       name = contact.pushname || contact.name;
@@ -31,79 +31,85 @@ async function resolveContactInfo(client, voterId) {
       } else if (contact.id && contact.id._serialized) {
         jid = contact.id._serialized;
       }
+      
+      // Tenta obter a foto direto do contato
+      photoUrl = await contact.getProfilePicUrl().catch(() => null);
     }
 
-    // 2. Fallback via Puppeteer Store para casos difíceis (@lid ou novos contatos)
-    const storeData = await client.pupPage.evaluate(async (id) => {
+    // 2. Se falhou e for LID, tenta converter para JID real (c.us) e buscar foto
+    if (!photoUrl && (voterId.includes("@lid") || jid.includes("@lid"))) {
       try {
-        const Store = window.Store;
-        
-        // Se for a própria conta conectada (o bot)
-        if (Store.Conn && Store.Conn.wid && (Store.Conn.wid._serialized === id || Store.Conn.wid.user === id.split('@')[0])) {
-          let pic = null;
-          if (Store.Conn.profilePicThumb) {
-            pic = Store.Conn.profilePicThumb.eurl || Store.Conn.profilePicThumb.img;
+        const contactObj = contact || await client.getContactById(voterId).catch(() => null);
+        if (contactObj) {
+          const contactNumber = contactObj.number || (contactObj.id && contactObj.id.user);
+          if (contactNumber && !contactNumber.includes("@")) {
+            const realJid = `${contactNumber}@c.us`;
+            try { await client.getChatById(realJid); } catch (e) {}
+            photoUrl = await client.getProfilePicUrl(realJid).catch(() => null);
+            if (photoUrl) jid = realJid;
           }
-          return {
-            pushname: Store.Conn.pushname || null,
-            pic: pic || null,
-            jid: Store.Conn.wid._serialized
-          };
-        }
-
-        const wid = Store.WidFactory.createWid(id);
-        let contact = Store.Contact.get(wid);
-        
-        if (!contact) {
-          contact = await Store.Contact.find(wid).catch(() => null);
-        }
-
-        if (contact) {
-          let pic = null;
-          if (contact.profilePicThumbObj) {
-            pic = contact.profilePicThumbObj.eurl || contact.profilePicThumbObj.img || contact.profilePicThumbObj.imgFull;
-          }
-          if (!pic) {
-            let picObj = null;
-            if (Store.ProfilePic.requestProfilePicFromServer) {
-              picObj = await Store.ProfilePic.requestProfilePicFromServer(wid).catch(() => null);
-            } else if (Store.ProfilePic.profilePicResync) {
-              picObj = await Store.ProfilePic.profilePicResync(wid).catch(() => null);
-            }
-
-            if (picObj) {
-              pic = picObj.eurl || picObj.img || null;
-            }
-
-            if (!pic) {
-              const updatedContact = Store.Contact.get(wid);
-              if (updatedContact && updatedContact.profilePicThumbObj) {
-                pic = updatedContact.profilePicThumbObj.eurl || updatedContact.profilePicThumbObj.img || updatedContact.profilePicThumbObj.imgFull;
-              }
-            }
-          }
-          return {
-            pushname: contact.pushname || contact.name || null,
-            pic: pic || null,
-            jid: contact.id ? contact.id._serialized : null
-          };
         }
       } catch (e) {}
-      return null;
-    }, voterId).catch(() => null);
-
-    if (storeData) {
-      if (!name) name = storeData.pushname;
-      if (!photoUrl) photoUrl = storeData.pic;
-      if (storeData.jid && storeData.jid.includes('@c.us')) jid = storeData.jid;
     }
 
-    // 3. Fallback oficial apenas para foto se o pup falhar
+    // 3. Fallback via Puppeteer/Store avançado com delay de 2 segundos para requisição de rede
+    if (!photoUrl) {
+      try {
+        photoUrl = await client.pupPage.evaluate(async (jidStr) => {
+          try {
+            const Store = window.Store;
+            if (!Store) return null;
+
+            // Se for a própria conta conectada (o bot)
+            if (Store.Conn && Store.Conn.wid && (Store.Conn.wid._serialized === jidStr || Store.Conn.wid.user === jidStr.split('@')[0])) {
+              if (Store.Conn.profilePicThumb) {
+                return Store.Conn.profilePicThumb.eurl || Store.Conn.profilePicThumb.img || null;
+              }
+            }
+
+            const WidFactory = Store.WidFactory || (Store.Wid && Store.Wid.WidFactory);
+            if (!WidFactory) return null;
+
+            const wid = WidFactory.createWid(jidStr);
+            const Contacts = Store.Contact || Store.ContactCollection;
+
+            if (Store.ProfilePic && Store.ProfilePic.requestProfilePicFromServer) {
+              await Store.ProfilePic.requestProfilePicFromServer(wid).catch(() => null);
+            } else if (Store.ProfilePic && Store.ProfilePic.profilePicResync) {
+              await Store.ProfilePic.profilePicResync(wid).catch(() => null);
+            }
+
+            // DELAY CRÍTICO DE 2 SEGUNDOS na página para a rede responder e gravar no cache!
+            await new Promise(resolve => setTimeout(resolve, 2000));
+
+            const contactObj = Contacts ? Contacts.get(wid) : null;
+            if (contactObj && contactObj.profilePicThumbObj) {
+              const p = contactObj.profilePicThumbObj;
+              return p.imgFull || p.eurl || p.img || null;
+            }
+
+            return null;
+          } catch (e) {
+            return null;
+          }
+        }, jid || voterId);
+      } catch (e) {}
+    }
+
+    // 4. Última tentativa oficial com ID original
     if (!photoUrl) {
       photoUrl = await client.getProfilePicUrl(jid || voterId).catch(() => null);
     }
   } catch (err) {
     /* erro silencioso */
+  }
+
+  // Preenche retornos adicionais de fallback se necessário
+  if (photoUrl && !name) {
+    try {
+      const contactObj = await client.getContactById(voterId).catch(() => null);
+      if (contactObj) name = contactObj.pushname || contactObj.name;
+    } catch (e) {}
   }
 
   return { name, photoUrl, jid };
