@@ -528,17 +528,73 @@ async function syncRecentPhotos(client) {
         let name = "Desconhecido";
 
         // -------------------------------------------------------
-        // BUSCA DE FOTO: client.getProfilePicUrl() funciona para
-        // QUALQUER membro de grupo, mesmo sem ser contato salvo.
-        // Timeout de 8s pois é batch sem urgência de tempo real.
+        // BUSCA DE FOTO VIA PUPPETEER (requestProfilePicFromServer)
+        // Funciona para QUALQUER membro de grupo — contato ou não.
+        // client.getProfilePicUrl() retorna null para não-contatos
+        // e para o próprio número do bot, por isso usamos o Store.
+        // Timeout interno de 5s (não-contatos levam 2-5s para resolver).
         // -------------------------------------------------------
         try {
           photoUrl = await Promise.race([
-            client.getProfilePicUrl(id),
-            new Promise((resolve) => setTimeout(() => resolve(null), 8000))
+            client.pupPage.evaluate(async (jidStr) => {
+              try {
+                const Store = window.Store;
+                if (!Store || !Store.WidFactory) return null;
+
+                const wid = Store.WidFactory.createWid(jidStr);
+                const Contacts = Store.Contact || Store.ContactCollection;
+
+                // A. Verifica primeiro o cache em memória (resposta imediata)
+                const contactObj = Contacts ? Contacts.get(wid) : null;
+                if (contactObj) {
+                  const p = contactObj.profilePicThumb || contactObj.__x_profilePicThumb;
+                  if (p && (p.__x_imgFull || p.__x_img || p.imgFull || p.img)) {
+                    return p.__x_imgFull || p.__x_img || p.imgFull || p.img;
+                  }
+                }
+
+                // B. Faz requisição real ao servidor do WhatsApp com timeout de 5s
+                // (funciona para contatos E não-contatos, inclusive o próprio número)
+                if (Store.ProfilePic && Store.ProfilePic.requestProfilePicFromServer) {
+                  const target = contactObj || wid;
+                  const result = await Promise.race([
+                    Store.ProfilePic.requestProfilePicFromServer(target),
+                    new Promise(resolve => setTimeout(() => resolve(null), 5000))
+                  ]).catch(() => null);
+
+                  if (result && (result.eurl || result.previewEurl)) {
+                    return result.eurl || result.previewEurl;
+                  }
+
+                  // C. Após a requisição, tenta ler o cache novamente (pode ter sido populado)
+                  const fresh = Contacts ? Contacts.get(wid) : null;
+                  if (fresh) {
+                    const p = fresh.profilePicThumb || fresh.__x_profilePicThumb;
+                    if (p && (p.__x_imgFull || p.__x_img || p.imgFull || p.img)) {
+                      return p.__x_imgFull || p.__x_img || p.imgFull || p.img;
+                    }
+                  }
+                }
+
+                return null;
+              } catch (e) {
+                return null;
+              }
+            }, id),
+            new Promise((resolve) => setTimeout(() => resolve(null), 7000))
           ]).catch(() => null);
         } catch (e) {
           photoUrl = null;
+        }
+
+        // Fallback: getProfilePicUrl para contatos salvos (rápido quando funciona)
+        if (!photoUrl) {
+          try {
+            photoUrl = await Promise.race([
+              client.getProfilePicUrl(id),
+              new Promise((resolve) => setTimeout(() => resolve(null), 3000))
+            ]).catch(() => null);
+          } catch (e) {}
         }
 
         // Tenta obter nome (melhoria visual no log e no banco)
