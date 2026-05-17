@@ -85,36 +85,48 @@ async function getProfilePhoto(client, id) {
               }
             } catch (e) {}
 
-            const ProfilePicThumb = Store.ProfilePicThumb;
-            if (!ProfilePicThumb) return null;
-
-            let thumb = ProfilePicThumb.get(contactWid);
-            if (!thumb && ProfilePicThumb.modelClass) {
+            // Estratégia Principal: Usar o método oficial de busca assíncrona do próprio WhatsApp Web
+            if (Store.ProfilePic && typeof Store.ProfilePic.profilePicFind === 'function') {
               try {
-                thumb = new ProfilePicThumb.modelClass({ id: contactWid });
-                ProfilePicThumb.add(thumb);
-              } catch (e) {}
+                const picResult = await Store.ProfilePic.profilePicFind(contactWid);
+                if (picResult) {
+                  const url = picResult.imgFull || picResult.eurl || picResult.img || null;
+                  if (url) return url;
+                }
+              } catch (picErr) {}
             }
 
-            if (thumb && (!thumb.imgFull && !thumb.eurl && !thumb.img)) {
-              if (Store.ProfilePic && Store.ProfilePic.profilePicResync) {
+            // Fallback: Estratégia de inserção direta na coleção ProfilePicThumb e resync manual
+            const ProfilePicThumb = Store.ProfilePicThumb;
+            if (ProfilePicThumb) {
+              let thumb = ProfilePicThumb.get(contactWid);
+              if (!thumb && ProfilePicThumb.modelClass) {
                 try {
-                  await Store.ProfilePic.profilePicResync([thumb]);
-                } catch (err) {
-                  if (Store.ProfilePic.requestProfilePicFromServer) {
-                    try {
-                      await Store.ProfilePic.requestProfilePicFromServer(thumb);
-                    } catch (e2) {}
+                  thumb = new ProfilePicThumb.modelClass({ id: contactWid });
+                  ProfilePicThumb.add(thumb);
+                } catch (e) {}
+              }
+
+              if (thumb && (!thumb.imgFull && !thumb.eurl && !thumb.img)) {
+                if (Store.ProfilePic && Store.ProfilePic.profilePicResync) {
+                  try {
+                    await Store.ProfilePic.profilePicResync([thumb]);
+                  } catch (err) {
+                    if (Store.ProfilePic.requestProfilePicFromServer) {
+                      try {
+                        await Store.ProfilePic.requestProfilePicFromServer(thumb);
+                      } catch (e2) {}
+                    }
                   }
                 }
               }
-            }
 
-            // Atraso extra de segurança para a API do WhatsApp Web obter a foto do servidor
-            await new Promise(resolve => setTimeout(resolve, 800));
+              // Atraso de estabilização
+              await new Promise(resolve => setTimeout(resolve, 800));
 
-            if (thumb) {
-              return thumb.imgFull || thumb.eurl || thumb.img || null;
+              if (thumb) {
+                return thumb.imgFull || thumb.eurl || thumb.img || null;
+              }
             }
 
             return null;
