@@ -35,14 +35,27 @@ async function getProfilePhoto(client, id) {
           const Contacts = Store.Contact || Store.ContactCollection;
           if (!Contacts) return null;
 
-          // Garante que o contato está no cache do Contacts
+          // Força a busca real no servidor do WhatsApp para obter as informações e a foto pública do contato
           let contactObj = Contacts.get(wid);
+          if (!contactObj && Contacts.find) {
+            try {
+              contactObj = await Contacts.find(wid);
+            } catch (e) {}
+          }
+
           if (!contactObj && Contacts.gadd) {
             Contacts.gadd(wid, { silent: true });
             contactObj = Contacts.get(wid);
           }
 
           if (!contactObj) return null;
+
+          // Se já possui a foto no cache local, retorna imediatamente
+          if (contactObj.profilePicThumbObj) {
+            const p = contactObj.profilePicThumbObj;
+            const cachedUrl = p.imgFull || p.eurl || p.img;
+            if (cachedUrl) return cachedUrl;
+          }
 
           // Executa a requisição forçada no servidor do WhatsApp passando o contactObj inteiro (corrige isNewsletter!)
           if (Store.ProfilePic && Store.ProfilePic.requestProfilePicFromServer) {
@@ -62,8 +75,8 @@ async function getProfilePhoto(client, id) {
             }
           }
 
-          // Se ainda não obteve, aguarda um pouco para que o profilePicThumbObj seja populado em segundo plano
-          await new Promise(resolve => setTimeout(resolve, 800));
+          // Se ainda não obteve, aguarda um curto intervalo para que a rede popule o profilePicThumbObj
+          await new Promise(resolve => setTimeout(resolve, 400));
 
           if (contactObj.profilePicThumbObj) {
             const p = contactObj.profilePicThumbObj;
