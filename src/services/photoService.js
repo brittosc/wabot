@@ -9,65 +9,84 @@ async function getProfilePhoto(client, id) {
   try {
     let photoUrl = null;
 
-    // 1. Tenta via objeto de contato (método mais simples)
-    try {
-      const contact = await client.getContactById(id);
-      photoUrl = await contact.getProfilePicUrl().catch(() => null);
-    } catch (e) {}
-
-    // 2. Se falhou e for LID, tenta converter para JID real (c.us)
-    if (!photoUrl && id.includes("@lid")) {
+    // Se for LID, tenta converter para o JID real de telefone c.us
+    let jidStr = id;
+    if (id.includes("@lid")) {
       try {
         const contact = await client.getContactById(id);
         const contactNumber = contact.number || (contact.id && contact.id.user);
         if (contactNumber && !contactNumber.includes("@")) {
-          const jid = `${contactNumber}@c.us`;
-          // Força o carregamento do chat antes de pedir a foto
-          try { await client.getChatById(jid); } catch (e) {}
-          photoUrl = await client.getProfilePicUrl(jid).catch(() => null);
+          jidStr = `${contactNumber}@c.us`;
         }
       } catch (e) {}
     }
 
-    // 3. Tenta via Puppeteer/Store (método avançado)
+    // 1. Tenta a estratégia robusta com Puppeteer, corrigindo o erro isNewsletter
+    try {
+      photoUrl = await client.pupPage.evaluate(async (targetJid) => {
+        try {
+          const Store = window.Store;
+          if (!Store) return null;
+
+          const WidFactory = Store.WidFactory || (Store.Wid && Store.Wid.WidFactory);
+          if (!WidFactory) return null;
+
+          const wid = WidFactory.createWid(targetJid);
+          const Contacts = Store.Contact || Store.ContactCollection;
+          if (!Contacts) return null;
+
+          // Garante que o contato está no cache do Contacts
+          let contactObj = Contacts.get(wid);
+          if (!contactObj && Contacts.gadd) {
+            Contacts.gadd(wid, { silent: true });
+            contactObj = Contacts.get(wid);
+          }
+
+          if (!contactObj) return null;
+
+          // Executa a requisição forçada no servidor do WhatsApp passando o contactObj inteiro (corrige isNewsletter!)
+          if (Store.ProfilePic && Store.ProfilePic.requestProfilePicFromServer) {
+            try {
+              const res = await Store.ProfilePic.requestProfilePicFromServer(contactObj);
+              if (res && (res.eurl || res.imgFull || res.img)) {
+                return res.eurl || res.imgFull || res.img;
+              }
+            } catch (err) {
+              // Se der erro ao passar o objeto, tenta com o wid como fallback
+              try {
+                const res = await Store.ProfilePic.requestProfilePicFromServer(wid);
+                if (res && (res.eurl || res.imgFull || res.img)) {
+                  return res.eurl || res.imgFull || res.img;
+                }
+              } catch (e2) {}
+            }
+          }
+
+          // Se ainda não obteve, aguarda um pouco para que o profilePicThumbObj seja populado em segundo plano
+          await new Promise(resolve => setTimeout(resolve, 800));
+
+          if (contactObj.profilePicThumbObj) {
+            const p = contactObj.profilePicThumbObj;
+            return p.imgFull || p.eurl || p.img || null;
+          }
+
+          if (Store.ProfilePic && Store.ProfilePic.profilePicFind) {
+            const pic = await Store.ProfilePic.profilePicFind(wid);
+            return pic ? (pic.imgFull || pic.eurl || pic.img) : null;
+          }
+
+          return null;
+        } catch (e) {
+          return null;
+        }
+      }, jidStr);
+    } catch (e) {}
+
+    // 2. Fallback final usando a API padrão do whatsapp-web.js (caso seja corrigida no futuro)
     if (!photoUrl) {
       try {
-        photoUrl = await client.pupPage.evaluate(async (jidStr) => {
-          try {
-            const Store = window.Store;
-            if (!Store) return null;
-            
-            const WidFactory = Store.WidFactory || (Store.Wid && Store.Wid.WidFactory);
-            if (!WidFactory) return null;
-
-            const wid = WidFactory.createWid(jidStr);
-            const Contacts = Store.Contact || Store.ContactCollection;
-            
-            if (Store.ProfilePic && Store.ProfilePic.requestProfilePicFromServer) {
-              await Store.ProfilePic.requestProfilePicFromServer(wid);
-            }
-            
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            
-            const contactObj = Contacts ? Contacts.get(wid) : null;
-            if (contactObj && contactObj.profilePicThumbObj) {
-               const p = contactObj.profilePicThumbObj;
-               return p.imgFull || p.eurl || p.img || null;
-            }
-            
-            if (Store.ProfilePic && Store.ProfilePic.profilePicFind) {
-              const pic = await Store.ProfilePic.profilePicFind(wid);
-              return pic ? (pic.imgFull || pic.eurl || pic.img) : null;
-            }
-            return null;
-          } catch (e) { return null; }
-        }, id);
+        photoUrl = await client.getProfilePicUrl(jidStr).catch(() => null);
       } catch (e) {}
-    }
-
-    // 4. Última tentativa oficial com ID original
-    if (!photoUrl) {
-      photoUrl = await client.getProfilePicUrl(id).catch(() => null);
     }
 
     return photoUrl;
