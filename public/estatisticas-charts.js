@@ -49,8 +49,8 @@ const renderCharts = (barLabels, barData, pieCountsMap, stackedData) => {
     ];
     const stackedLabels = ['Só Volta', 'Só Ida', 'Ausente', 'Ida e Volta'];
 
-    Chart.defaults.color = 'rgba(255, 255, 255, 0.7)';
-    Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.1)';
+    Chart.defaults.color = 'rgba(255, 255, 255, 0.85)';
+    Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.12)';
     Chart.defaults.font.family = "'Inter', sans-serif";
 
     if (chartTimer) clearTimeout(chartTimer);
@@ -87,30 +87,93 @@ const renderCharts = (barLabels, barData, pieCountsMap, stackedData) => {
         // Bar Chart
         if (barChartIns) {
             barChartIns.data.labels = barLabels;
-            const dataArr = barChartIns.data.datasets[0].data;
-            for (let i = 0; i < barData.length; i++) dataArr[i] = barData[i];
-            dataArr.length = barData.length;
+            
+            // Calculando valores dinâmicos
+            const avgValue = barData.length > 0 ? Math.round(barData.reduce((a, b) => a + b, 0) / barData.length) : 0;
+            const avgArray = Array(barLabels.length).fill(avgValue);
+            
+            let capValue = 0;
+            const targetGroup = window.currentTargetGroup || "Todos";
+            if (window.capacities) {
+                if (targetGroup === "Todos") {
+                    capValue = Object.values(window.capacities).reduce((a, b) => a + b, 0);
+                } else {
+                    capValue = window.capacities[targetGroup] || 0;
+                }
+            }
+            const capArray = Array(barLabels.length).fill(capValue);
+
+            // Atualiza datasets
+            barChartIns.data.datasets[0].data = barData;
+            
+            if (barChartIns.data.datasets[1]) {
+                barChartIns.data.datasets[1].data = avgArray;
+                barChartIns.data.datasets[1].label = `Média (${avgValue} votos)`;
+            }
+            if (barChartIns.data.datasets[2]) {
+                barChartIns.data.datasets[2].data = capArray;
+                barChartIns.data.datasets[2].label = `Capacidade (${capValue} vagas)`;
+            }
+            
             barChartIns.reset(); // Força a animação de entrada novamente
             barChartIns.update();
         } else {
+            const avgValue = barData.length > 0 ? Math.round(barData.reduce((a, b) => a + b, 0) / barData.length) : 0;
+            const avgArray = Array(barLabels.length).fill(avgValue);
+            
+            let capValue = 0;
+            const targetGroup = window.currentTargetGroup || "Todos";
+            if (window.capacities) {
+                if (targetGroup === "Todos") {
+                    capValue = Object.values(window.capacities).reduce((a, b) => a + b, 0);
+                } else {
+                    capValue = window.capacities[targetGroup] || 0;
+                }
+            }
+            const capArray = Array(barLabels.length).fill(capValue);
+
             const ctxBar = document.getElementById('barChart').getContext('2d');
             barChartIns = new Chart(ctxBar, {
                 type: 'line',
                 data: {
                     labels: barLabels,
-                    datasets: [{
-                        label: 'Votos', data: barData, borderColor: '#2196f3',
-                        backgroundColor: (context) => {
-                            const { ctx, chartArea } = context.chart;
-                            if (!chartArea) return null;
-                            const g = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
-                            g.addColorStop(0, 'rgba(33, 150, 243, 0.3)');
-                            g.addColorStop(1, 'rgba(33, 150, 243, 0)');
-                            return g;
+                    datasets: [
+                        {
+                            label: 'Votos Realizados', data: barData, borderColor: '#2196f3',
+                            backgroundColor: (context) => {
+                                const { ctx, chartArea } = context.chart;
+                                if (!chartArea) return null;
+                                const g = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+                                g.addColorStop(0, 'rgba(33, 150, 243, 0.25)');
+                                g.addColorStop(1, 'rgba(33, 150, 243, 0)');
+                                return g;
+                            },
+                            borderWidth: 3, fill: true, tension: 0.4,
+                            pointRadius: 4, pointBackgroundColor: '#2196f3', pointBorderColor: '#fff', pointBorderWidth: 2
                         },
-                        borderWidth: 3, fill: true, tension: 0.4,
-                        pointRadius: 4, pointBackgroundColor: '#2196f3', pointBorderColor: '#fff', pointBorderWidth: 2
-                    }]
+                        {
+                            label: `Média (${avgValue} votos)`,
+                            data: avgArray,
+                            borderColor: 'rgba(255, 193, 7, 0.75)',
+                            borderWidth: 2,
+                            borderDash: [5, 5],
+                            fill: false,
+                            pointRadius: 0,
+                            pointHitRadius: 0,
+                            hoverRadius: 0
+                        },
+                        {
+                            label: `Capacidade (${capValue} vagas)`,
+                            data: capArray,
+                            borderColor: 'rgba(244, 67, 54, 0.75)',
+                            borderWidth: 2,
+                            borderDash: [3, 3],
+                            fill: false,
+                            pointRadius: 0,
+                            pointHitRadius: 0,
+                            hoverRadius: 0
+                        }
+                    ]
                 },
                 options: {
                     responsive: true, maintainAspectRatio: false,
@@ -120,7 +183,16 @@ const renderCharts = (barLabels, barData, pieCountsMap, stackedData) => {
                         x: { grid: { display: false }, border: { display: false } }
                     },
                     plugins: { 
-                        legend: { display: false },
+                        legend: { 
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                boxWidth: 12,
+                                padding: 15,
+                                usePointStyle: true,
+                                font: { size: 10, weight: 600 }
+                            }
+                        },
                         datalabels: { display: false }
                     }
                 }
