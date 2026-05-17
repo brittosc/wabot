@@ -209,6 +209,14 @@ async function precarregarFotosVisualmente(client, groups, logCallback) {
 
       await new Promise(r => setTimeout(r, 2000)); // Aguarda abrir a barra lateral
 
+      // Salva screenshot para auditoria visual
+      try {
+        const path = require('path');
+        const ssPath = path.join(__dirname, `../../screenshot_grupo_${groups.indexOf(group) + 1}.png`);
+        await page.screenshot({ path: ssPath });
+        logCallback(chalk.gray(`  • Screenshot de auditoria salvo em: ${ssPath}`));
+      } catch (ssErr) {}
+
       // 3. Procurar e clicar no botão "Ver todos" membros com clique recursivo em cascata nos filhos
       const verTodosClicked = await page.evaluate(() => {
         const rightPane = document.querySelector('[style*="overflow-y"] [role="region"]') || 
