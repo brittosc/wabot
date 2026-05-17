@@ -139,13 +139,63 @@ const populateGroupSelect = () => {
     }
 };
 
+window.switchTab = (tabId) => {
+    // 1. Alternar classe ativa nos botões das abas
+    document.querySelectorAll('.tab-button').forEach(btn => {
+        if (btn.getAttribute('data-tab') === tabId) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+
+    // 2. Alternar classe ativa nos contêineres de conteúdo
+    document.querySelectorAll('.tab-content').forEach(content => {
+        if (content.id === `tab-${tabId}`) {
+            content.classList.add('active');
+        } else {
+            content.classList.remove('active');
+        }
+    });
+
+    // 3. Salvar aba ativa no localStorage
+    localStorage.setItem('active_tab', tabId);
+
+    // 4. Se for a aba de gráficos, forçar o redimensionamento do Chart.js
+    if (tabId === 'graficos') {
+        setTimeout(() => {
+            const pie = window.pieChartIns || pieChartIns;
+            const bar = window.barChartIns || barChartIns;
+            const stacked = window.stackedChartIns || stackedChartIns;
+            if (pie) pie.resize();
+            if (bar) bar.resize();
+            if (stacked) stacked.resize();
+        }, 50);
+    }
+    
+    // Forçar Lucide a renderizar novos ícones caso existam nas abas
+    if (window.lucide && typeof window.lucide.createIcons === 'function') {
+        window.lucide.createIcons();
+    }
+};
+
 const initSelects = () => {
     populateGroupSelect();
     const gSelect = document.getElementById("groupSelect");
-    gSelect.addEventListener("change", updateDash);
-    document.getElementById("periodSelect").addEventListener("change", updateDash);
+    if (gSelect) {
+        gSelect.addEventListener("change", updateDash);
+    }
+    const pSelect = document.getElementById("periodSelect");
+    if (pSelect) {
+        pSelect.addEventListener("change", updateDash);
+    }
 
-    document.getElementById("copyrightYear").innerText = new Date().getFullYear();
+    const yr = document.getElementById("copyrightYear");
+    if (yr) yr.innerText = new Date().getFullYear();
+    
+    // Restaurar a aba ativa salva ou padrão 'resumo'
+    const savedTab = localStorage.getItem('active_tab') || 'resumo';
+    window.switchTab(savedTab);
 };
 window.initSelects = initSelects;
 window.populateGroupSelect = populateGroupSelect;
@@ -189,6 +239,7 @@ const updateTrendBadge = (id, current, baseline, inverse = false) => {
 };
 
 const processData = (targetGroup, targetPeriod) => {
+    window.currentTargetGroup = targetGroup; // Sincroniza a variável global explicitamente
     const today = moment().tz("America/Sao_Paulo").startOf('day');
     let startMoment, endMoment;
 
