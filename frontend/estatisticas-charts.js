@@ -84,25 +84,25 @@ const renderCharts = (barLabels, barData, pieCountsMap, stackedData) => {
             });
         }
 
+        // Calculando valores dinâmicos reutilizáveis para os gráficos
+        const avgValue = barData.length > 0 ? Math.round(barData.reduce((a, b) => a + b, 0) / barData.length) : 0;
+        const avgArray = Array(barLabels.length).fill(avgValue);
+        
+        let capValue = 0;
+        const targetGroup = window.currentTargetGroup || "Todos";
+        if (window.capacities) {
+            if (targetGroup === "Todos") {
+                capValue = Object.values(window.capacities).reduce((a, b) => a + b, 0);
+            } else {
+                capValue = window.capacities[targetGroup] || 0;
+            }
+        }
+        const capArray = Array(barLabels.length).fill(capValue);
+
         // Bar Chart
         if (barChartIns) {
             barChartIns.data.labels = barLabels;
             
-            // Calculando valores dinâmicos
-            const avgValue = barData.length > 0 ? Math.round(barData.reduce((a, b) => a + b, 0) / barData.length) : 0;
-            const avgArray = Array(barLabels.length).fill(avgValue);
-            
-            let capValue = 0;
-            const targetGroup = window.currentTargetGroup || "Todos";
-            if (window.capacities) {
-                if (targetGroup === "Todos") {
-                    capValue = Object.values(window.capacities).reduce((a, b) => a + b, 0);
-                } else {
-                    capValue = window.capacities[targetGroup] || 0;
-                }
-            }
-            const capArray = Array(barLabels.length).fill(capValue);
-
             // Atualiza datasets
             barChartIns.data.datasets[0].data = barData;
             
@@ -118,20 +118,6 @@ const renderCharts = (barLabels, barData, pieCountsMap, stackedData) => {
             barChartIns.reset(); // Força a animação de entrada novamente
             barChartIns.update();
         } else {
-            const avgValue = barData.length > 0 ? Math.round(barData.reduce((a, b) => a + b, 0) / barData.length) : 0;
-            const avgArray = Array(barLabels.length).fill(avgValue);
-            
-            let capValue = 0;
-            const targetGroup = window.currentTargetGroup || "Todos";
-            if (window.capacities) {
-                if (targetGroup === "Todos") {
-                    capValue = Object.values(window.capacities).reduce((a, b) => a + b, 0);
-                } else {
-                    capValue = window.capacities[targetGroup] || 0;
-                }
-            }
-            const capArray = Array(barLabels.length).fill(capValue);
-
             const ctxBar = document.getElementById('barChart').getContext('2d');
             barChartIns = new Chart(ctxBar, {
                 type: 'line',
@@ -202,11 +188,46 @@ const renderCharts = (barLabels, barData, pieCountsMap, stackedData) => {
         // Stacked Chart
         if (stackedChartIns) {
             stackedChartIns.data.labels = barLabels;
+            
+            // Se por algum motivo só tiver os 4 datasets originais, adicionamos os novos de forma dinâmica
+            if (stackedChartIns.data.datasets.length === 4) {
+                stackedChartIns.data.datasets.push({
+                    label: `Média (${avgValue} votos)`,
+                    data: avgArray,
+                    borderColor: 'rgba(255, 193, 7, 0.75)',
+                    borderWidth: 2,
+                    borderDash: [5, 5],
+                    fill: false,
+                    pointRadius: 0,
+                    pointHitRadius: 0,
+                    hoverRadius: 0
+                });
+                stackedChartIns.data.datasets.push({
+                    label: `Capacidade (${capValue} vagas)`,
+                    data: capArray,
+                    borderColor: 'rgba(244, 67, 54, 0.75)',
+                    borderWidth: 2,
+                    borderDash: [3, 3],
+                    fill: false,
+                    pointRadius: 0,
+                    pointHitRadius: 0,
+                    hoverRadius: 0
+                });
+            }
+
             stackedChartIns.data.datasets.forEach((ds, i) => {
-                const srcData = stackedData[stackedKeys[i]];
-                const dsData = ds.data;
-                for (let j = 0; j < srcData.length; j++) dsData[j] = srcData[j];
-                dsData.length = srcData.length;
+                if (i < 4) {
+                    const srcData = stackedData[stackedKeys[i]];
+                    const dsData = ds.data;
+                    for (let j = 0; j < srcData.length; j++) dsData[j] = srcData[j];
+                    dsData.length = srcData.length;
+                } else if (i === 4) {
+                    ds.data = avgArray;
+                    ds.label = `Média (${avgValue} votos)`;
+                } else if (i === 5) {
+                    ds.data = capArray;
+                    ds.label = `Capacidade (${capValue} vagas)`;
+                }
             });
             stackedChartIns.reset(); // Força a animação de entrada novamente
             stackedChartIns.update();
@@ -218,6 +239,32 @@ const renderCharts = (barLabels, barData, pieCountsMap, stackedData) => {
                 borderColor: optionColors[key],
                 fill: true, tension: 0.4, pointRadius: 2, borderWidth: 2
             }));
+
+            // Adiciona Média
+            datasets.push({
+                label: `Média (${avgValue} votos)`,
+                data: avgArray,
+                borderColor: 'rgba(255, 193, 7, 0.75)',
+                borderWidth: 2,
+                borderDash: [5, 5],
+                fill: false,
+                pointRadius: 0,
+                pointHitRadius: 0,
+                hoverRadius: 0
+            });
+
+            // Adiciona Capacidade
+            datasets.push({
+                label: `Capacidade (${capValue} vagas)`,
+                data: capArray,
+                borderColor: 'rgba(244, 67, 54, 0.75)',
+                borderWidth: 2,
+                borderDash: [3, 3],
+                fill: false,
+                pointRadius: 0,
+                pointHitRadius: 0,
+                hoverRadius: 0
+            });
 
             const ctxStacked = document.getElementById('stackedBarChart').getContext('2d');
             stackedChartIns = new Chart(ctxStacked, {
