@@ -191,14 +191,12 @@ async function startBot() {
           const wid = Store.WidFactory.createWid(jidStr);
           const contact = Contacts.get(wid);
           if (!contact) return "Contato não encontrado no cache";
-          
           return {
             keys: Object.keys(contact),
             profilePicThumbObjKeys: contact.__x_profilePicThumb ? Object.keys(contact.__x_profilePicThumb) : "Inexistente",
             profilePicThumbObjVal: contact.__x_profilePicThumb ? {
-              eurl: contact.__x_profilePicThumb.eurl || null,
-              img: contact.__x_profilePicThumb.img || null,
-              imgFull: contact.__x_profilePicThumb.imgFull || null
+              __x_img: contact.__x_profilePicThumb.__x_img || null,
+              __x_imgFull: contact.__x_profilePicThumb.__x_imgFull || null
             } : "Inexistente"
           };
         }, botJid).catch((e) => e.message);
@@ -401,39 +399,48 @@ async function syncRecentPhotos(client) {
     let skipped = 0;
     let errors = 0;
 
-    for (const id of voterIds) {
-      try {
-        if (!id || !id.includes("@")) {
-          skipped++;
-          continue;
-        }
+    const batchSize = 15;
+    const idsArray = Array.from(voterIds);
 
-        const contactInfo = await resolveContactInfo(client, id);
-        const name = formatName(contactInfo.name) || "Desconhecido";
-        const photoUrl = contactInfo.photoUrl;
+    for (let i = 0; i < idsArray.length; i += batchSize) {
+      const batch = idsArray.slice(i, i + batchSize);
+      await Promise.all(
+        batch.map(async (id) => {
+          try {
+            if (!id || !id.includes("@")) {
+              skipped++;
+              return;
+            }
 
-        if (photoUrl) {
-          // 1. Atualiza metadados na tabela passengers se o passageiro existir
-          await statistics.syncPassengerMetadata(id, name, photoUrl);
-          
-          // 2. Atualiza retroativamente a foto em todas as linhas de votos históricos dele
-          await supabase
-            .from("votes")
-            .update({ photo_url: photoUrl })
-            .eq("voter_id", id);
+            const contactInfo = await resolveContactInfo(client, id);
+            const name = formatName(contactInfo.name) || "Desconhecido";
+            const photoUrl = contactInfo.photoUrl;
 
-          count++;
-          dashboard.addLog(
-            `[SYNC FOTO] Foto obtida para ${name} (${id.split('@')[0]}): ${photoUrl.substring(0, 60)}...`
-          );
-        } else {
-          semFoto++;
-        }
+            if (photoUrl) {
+              // 1. Atualiza metadados na tabela passengers se o passageiro existir
+              await statistics.syncPassengerMetadata(id, name, photoUrl).catch(() => null);
+              
+              // 2. Atualiza retroativamente a foto em todas as linhas de votos históricos dele
+              await supabase
+                .from("votes")
+                .update({ photo_url: photoUrl })
+                .eq("voter_id", id)
+                .catch(() => null);
 
-        await new Promise((resolve) => setTimeout(resolve, 500));
-      } catch (err) {
-        errors++;
-      }
+              count++;
+              dashboard.addLog(
+                `[SYNC FOTO] Foto obtida para ${name} (${id.split('@')[0]}): ${photoUrl.substring(0, 60)}...`
+              );
+            } else {
+              semFoto++;
+            }
+          } catch (err) {
+            errors++;
+          }
+        })
+      );
+      // Breve pausa para respiro de rede e do Puppeteer entre os lotes
+      await new Promise((resolve) => setTimeout(resolve, 300));
     }
 
     dashboard.addLog(
