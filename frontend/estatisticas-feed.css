@@ -43,42 +43,16 @@
     justify-content: flex-start;
     gap: 12px;
 }
+.user-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    object-fit: cover;
+    background-color: #333;
+}
 .user-name {
     font-weight: 600;
     font-size: 0.9rem;
-}
-.name-gold {
-    background: linear-gradient(to right, #bf953f 20%, #fcf6ba 40%, #b38728 60%, #fbf5b7 80%, #aa771c 100%);
-    background-size: 200% auto;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    font-weight: 800;
-    animation: shine 4s linear infinite;
-    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
-}
-.name-silver {
-    background: linear-gradient(to right, #979797 20%, #f7f7f7 40%, #979797 60%, #f7f7f7 80%, #979797 100%);
-    background-size: 200% auto;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    font-weight: 800;
-    animation: shine 4s linear infinite;
-    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
-}
-.name-bronze {
-    background: linear-gradient(to right, #804a00 20%, #f1a94e 40%, #804a00 60%, #f1a94e 80%, #804a00 100%);
-    background-size: 200% auto;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    font-weight: 800;
-    animation: shine 4s linear infinite;
-    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
-}
-
-@keyframes shine {
-    to {
-        background-position: 200% center;
-    }
 }
 .tag {
     display: inline-block;
@@ -294,36 +268,6 @@
     color: var(--accent);
 }
 
-/* Novo Badge Combinado Dinâmico */
-.status-weather-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 4px 14px;
-    border-radius: 20px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    border: 1px solid transparent;
-    white-space: nowrap;
-    transition: all 0.3s ease;
-}
-.status-weather-badge .weather-icon {
-    width: 14px;
-    height: 14px;
-    margin-left: 2px;
-}
-.status-weather-badge .temp-max {
-    font-weight: 800;
-}
-.status-weather-badge .temp-separator {
-    opacity: 0.4;
-    margin: 0 1px;
-}
-.status-weather-badge .temp-min {
-    opacity: 0.7;
-    font-weight: 400;
-}
-
 /* Ranking Badges */
 .rank-badge {
     display: inline-flex;
@@ -394,6 +338,10 @@
     }
     .user-name {
         font-size: 0.8rem;
+    }
+    .user-avatar {
+        width: 30px;
+        height: 30px;
     }
     .user-cell {
         gap: 8px;
