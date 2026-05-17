@@ -300,12 +300,22 @@ async function precarregarFotosVisualmente(client, groups, logCallback) {
     }
   }
 
-  // 5. Extrair todas as fotos da coleção ProfilePicThumb de forma ultra-resiliente
+  // 5. Extrair todas as fotos da coleção ProfilePicThumb de forma ultra-resiliente com tradução LID -> JID clássico
   logCallback(chalk.blue("\n📥 Extraindo cache de fotos obtidas visualmente..."));
   try {
     const extractedPhotos = await page.evaluate(() => {
       const Store = window.Store;
       if (!Store || !Store.ProfilePicThumb) return {};
+
+      // Criar mapa de de-para para traduzir JIDs temporários LID para JIDs de telefone clássicos
+      const lidToJid = {};
+      if (Store.Contact && Store.Contact.models) {
+        for (const c of Store.Contact.models) {
+          if (c.id && c.lid) {
+            lidToJid[c.lid._serialized] = c.id._serialized;
+          }
+        }
+      }
       
       // Resiliência de leitura de coleção Backbone no WhatsApp Web
       const collection = Store.ProfilePicThumb;
@@ -323,7 +333,9 @@ async function precarregarFotosVisualmente(client, groups, logCallback) {
       const map = {};
       for (const t of models) {
         if (t && t.id) {
-          const jid = t.id._serialized;
+          const rawJid = t.id._serialized;
+          // Traduz LID para JID clássico se existir, senão usa o próprio JID
+          const jid = lidToJid[rawJid] || rawJid;
           const url = t.imgFull || t.eurl || t.img || null;
           if (url) map[jid] = url;
         }
