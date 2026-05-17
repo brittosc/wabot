@@ -188,14 +188,24 @@ async function startBot() {
         const botInfo = await resolveContactInfo(client, botJid);
         if (botInfo.photoUrl) {
           dashboard.addLog(`[FOTO BOT] FOTO ENCONTRADA VIA RESOLVER! 🎉 URL: ${botInfo.photoUrl.substring(0, 80)}...`);
-          // Grava a foto do próprio bot no Supabase se puder
-          await supabase
-            .from("passengers")
-            .update({ photo_url: botInfo.photoUrl })
-            .eq("phone", botJid.split('@')[0])
-            .catch(() => null);
+          
+          // Grava a foto do próprio bot no Supabase de forma segura
+          try {
+            await supabase
+              .from("passengers")
+              .update({ photo_url: botInfo.photoUrl })
+              .eq("phone", botJid.split('@')[0]);
+          } catch (dbErr) {
+            dashboard.addLog(`[FOTO BOT] Erro ao gravar foto no Supabase: ${dbErr.message}`);
+          }
 
           clearInterval(botInterval);
+
+          // Iniciamos a sincronização dos membros dos grupos agora que o bot já foi resolvido com sucesso!
+          syncRecentPhotos(client).catch((err) => {
+            dashboard.addLog(`[SYNC FOTO] Erro na sincronização inicial de fotos: ${err.message}`);
+          });
+
           return;
         }
 
@@ -263,14 +273,7 @@ async function startBot() {
     const currentStats = await statistics.readStats();
     await statistics.updateTerminalOccupancy(currentStats);
 
-    // Suspenso temporariamente a pedido do usuário para focar 100% na foto do BOT
-    /*
-    syncRecentPhotos(client).catch((err) => {
-      dashboard.addLog(
-        `Erro na sincronização inicial de fotos: ${err.message}`,
-      );
-    });
-    */
+    // A sincronização dos membros dos grupos agora é disparada automaticamente assim que a foto do BOT é resolvida.
 
     if (process.argv.includes("--now")) {
       dashboard.addLog("Parâmetro --now detectado. Forçando envio imediato 🎉");
