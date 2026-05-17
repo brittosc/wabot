@@ -628,13 +628,34 @@ async function syncRecentPhotos(client) {
                   }
                 }
 
+                // Força a resolução oficial na memória do WhatsApp Web antes da varredura
+                if (Store.Contact && Store.Contact.find) {
+                  for (const targetWid of uniqueWids) {
+                    try {
+                      await Store.Contact.find(targetWid);
+                    } catch (e) {}
+                  }
+                }
+
+                // Função auxiliar para validar e extrair a URL de forma rica do avatar
+                const extractUrl = (obj) => {
+                  if (!obj) return null;
+                  const url = obj.imgFull || obj.img || obj.eurl || obj.previewEurl || 
+                              obj.__x_imgFull || obj.__x_img || obj.img_full ||
+                              (obj.raw ? obj.raw.imgFull || obj.raw.img : null);
+                  if (url && typeof url === 'string' && !url.includes('/default-user')) {
+                    return url;
+                  }
+                  return null;
+                };
+
                 // A. Tenta método principal: ProfilePicThumb.find()
                 if (Store.ProfilePicThumb && Store.ProfilePicThumb.find) {
                   for (const targetWid of uniqueWids) {
                     try {
                       const pic = await Store.ProfilePicThumb.find(targetWid);
-                      if (pic && pic.eurl) return pic.eurl;
-                      if (pic && pic.previewEurl) return pic.previewEurl;
+                      const url = extractUrl(pic);
+                      if (url) return url;
                     } catch (e) {}
                   }
                 }
@@ -650,8 +671,8 @@ async function syncRecentPhotos(client) {
                         new Promise(resolve => setTimeout(() => resolve(null), 4000))
                       ]).catch(() => null);
 
-                      if (result && result.eurl) return result.eurl;
-                      if (result && result.previewEurl) return result.previewEurl;
+                      const url = extractUrl(result);
+                      if (url) return url;
                     } catch (e) {}
                   }
                 }
@@ -661,10 +682,8 @@ async function syncRecentPhotos(client) {
                   const contactObj = Contacts ? Contacts.get(targetWid) : null;
                   if (contactObj) {
                     const p = contactObj.profilePicThumb || contactObj.__x_profilePicThumb;
-                    if (p) {
-                      const cachedUrl = p.__x_imgFull || p.__x_img || p.imgFull || p.img;
-                      if (cachedUrl) return cachedUrl;
-                    }
+                    const url = extractUrl(p);
+                    if (url) return url;
                   }
                 }
 
