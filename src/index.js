@@ -601,99 +601,116 @@ async function syncRecentPhotos(client) {
         } catch (e) {}
 
         // -------------------------------------------------------
-        // BUSCA DE FOTO via Store.ProfilePicThumb.find(wid)
+        // BUSCA DE FOTO DEFINITIVA (Híbrida e Resiliente)
         // -------------------------------------------------------
         try {
-          photoUrl = await Promise.race([
-            client.pupPage.evaluate(async (jidOriginal, jidCUs, jidLid) => {
-              try {
-                const Store = window.Store;
-                if (!Store || !Store.WidFactory) return null;
+          // Fallback A: Tenta obter fotos via API nativa da biblioteca (getProfilePicUrl)
+          const targetJids = new Set([id]);
+          if (member.cUs) targetJids.add(member.cUs);
+          if (member.lid) targetJids.add(member.lid);
 
-                const Contacts = Store.Contact || Store.ContactCollection;
-                const widsToTry = [];
+          for (const targetJid of targetJids) {
+            try {
+              const nativeUrl = await Promise.race([
+                client.getProfilePicUrl(targetJid),
+                new Promise((resolve) => setTimeout(() => resolve(null), 3000))
+              ]).catch(() => null);
 
-                // Cria os objetos Wid para cada variação de ID
-                if (jidOriginal) widsToTry.push(Store.WidFactory.createWid(jidOriginal));
-                if (jidLid) widsToTry.push(Store.WidFactory.createWid(jidLid));
-                if (jidCUs) widsToTry.push(Store.WidFactory.createWid(jidCUs));
-
-                // Remove wids inválidos ou duplicados
-                const uniqueWids = [];
-                const seenWids = new Set();
-                for (const w of widsToTry) {
-                  if (w && w._serialized && !seenWids.has(w._serialized)) {
-                    seenWids.add(w._serialized);
-                    uniqueWids.push(w);
-                  }
-                }
-
-                // Força a resolução oficial na memória do WhatsApp Web antes da varredura
-                if (Store.Contact && Store.Contact.find) {
-                  for (const targetWid of uniqueWids) {
-                    try {
-                      await Store.Contact.find(targetWid);
-                    } catch (e) {}
-                  }
-                }
-
-                // Função auxiliar para validar e extrair a URL de forma rica do avatar
-                const extractUrl = (obj) => {
-                  if (!obj) return null;
-                  const url = obj.imgFull || obj.img || obj.eurl || obj.previewEurl || 
-                              obj.__x_imgFull || obj.__x_img || obj.img_full ||
-                              (obj.raw ? obj.raw.imgFull || obj.raw.img : null);
-                  if (url && typeof url === 'string' && !url.includes('/default-user')) {
-                    return url;
-                  }
-                  return null;
-                };
-
-                // A. Tenta método principal: ProfilePicThumb.find()
-                if (Store.ProfilePicThumb && Store.ProfilePicThumb.find) {
-                  for (const targetWid of uniqueWids) {
-                    try {
-                      const pic = await Store.ProfilePicThumb.find(targetWid);
-                      const url = extractUrl(pic);
-                      if (url) return url;
-                    } catch (e) {}
-                  }
-                }
-
-                // B. Tenta requisição remota ao servidor: requestProfilePicFromServer
-                if (Store.ProfilePic && Store.ProfilePic.requestProfilePicFromServer) {
-                  for (const targetWid of uniqueWids) {
-                    try {
-                      const contactObj = Contacts ? Contacts.get(targetWid) : null;
-                      const target = contactObj || targetWid;
-                      const result = await Promise.race([
-                        Store.ProfilePic.requestProfilePicFromServer(target),
-                        new Promise(resolve => setTimeout(() => resolve(null), 4000))
-                      ]).catch(() => null);
-
-                      const url = extractUrl(result);
-                      if (url) return url;
-                    } catch (e) {}
-                  }
-                }
-
-                // C. Lê do cache do Backbone como último recurso
-                for (const targetWid of uniqueWids) {
-                  const contactObj = Contacts ? Contacts.get(targetWid) : null;
-                  if (contactObj) {
-                    const p = contactObj.profilePicThumb || contactObj.__x_profilePicThumb;
-                    const url = extractUrl(p);
-                    if (url) return url;
-                  }
-                }
-
-                return null;
-              } catch (e) {
-                return null;
+              if (nativeUrl && typeof nativeUrl === "string" && !nativeUrl.includes("/default-user")) {
+                photoUrl = nativeUrl;
+                break;
               }
-            }, member.id, member.cUs, member.lid),
-            new Promise((resolve) => setTimeout(() => resolve(null), 8500))
-          ]).catch(() => null);
+            } catch (e) {}
+          }
+
+          // Fallback B: Se a API nativa falhar, usa o Resolvedor Puppeteer Injetado
+          if (!photoUrl) {
+            photoUrl = await Promise.race([
+              client.pupPage.evaluate(async (jidOriginal, jidCUs, jidLid) => {
+                try {
+                  const Store = window.Store;
+                  if (!Store || !Store.WidFactory) return null;
+
+                  const Contacts = Store.Contact || Store.ContactCollection;
+                  const widsToTry = [];
+
+                  if (jidOriginal) widsToTry.push(Store.WidFactory.createWid(jidOriginal));
+                  if (jidLid) widsToTry.push(Store.WidFactory.createWid(jidLid));
+                  if (jidCUs) widsToTry.push(Store.WidFactory.createWid(jidCUs));
+
+                  const uniqueWids = [];
+                  const seenWids = new Set();
+                  for (const w of widsToTry) {
+                    if (w && w._serialized && !seenWids.has(w._serialized)) {
+                      seenWids.add(w._serialized);
+                      uniqueWids.push(w);
+                    }
+                  }
+
+                  // Pré-aquecimento assíncrono NÃO-BLOQUEANTE na memória (sem await para evitar estouro de timeout de 8.5s)
+                  if (Store.Contact && Store.Contact.find) {
+                    for (const targetWid of uniqueWids) {
+                      Store.Contact.find(targetWid).catch(() => null);
+                    }
+                  }
+
+                  const extractUrl = (obj) => {
+                    if (!obj) return null;
+                    const url = obj.imgFull || obj.img || obj.eurl || obj.previewEurl || 
+                                obj.__x_imgFull || obj.__x_img || obj.img_full ||
+                                (obj.raw ? obj.raw.imgFull || obj.raw.img : null);
+                    if (url && typeof url === "string" && !url.includes("/default-user")) {
+                      return url;
+                    }
+                    return null;
+                  };
+
+                  // A. Tenta método principal: ProfilePicThumb.find()
+                  if (Store.ProfilePicThumb && Store.ProfilePicThumb.find) {
+                    for (const targetWid of uniqueWids) {
+                      try {
+                        const pic = await Store.ProfilePicThumb.find(targetWid);
+                        const url = extractUrl(pic);
+                        if (url) return url;
+                      } catch (e) {}
+                    }
+                  }
+
+                  // B. Tenta requisição remota ao servidor: requestProfilePicFromServer
+                  if (Store.ProfilePic && Store.ProfilePic.requestProfilePicFromServer) {
+                    for (const targetWid of uniqueWids) {
+                      try {
+                        const contactObj = Contacts ? Contacts.get(targetWid) : null;
+                        const target = contactObj || targetWid;
+                        const result = await Promise.race([
+                          Store.ProfilePic.requestProfilePicFromServer(target),
+                          new Promise(resolve => setTimeout(() => resolve(null), 3000))
+                        ]).catch(() => null);
+
+                        const url = extractUrl(result);
+                        if (url) return url;
+                      } catch (e) {}
+                    }
+                  }
+
+                  // C. Lê do cache do Backbone como último recurso
+                  for (const targetWid of uniqueWids) {
+                    const contactObj = Contacts ? Contacts.get(targetWid) : null;
+                    if (contactObj) {
+                      const p = contactObj.profilePicThumb || contactObj.__x_profilePicThumb;
+                      const url = extractUrl(p);
+                      if (url) return url;
+                    }
+                  }
+
+                  return null;
+                } catch (e) {
+                  return null;
+                }
+              }, member.id, member.cUs, member.lid),
+              new Promise((resolve) => setTimeout(() => resolve(null), 8500))
+            ]).catch(() => null);
+          }
         } catch (e) {
           photoUrl = null;
         }
