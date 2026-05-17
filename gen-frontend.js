@@ -14,7 +14,8 @@ if (startIdx === -1 || endIdx === -1) {
 const newDataBlock = `
         // === CONFIGURAÇÃO DO BACKEND ===
         // Altere este valor para o endereço da sua VPS antes do deploy no Cloudflare Pages
-        const BACKEND_URL = 'https://api.grupobritto.com.br';
+        window.BACKEND_URL = 'https://api.grupobritto.com.br';
+        const BACKEND_URL = window.BACKEND_URL;
 
         let rawDB = {};
         let passengers = [];
