@@ -79,15 +79,11 @@ async function sincronizarParticipantes(client, logCallback = console.log) {
         
         const formattedName = formatName(publicName);
 
-        // 2. Obter foto de perfil pública com timeout estendido de 8 segundos
+        // 2. Obter foto de perfil pública com a estratégia nativa e robusta do projeto
         let photoUrl = null;
         try {
-          if (contact) {
-            photoUrl = await withTimeout(contact.getProfilePicUrl(), 8000, null);
-          }
-          if (!photoUrl) {
-            photoUrl = await withTimeout(client.getProfilePicUrl(jid), 8000, null);
-          }
+          const { getProfilePhoto } = require("./photoService");
+          photoUrl = await getProfilePhoto(client, jid);
         } catch (e) {
           // Ignora silenciosamente erros de foto
         }
