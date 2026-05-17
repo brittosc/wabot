@@ -80,6 +80,7 @@ const getPassengerByJid = (jid) => {
 
     return found;
 };
+window.getPassengerByJid = getPassengerByJid;
 
 const extractGroups = () => {
     const groups = new Set();
