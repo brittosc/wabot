@@ -465,14 +465,19 @@ async function syncRecentPhotos(client) {
 
             if (photoUrl) {
               // 1. Atualiza metadados na tabela passengers se o passageiro existir
-              await statistics.syncPassengerMetadata(id, name, photoUrl).catch(() => null);
+              try {
+                await statistics.syncPassengerMetadata(id, name, photoUrl);
+              } catch (metadataErr) {}
               
               // 2. Atualiza retroativamente a foto em todas as linhas de votos históricos dele
-              await supabase
-                .from("votes")
-                .update({ photo_url: photoUrl })
-                .eq("voter_id", id)
-                .catch(() => null);
+              try {
+                await supabase
+                  .from("votes")
+                  .update({ photo_url: photoUrl })
+                  .eq("voter_id", id);
+              } catch (dbErr) {
+                dashboard.addLog(`[SYNC FOTO ERR] Erro ao atualizar votos no Supabase para ${id.split('@')[0]}: ${dbErr.message}`);
+              }
 
               count++;
               dashboard.addLog(
