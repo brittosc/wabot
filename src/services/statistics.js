@@ -181,9 +181,9 @@ const registerVote = async (vote, voterName, photoUrl) => {
 
   const voterId = vote.voter;
 
-  // Sincroniza metadados do passageiro (apenas nome) na tabela passengers
+  // Sincroniza metadados do passageiro (incluindo a foto de perfil) na tabela passengers
   if (voterName) {
-    await syncPassengerMetadata(voterId, formatName(voterName), null, groupName);
+    await syncPassengerMetadata(voterId, formatName(voterName), photoUrl, groupName);
   }
 
   if (vote.selectedOptions && vote.selectedOptions.length > 0) {
@@ -197,7 +197,7 @@ const registerVote = async (vote, voterName, photoUrl) => {
           option: selectedOption,
           poll_name: pollName,
           voter_name: formatName(voterName),
-          photo_url: null,
+          photo_url: photoUrl || null,
         },
         { onConflict: "voter_id,group_name,vote_date" }
       )
@@ -229,6 +229,16 @@ const syncPassengerMetadata = async (whatsappId, name, photoUrl, groupName) => {
     };
     
     if (name) updateData.name = formatName(name);
+    if (photoUrl) updateData.photo_url = photoUrl;
+
+    // Sincroniza também na tabela passageiros do Supabase para manter o cache unificado
+    try {
+      await supabase.from("passageiros").upsert({
+        id: whatsappId,
+        nome: name ? formatName(name) : "Sem Nome",
+        foto_publica: photoUrl || null
+      }, { onConflict: "id" });
+    } catch (ePass) {}
 
     const cleanNumber = normalizePhone(whatsappId.split('@')[0]);
 
