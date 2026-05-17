@@ -60,13 +60,6 @@ async function resolveContactInfo(client, voterId) {
             const Store = window.Store;
             if (!Store) return null;
 
-            // Se for a própria conta conectada (o bot)
-            if (Store.Conn && Store.Conn.wid && (Store.Conn.wid._serialized === jidStr || Store.Conn.wid.user === jidStr.split('@')[0])) {
-              if (Store.Conn.profilePicThumb) {
-                return Store.Conn.profilePicThumb.eurl || Store.Conn.profilePicThumb.img || null;
-              }
-            }
-
             const WidFactory = Store.WidFactory || (Store.Wid && Store.Wid.WidFactory);
             if (!WidFactory) return null;
 
@@ -86,6 +79,14 @@ async function resolveContactInfo(client, voterId) {
             if (contactObj && contactObj.profilePicThumbObj) {
               const p = contactObj.profilePicThumbObj;
               return p.imgFull || p.eurl || p.img || null;
+            }
+
+            // Fallback de última instância para o próprio bot
+            if (Store.Conn && Store.Conn.wid && (Store.Conn.wid._serialized === jidStr || Store.Conn.wid.user === jidStr.split('@')[0])) {
+              if (Store.Conn.profilePicThumb) {
+                const thumb = Store.Conn.profilePicThumb;
+                return thumb.eurl || thumb.img || thumb.eurlFull || thumb.imgFull || null;
+              }
             }
 
             return null;
@@ -155,14 +156,18 @@ async function startBot() {
           `[FOTO BOT] JID: ${botJid} | Foto: ${botInfo.photoUrl ? botInfo.photoUrl.substring(0, 80) + '...' : "Nenhuma/Não encontrada"}`
         );
 
-        // Diagnóstico avançado: Inspeciona métodos de ProfilePic
-        const methods = await client.pupPage.evaluate(() => {
+        // Diagnóstico avançado: Inspeciona métodos de ProfilePic e profilePicThumb do bot logado
+        const info = await client.pupPage.evaluate(() => {
           const Store = window.Store;
-          if (!Store) return "Store inexistente";
-          if (!Store.ProfilePic) return "ProfilePic inexistente";
-          return Object.keys(Store.ProfilePic);
-        }).catch((e) => e.message);
-        dashboard.addLog(`[DIAG PROFILEPIC] Métodos disponíveis: ${JSON.stringify(methods)}`);
+          if (!Store) return { error: "Store inexistente" };
+          return {
+            methods: Store.ProfilePic ? Object.keys(Store.ProfilePic) : "ProfilePic inexistente",
+            connPic: Store.Conn ? Store.Conn.profilePicThumb : "Conn inexistente"
+          };
+        }).catch((e) => ({ error: e.message }));
+        
+        dashboard.addLog(`[DIAG PROFILEPIC] Métodos disponíveis: ${JSON.stringify(info.methods)}`);
+        dashboard.addLog(`[DIAG CONN] profilePicThumb: ${JSON.stringify(info.connPic)}`);
       } catch (e) {
         dashboard.addLog(`[FOTO BOT] Erro no diagnóstico: ${e.message}`);
       }
