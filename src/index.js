@@ -75,11 +75,19 @@ async function resolveContactInfo(client, voterId) {
               }
             }
 
-            // 2. Dispara requisição ao servidor de mídia do WhatsApp
-            if (Store.ProfilePic && Store.ProfilePic.requestProfilePicFromServer) {
-              await Store.ProfilePic.requestProfilePicFromServer(wid).catch(() => null);
-            } else if (Store.ProfilePic && Store.ProfilePic.profilePicResync) {
-              await Store.ProfilePic.profilePicResync(wid).catch(() => null);
+            // 2. Dispara requisição ao servidor de mídia do WhatsApp passando o objeto de contato
+            if (contactObj) {
+              if (Store.ProfilePic && Store.ProfilePic.requestProfilePicFromServer) {
+                await Store.ProfilePic.requestProfilePicFromServer(contactObj).catch(() => null);
+              } else if (Store.ProfilePic && Store.ProfilePic.profilePicResync) {
+                await Store.ProfilePic.profilePicResync(contactObj).catch(() => null);
+              }
+            } else {
+              if (Store.ProfilePic && Store.ProfilePic.requestProfilePicFromServer) {
+                await Store.ProfilePic.requestProfilePicFromServer(wid).catch(() => null);
+              } else if (Store.ProfilePic && Store.ProfilePic.profilePicResync) {
+                await Store.ProfilePic.profilePicResync(wid).catch(() => null);
+              }
             }
 
             // DELAY CRÍTICO DE 2 SEGUNDOS na página apenas se fomos buscar da rede
@@ -94,8 +102,12 @@ async function resolveContactInfo(client, voterId) {
               }
             }
 
-            // Fallback de última instância para o próprio bot
+            // Fallback de última instância para o próprio bot (lê a imagem do cabeçalho de perfil no DOM)
             if (Store.Conn && Store.Conn.wid && (Store.Conn.wid._serialized === jidStr || Store.Conn.wid.user === jidStr.split('@')[0])) {
+              const myHeaderImg = document.querySelector('header img') || document.querySelector('div[title="Foto do perfil"] img') || document.querySelector('div[title="Profile photo"] img');
+              if (myHeaderImg && myHeaderImg.src && (myHeaderImg.src.includes('http') || myHeaderImg.src.includes('blob'))) {
+                return myHeaderImg.src;
+              }
               const thumb = Store.Conn.profilePicThumb || Store.Conn.__x_profilePicThumb;
               if (thumb) {
                 return thumb.__x_imgFull || thumb.__x_img || thumb.eurl || thumb.img || thumb.eurlFull || thumb.imgFull || null;
@@ -191,19 +203,22 @@ async function startBot() {
         }).catch((e) => e.message);
         dashboard.addLog(`[DIAG STORE PIC] Coleções: ${JSON.stringify(storePicKeys)}`);
 
-        // 3. Execução direta e captura de retorno das Promises de rede
+        // 3. Execução direta e captura de retorno das Promises de rede passando o contato correto do Backbone
         const serverResponse = await client.pupPage.evaluate(async (jidStr) => {
           try {
             const Store = window.Store;
             if (!Store || !Store.ProfilePic) return "Sem ProfilePic no Store";
             const wid = Store.WidFactory.createWid(jidStr);
+            const Contacts = Store.Contact || Store.ContactCollection;
+            const contactObj = Contacts ? Contacts.get(wid) : null;
+            if (!contactObj) return "Contato do bot não encontrado no cache";
             
             if (Store.ProfilePic.requestProfilePicFromServer) {
-              const res = await Store.ProfilePic.requestProfilePicFromServer(wid);
+              const res = await Store.ProfilePic.requestProfilePicFromServer(contactObj);
               return { method: "requestProfilePicFromServer", raw: res };
             }
             if (Store.ProfilePic.profilePicResync) {
-              const res = await Store.ProfilePic.profilePicResync(wid);
+              const res = await Store.ProfilePic.profilePicResync(contactObj);
               return { method: "profilePicResync", raw: res };
             }
             return "Sem método de rede";
