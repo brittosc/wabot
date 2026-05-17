@@ -33,6 +33,29 @@ async function sincronizarParticipantes(client, logCallback = console.log) {
       return;
     }
 
+    logCallback(chalk.blue("🔄 Pré-carregando os grupos para sincronizar metadados e fotos de perfil dos membros..."));
+    try {
+      await client.pupPage.evaluate(async () => {
+        try {
+          const Store = window.Store;
+          if (!Store || !Store.Chat || !Store.Cmd || !Store.Cmd.openChatAt) return;
+          const groups = Store.Chat.models.filter(chat => chat.isGroup);
+          for (const g of groups) {
+            try {
+              await Store.Cmd.openChatAt(g);
+              // Delay curto entre abertura de grupos
+              await new Promise(r => setTimeout(r, 1200));
+            } catch (err) {}
+          }
+        } catch (e) {}
+      });
+      // Aguarda o processamento de rede de segundo plano
+      logCallback(chalk.gray("⏳ Aguardando 5 segundos para estabilização do cache de fotos..."));
+      await new Promise(resolve => setTimeout(resolve, 5000));
+    } catch (err) {
+      logCallback(chalk.gray("⚠️ Falha não fatal ao pré-carregar chats de grupos."));
+    }
+
     // Usando Map para garantir a unicidade de participantes
     const uniqueParticipants = new Map();
 
@@ -56,19 +79,22 @@ async function sincronizarParticipantes(client, logCallback = console.log) {
       return;
     }
 
-    // Processamento concorrente controlado
-    const limit = 5; 
+    // Processamento concorrente controlado anti rate-limit
+    const limit = 2; 
     const participantsList = Array.from(uniqueParticipants.values());
     let processedCount = 0;
     let successCount = 0;
     let errorCount = 0;
 
-    logCallback(chalk.blue(`🚀 Iniciando o processamento em lotes de ${limit}...`));
+    logCallback(chalk.blue(`🚀 Iniciando o processamento em lotes de ${limit} com delay anti rate-limit...`));
 
     const processParticipant = async (participant) => {
       const jid = participant.id._serialized;
       
       try {
+        // Atraso de espaçamento humano para evitar rate limit de busca de fotos no servidor
+        await new Promise(resolve => setTimeout(resolve, 1500));
+
         // 1. Obter informações de perfil público
         const contact = await withTimeout(client.getContactById(jid), 3000, null);
         
