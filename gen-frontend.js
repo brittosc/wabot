@@ -52,6 +52,10 @@ const jsFiles = [
     'estatisticas-capacity.js',
     'estatisticas-charts.js',
     'estatisticas-lifecycle.js',
+    'estatisticas-heatmap.js',
+    'estatisticas-insights.js',
+    'estatisticas-milestones.js',
+    'estatisticas-prediction.js',
 ];
 
 // Arquivos copiados diretamente (sem processamento)
