@@ -446,7 +446,7 @@ async function syncRecentPhotos(client) {
     let skipped = 0;
     let errors = 0;
 
-    const batchSize = 15;
+    const batchSize = 5;
     const idsArray = Array.from(voterIds);
 
     for (let i = 0; i < idsArray.length; i += batchSize) {
@@ -483,11 +483,12 @@ async function syncRecentPhotos(client) {
             }
           } catch (err) {
             errors++;
+            dashboard.addLog(`[SYNC FOTO ERR] ID: ${id.split('@')[0]} | Erro: ${err.message}`);
           }
         })
       );
       // Breve pausa para respiro de rede e do Puppeteer entre os lotes
-      await new Promise((resolve) => setTimeout(resolve, 300));
+      await new Promise((resolve) => setTimeout(resolve, 800));
     }
 
     dashboard.addLog(
