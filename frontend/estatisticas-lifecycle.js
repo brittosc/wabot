@@ -8,15 +8,12 @@ const updateDash = () => {
 };
 window.updateDash = updateDash;
 
-let notificationAudio = null;
 const playNotificationSound = () => {
     try {
-        if (!notificationAudio) {
-            notificationAudio = new Audio("/notifications/sound.mp3");
-        }
-        notificationAudio.volume = 1.0;
-        notificationAudio.currentTime = 0; // Reinicia o som se já estiver tocando
-        notificationAudio.play().catch(e => {
+        // Som de notificação curto e suave
+        const audio = new Audio("https://cdn.pixabay.com/audio/2022/03/15/audio_507663249f.mp3");
+        audio.volume = 0.5;
+        audio.play().catch(e => {
             console.warn("Notificação sonora bloqueada pelo navegador. Interaja com a página primeiro.");
         });
     } catch (e) {}
@@ -29,9 +26,14 @@ const updateNextPollsCalendar = (limitDays = 7) => {
     list.innerHTML = "";
 
     let displayLimit = 7;
-    const parsed = parseInt(limitDays, 10);
-    if (!isNaN(parsed) && parsed > 7) {
-        displayLimit = Math.min(30, parsed);
+    if (typeof limitDays === 'string' && limitDays.includes('_')) {
+        // Trata "this_month" ou outros períodos especiais como padrão 7
+        displayLimit = 7;
+    } else {
+        const parsed = parseInt(limitDays, 10);
+        if (!isNaN(parsed) && parsed > 7) {
+            displayLimit = Math.min(30, parsed);
+        }
     }
     const now = moment();
     let current = moment();
@@ -76,27 +78,11 @@ const updateNextPollsCalendar = (limitDays = 7) => {
             const h = duration.hours();
             const m = duration.minutes();
 
-            let statusHtml = '<div class="status-badge status-rascunho">Agendada</div>';
-            if (dayWeather) {
-                const icon = getWeatherIcon(dayWeather.condition_code);
-                const theme = getTempTheme(dayWeather.max);
-                statusHtml = `
-                    <div class="status-weather-badge" style="background: ${theme.bg}; color: ${theme.text}; border-color: ${theme.border};">
-                        <span>Agendada</span>
-                        <i data-lucide="${icon}" class="weather-icon" style="color: ${theme.icon};"></i>
-                        <div style="display:flex; align-items:center; gap:3px;">
-                            <span class="temp-max">${dayWeather.max}°</span>
-                            <span class="temp-separator">/</span>
-                            <span class="temp-min">${dayWeather.min}°</span>
-                        </div>
-                    </div>
-                `;
-            }
-
             row.innerHTML = `
                 <div class="calendar-box"><i data-lucide="calendar" class="cal-icon"></i><div class="cal-date">${dateDisplay}</div></div>
                 <div class="poll-info"><div class="poll-title">${['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'][current.day()]}</div><div class="poll-subtitle">Semana ${weekNum} • ${pollTime}</div></div>
-                ${statusHtml}
+                ${weatherHtml}
+                <div class="status-badge status-agendada">Agendada</div>
             `;
         }
 
@@ -123,23 +109,24 @@ const checkMidnightReset = () => {
 const fetchStats = async () => {
     checkMidnightReset();
     try {
-        const res = await fetch(BACKEND_URL + '/api/stats');
+        const baseUrl = (window.BACKEND_URL || '').replace(/\/$/, '');
+        const res = await fetch(`${baseUrl}/api/stats?t=${Date.now()}`);
         if (res.ok) {
             const data = await res.json();
             if (JSON.stringify(rawDB) !== JSON.stringify(data.votes) || isPollSentToday !== data.isPollSentToday || JSON.stringify(weatherForecast) !== JSON.stringify(data.weather) || JSON.stringify(passengers) !== JSON.stringify(data.passengers)) {
                 
-                const votesChanged = JSON.stringify(rawDB) !== JSON.stringify(data.votes);
+                // Detecta se houve novos votos para tocar o som
                 const oldVoteCount = countTotalVotes(rawDB);
+                const newVoteCount = countTotalVotes(data.votes || {});
                 
                 rawDB = data.votes || {};
                 passengers = data.passengers || [];
-                pollHistory = data.pollHistory || [];
                 isPollSentToday = !!data.isPollSentToday;
                 capacities = data.capacities || {};
-                window.groupAliases = data.aliases || {};
-                groupAliases = window.groupAliases;
+                groupAliases = data.aliases || {};
                 skipDates = data.skipDates || {};
                 weatherForecast = data.weather || [];
+                pollTime = data.pollTime || '05:30';
                 
                 if (window.populateGroupSelect) {
                     window.populateGroupSelect();
@@ -147,7 +134,7 @@ const fetchStats = async () => {
 
                 updateDash();
 
-                if (votesChanged && oldVoteCount > 0) {
+                if (newVoteCount > oldVoteCount && oldVoteCount > 0) {
                     playNotificationSound();
                 }
 
