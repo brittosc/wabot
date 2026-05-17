@@ -309,6 +309,11 @@ async function syncRecentPhotos(client) {
       if (photoUrl) {
         await statistics.syncPassengerMetadata(id, name, photoUrl);
         count++;
+        dashboard.addLog(
+          `[SYNC FOTO] Foto obtida para ${name} (${id.split('@')[0]}): ${photoUrl.substring(0, 60)}...`
+        );
+      } else {
+        // dashboard.addLog(`[SYNC FOTO] Sem foto pública para ${name}`);
       }
 
       await new Promise((resolve) => setTimeout(resolve, 500));
@@ -316,6 +321,10 @@ async function syncRecentPhotos(client) {
       errors++;
     }
   }
+
+  dashboard.addLog(
+    `[SYNC FOTO] Concluído! Fotos atualizadas: ${count} | Ignorados: ${skipped} | Erros: ${errors}`
+  );
 }
 
 // Inicia Dashboard no terminal
