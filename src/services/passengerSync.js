@@ -207,7 +207,7 @@ async function precarregarFotosVisualmente(client, groups, logCallback) {
         continue;
       }
 
-      await new Promise(r => setTimeout(r, 2000)); // Aguarda abrir a barra lateral
+      await new Promise(r => setTimeout(r, 3000)); // Aguarda abrir a barra lateral
 
       // Salva screenshot para auditoria visual
       try {
@@ -217,12 +217,17 @@ async function precarregarFotosVisualmente(client, groups, logCallback) {
         logCallback(chalk.gray(`  • Screenshot de auditoria salvo em: ${ssPath}`));
       } catch (ssErr) {}
 
-      // 3. Procurar e clicar no botão "Ver todos" membros com clique recursivo em cascata nos filhos
-      const verTodosClicked = await page.evaluate(() => {
+      // 3. Procurar e clicar no botão "Ver todos" membros com scroll prévio no painel lateral
+      const verTodosClicked = await page.evaluate(async () => {
         const rightPane = document.querySelector('[style*="overflow-y"] [role="region"]') || 
-                          document.querySelector('#app [role="region"]') || 
+                          document.querySelector('#app [role="region"] div[style*="overflow-y"]') || 
                           document.querySelector('#app div[style*="overflow-y"]') || 
                           document;
+
+        if (rightPane && rightPane.scrollTo) {
+          rightPane.scrollTop = 9999;
+          await new Promise(r => setTimeout(r, 800));
+        }
 
         const elementos = Array.from(rightPane.querySelectorAll('span, div, [role="button"]'));
         const btn = elementos.find(el => {
