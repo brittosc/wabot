@@ -278,18 +278,13 @@ async function syncRecentPhotos(client) {
   // Delay de 5s para não brigar com as mensagens de inicialização
   await new Promise((resolve) => setTimeout(resolve, 5000));
 
-  const stats = await statistics.readStats();
-  const rawDB = stats.rawDB || {};
+  dashboard.addLog("[SYNC FOTO] Iniciando sincronização de fotos dos passageiros...");
+  const passengersList = await statistics.readPassengers();
 
-  // Coleta IDs únicos dos votos
   const voterIds = new Set();
-  Object.values(rawDB).forEach((day) => {
-    if (day.grupos) {
-      Object.values(day.grupos).forEach((group) => {
-        if (group.votes) {
-          Object.keys(group.votes).forEach((id) => voterIds.add(id));
-        }
-      });
+  passengersList.forEach((p) => {
+    if (p.whatsapp_id) {
+      voterIds.add(p.whatsapp_id);
     }
   });
 
