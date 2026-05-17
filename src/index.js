@@ -21,41 +21,19 @@ async function resolveContactInfo(client, voterId) {
   let photoUrl = null;
   let jid = voterId;
 
+  // Helper de timeout rígido para Promises no Node.js
+  const withTimeout = (promise, ms, defaultValue = null) => {
+    return Promise.race([
+      promise,
+      new Promise((resolve) => setTimeout(() => resolve(defaultValue), ms))
+    ]);
+  };
+
   try {
-    // 1. Tenta obter o contato básico para extrair o Nome e JID real
-    const contact = await client.getContactById(voterId).catch(() => null);
-    if (contact) {
-      name = contact.pushname || contact.name;
-      if (contact.number) {
-        jid = `${contact.number}@c.us`;
-      } else if (contact.id && contact.id._serialized) {
-        jid = contact.id._serialized;
-      }
-      
-      // Tenta obter a foto direto do contato
-      photoUrl = await contact.getProfilePicUrl().catch(() => null);
-    }
-
-    // 2. Se falhou e for LID, tenta converter para JID real (c.us) e buscar foto
-    if (!photoUrl && (voterId.includes("@lid") || jid.includes("@lid"))) {
-      try {
-        const contactObj = contact || await client.getContactById(voterId).catch(() => null);
-        if (contactObj) {
-          const contactNumber = contactObj.number || (contactObj.id && contactObj.id.user);
-          if (contactNumber && !contactNumber.includes("@")) {
-            const realJid = `${contactNumber}@c.us`;
-            try { await client.getChatById(realJid); } catch (e) {}
-            photoUrl = await client.getProfilePicUrl(realJid).catch(() => null);
-            if (photoUrl) jid = realJid;
-          }
-        }
-      } catch (e) {}
-    }
-
-    // 3. Fallback via Puppeteer/Store avançado com delay de 2 segundos para requisição de rede
-    if (!photoUrl) {
-      try {
-        photoUrl = await client.pupPage.evaluate(async (jidStr) => {
+    // 1. Tenta buscar a foto via Puppeteer/Store avançado primeiro (100% livre de rede travante se já estiver no cache local do navegador)
+    try {
+      photoUrl = await withTimeout(
+        client.pupPage.evaluate(async (jidStr) => {
           try {
             const Store = window.Store;
             if (!Store) return null;
@@ -66,7 +44,7 @@ async function resolveContactInfo(client, voterId) {
             const wid = WidFactory.createWid(jidStr);
             const Contacts = Store.Contact || Store.ContactCollection;
 
-            // 1. Verifica se já está no cache local para evitar delay desnecessário
+            // A. Tenta ler o cache em memória síncrono instantaneamente
             const contactObj = Contacts ? Contacts.get(wid) : null;
             if (contactObj) {
               const p = contactObj.profilePicThumb || contactObj.__x_profilePicThumb;
@@ -75,9 +53,9 @@ async function resolveContactInfo(client, voterId) {
               }
             }
 
-            // 2. Dispara requisição ao servidor de mídia do WhatsApp com timeout rígido de 1.5s
+            // B. Dispara consulta de mídia com timeout rígido interno de 1.2s
             let netRes = null;
-            const timeoutPromise = new Promise(resolve => setTimeout(() => resolve(null), 1500));
+            const timeoutPromise = new Promise(resolve => setTimeout(() => resolve(null), 1200));
 
             if (contactObj) {
               if (Store.ProfilePic && Store.ProfilePic.requestProfilePicFromServer) {
@@ -105,15 +83,13 @@ async function resolveContactInfo(client, voterId) {
               }
             }
 
-            // Retorna imediatamente se a rede devolveu o link direto
             if (netRes && (netRes.eurl || netRes.previewEurl)) {
               return netRes.eurl || netRes.previewEurl;
             }
 
-            // DELAY CRÍTICO DE 800MS na página apenas se fomos buscar da rede e não retornou direto
-            await new Promise(resolve => setTimeout(resolve, 800));
+            // Pausa rápida de respiro se foi buscar na rede
+            await new Promise(resolve => setTimeout(resolve, 500));
 
-            // 3. Lê o contato atualizado
             const updatedContact = Contacts ? Contacts.get(wid) : null;
             if (updatedContact) {
               const p = updatedContact.profilePicThumb || updatedContact.__x_profilePicThumb;
@@ -122,7 +98,7 @@ async function resolveContactInfo(client, voterId) {
               }
             }
 
-            // Fallback de última instância para o próprio bot (lê a imagem do cabeçalho de perfil no DOM)
+            // Fallback próprio bot
             if (Store.Conn && Store.Conn.wid && (Store.Conn.wid._serialized === jidStr || Store.Conn.wid.user === jidStr.split('@')[0])) {
               const myHeaderImg = document.querySelector('header img') || document.querySelector('div[title="Foto do perfil"] img') || document.querySelector('div[title="Profile photo"] img');
               if (myHeaderImg && myHeaderImg.src && (myHeaderImg.src.includes('http') || myHeaderImg.src.includes('blob'))) {
@@ -138,13 +114,49 @@ async function resolveContactInfo(client, voterId) {
           } catch (e) {
             return null;
           }
-        }, jid || voterId);
+        }, jid || voterId),
+        2500, // Timeout rígido para o evaluate do Puppeteer inteiro
+        null
+      );
+    } catch (e) {}
+
+    // 2. Tenta obter o contato básico do Node.js com timeout rígido de 1.5s
+    const contact = await withTimeout(
+      client.getContactById(voterId),
+      1500,
+      null
+    ).catch(() => null);
+
+    if (contact) {
+      name = contact.pushname || contact.name;
+      if (contact.number) {
+        jid = `${contact.number}@c.us`;
+      } else if (contact.id && contact.id._serialized) {
+        jid = contact.id._serialized;
+      }
+    }
+
+    // 3. Fallback LID para converter para c.us e buscar com timeout rígido de 1.5s
+    if (!photoUrl && (voterId.includes("@lid") || jid.includes("@lid"))) {
+      try {
+        const contactObj = contact || await withTimeout(client.getContactById(voterId), 1500, null).catch(() => null);
+        if (contactObj) {
+          const contactNumber = contactObj.number || (contactObj.id && contactObj.id.user);
+          if (contactNumber && !contactNumber.includes("@")) {
+            const realJid = `${contactNumber}@c.us`;
+            try { 
+              await withTimeout(client.getChatById(realJid), 1200, null); 
+            } catch (e) {}
+            photoUrl = await withTimeout(client.getProfilePicUrl(realJid), 1500, null).catch(() => null);
+            if (photoUrl) jid = realJid;
+          }
+        }
       } catch (e) {}
     }
 
-    // 4. Última tentativa oficial com ID original
+    // 4. Última tentativa oficial com ID original e timeout de 1.5s
     if (!photoUrl) {
-      photoUrl = await client.getProfilePicUrl(jid || voterId).catch(() => null);
+      photoUrl = await withTimeout(client.getProfilePicUrl(jid || voterId), 1500, null).catch(() => null);
     }
   } catch (err) {
     /* erro silencioso */
@@ -153,7 +165,7 @@ async function resolveContactInfo(client, voterId) {
   // Preenche retornos adicionais de fallback se necessário
   if (photoUrl && !name) {
     try {
-      const contactObj = await client.getContactById(voterId).catch(() => null);
+      const contactObj = await withTimeout(client.getContactById(voterId), 1200, null).catch(() => null);
       if (contactObj) name = contactObj.pushname || contactObj.name;
     } catch (e) {}
   }
