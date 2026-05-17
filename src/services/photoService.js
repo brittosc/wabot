@@ -21,7 +21,7 @@ async function getProfilePhoto(client, id) {
       } catch (e) {}
     }
 
-    // 1. Tenta a estratégia robusta com Puppeteer, corrigindo o erro isNewsletter
+    // 1. Tenta a estratégia avançada e oficial do wa-js no Puppeteer
     try {
       photoUrl = await client.pupPage.evaluate(async (targetJid) => {
         try {
@@ -32,60 +32,39 @@ async function getProfilePhoto(client, id) {
           if (!WidFactory) return null;
 
           const wid = WidFactory.createWid(targetJid);
-          const Contacts = Store.Contact || Store.ContactCollection;
-          if (!Contacts) return null;
+          const ProfilePicThumb = Store.ProfilePicThumb;
+          if (!ProfilePicThumb) return null;
 
-          // Força a busca real no servidor do WhatsApp para obter as informações e a foto pública do contato
-          let contactObj = Contacts.get(wid);
-          if (!contactObj && Contacts.find) {
+          // Busca ou instancia dinamicamente o modelo de foto de perfil na coleção oficial
+          let thumb = ProfilePicThumb.get(wid);
+          if (!thumb && ProfilePicThumb.modelClass) {
             try {
-              contactObj = await Contacts.find(wid);
+              thumb = new ProfilePicThumb.modelClass({ id: wid });
+              ProfilePicThumb.add(thumb);
             } catch (e) {}
           }
 
-          if (!contactObj && Contacts.gadd) {
-            Contacts.gadd(wid, { silent: true });
-            contactObj = Contacts.get(wid);
-          }
-
-          if (!contactObj) return null;
-
-          // Se já possui a foto no cache local, retorna imediatamente
-          if (contactObj.profilePicThumbObj) {
-            const p = contactObj.profilePicThumbObj;
-            const cachedUrl = p.imgFull || p.eurl || p.img;
-            if (cachedUrl) return cachedUrl;
-          }
-
-          // Executa a requisição forçada no servidor do WhatsApp passando o contactObj inteiro (corrige isNewsletter!)
-          if (Store.ProfilePic && Store.ProfilePic.requestProfilePicFromServer) {
-            try {
-              const res = await Store.ProfilePic.requestProfilePicFromServer(contactObj);
-              if (res && (res.eurl || res.imgFull || res.img)) {
-                return res.eurl || res.imgFull || res.img;
-              }
-            } catch (err) {
-              // Se der erro ao passar o objeto, tenta com o wid como fallback
+          // Se a miniatura não possui imagem válida no cache local, força a sincronização com o servidor
+          if (thumb && (!thumb.imgFull && !thumb.eurl && !thumb.img)) {
+            if (Store.ProfilePic && Store.ProfilePic.profilePicResync) {
               try {
-                const res = await Store.ProfilePic.requestProfilePicFromServer(wid);
-                if (res && (res.eurl || res.imgFull || res.img)) {
-                  return res.eurl || res.imgFull || res.img;
+                await Store.ProfilePic.profilePicResync([thumb]);
+              } catch (err) {
+                // Fallback para requestProfilePicFromServer passando o objeto thumb
+                if (Store.ProfilePic.requestProfilePicFromServer) {
+                  try {
+                    await Store.ProfilePic.requestProfilePicFromServer(thumb);
+                  } catch (e2) {}
                 }
-              } catch (e2) {}
+              }
             }
           }
 
-          // Se ainda não obteve, aguarda um curto intervalo para que a rede popule o profilePicThumbObj
-          await new Promise(resolve => setTimeout(resolve, 400));
+          // Curto atraso para garantir o recebimento dos pacotes da CDN
+          await new Promise(resolve => setTimeout(resolve, 500));
 
-          if (contactObj.profilePicThumbObj) {
-            const p = contactObj.profilePicThumbObj;
-            return p.imgFull || p.eurl || p.img || null;
-          }
-
-          if (Store.ProfilePic && Store.ProfilePic.profilePicFind) {
-            const pic = await Store.ProfilePic.profilePicFind(wid);
-            return pic ? (pic.imgFull || pic.eurl || pic.img) : null;
+          if (thumb) {
+            return thumb.imgFull || thumb.eurl || thumb.img || null;
           }
 
           return null;
