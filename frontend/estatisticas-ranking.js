@@ -90,7 +90,16 @@ const updateRanking = (targetGroupFromDash, _targetDaysStr) => {
                 const opt = typeof vData === 'object' ? vData.option : vData;
                 const ts = typeof vData === 'object' ? vData.timestamp : null;
                 const voter_name = typeof vData === 'object' ? vData.voter_name : undefined;
-                const photo_url = typeof vData === 'object' ? (vData.photo_url || null) : null;
+                let photo_url = typeof vData === 'object' ? (vData.photo_url || null) : null;
+                if (!photo_url) {
+                    const getPsg = window.getPassengerByJid || (typeof getPassengerByJid === 'function' ? getPassengerByJid : null);
+                    if (getPsg) {
+                        const passenger = getPsg(jid);
+                        if (passenger && passenger.photo_url) {
+                            photo_url = passenger.photo_url;
+                        }
+                    }
+                }
                 dayUniqueVoters.set(key, { opt, ts, voter_name, photo_url, gName });
             });
         });
