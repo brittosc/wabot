@@ -36,6 +36,20 @@ async function resolveContactInfo(client, voterId) {
     const storeData = await client.pupPage.evaluate(async (id) => {
       try {
         const Store = window.Store;
+        
+        // Se for a própria conta conectada (o bot)
+        if (Store.Conn && Store.Conn.wid && (Store.Conn.wid._serialized === id || Store.Conn.wid.user === id.split('@')[0])) {
+          let pic = null;
+          if (Store.Conn.profilePicThumb) {
+            pic = Store.Conn.profilePicThumb.eurl || Store.Conn.profilePicThumb.img;
+          }
+          return {
+            pushname: Store.Conn.pushname || null,
+            pic: pic || null,
+            jid: Store.Conn.wid._serialized
+          };
+        }
+
         const wid = Store.WidFactory.createWid(id);
         let contact = Store.Contact.get(wid);
         
