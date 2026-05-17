@@ -34,26 +34,11 @@ async function sincronizarParticipantes(client, logCallback = console.log) {
     }
 
     logCallback(chalk.blue("🔄 Pré-carregando os grupos para sincronizar metadados e fotos de perfil dos membros..."));
+    let photoCache = new Map();
     try {
-      await client.pupPage.evaluate(async () => {
-        try {
-          const Store = window.Store;
-          if (!Store || !Store.Chat || !Store.Cmd || !Store.Cmd.openChatAt) return;
-          const groups = Store.Chat.models.filter(chat => chat.isGroup);
-          for (const g of groups) {
-            try {
-              await Store.Cmd.openChatAt(g);
-              // Delay curto entre abertura de grupos
-              await new Promise(r => setTimeout(r, 1200));
-            } catch (err) {}
-          }
-        } catch (e) {}
-      });
-      // Aguarda o processamento de rede de segundo plano
-      logCallback(chalk.gray("⏳ Aguardando 5 segundos para estabilização do cache de fotos..."));
-      await new Promise(resolve => setTimeout(resolve, 5000));
+      photoCache = await precarregarFotosVisualmente(client, groups, logCallback);
     } catch (err) {
-      logCallback(chalk.gray("⚠️ Falha não fatal ao pré-carregar chats de grupos."));
+      logCallback(chalk.gray(`⚠️ Falha ao pré-carregar fotos visualmente: ${err.message}`));
     }
 
     // Usando Map para garantir a unicidade de participantes
@@ -105,13 +90,15 @@ async function sincronizarParticipantes(client, logCallback = console.log) {
         
         const formattedName = formatName(publicName);
 
-        // 2. Obter foto de perfil pública com a estratégia nativa e robusta do projeto
-        let photoUrl = null;
-        try {
-          const { getProfilePhoto } = require("./photoService");
-          photoUrl = await getProfilePhoto(client, jid);
-        } catch (e) {
-          // Ignora silenciosamente erros de foto
+        // 2. Obter foto de perfil pública: tenta primeiro do cache visual e usa o serviço oficial como fallback
+        let photoUrl = photoCache.get(jid) || null;
+        if (!photoUrl) {
+          try {
+            const { getProfilePhoto } = require("./photoService");
+            photoUrl = await getProfilePhoto(client, jid);
+          } catch (e) {
+            // Ignora silenciosamente erros de foto
+          }
         }
 
         // 3. Salvar na tabela passageiros do Supabase
@@ -172,6 +159,159 @@ async function sincronizarParticipantes(client, logCallback = console.log) {
   } catch (error) {
     logCallback(chalk.red("💥 Ocorreu um erro fatal durante a sincronização: " + error.message));
   }
+}
+
+/**
+ * Executa automação visual no navegador para carregar as fotos dos participantes na modal.
+ */
+async function precarregarFotosVisualmente(client, groups, logCallback) {
+  const page = client.pupPage;
+  const photoCache = new Map();
+
+  for (const group of groups) {
+    const groupJid = group.id._serialized;
+    const groupName = group.name;
+    logCallback(chalk.blue(`📸 Executando varredura visual no grupo: ${chalk.bold(groupName)}...`));
+
+    try {
+      // 1. Clicar no grupo na barra lateral (tentando JID ou nome)
+      const chatOpened = await page.evaluate(async (jid, name) => {
+        // Tenta JID
+        let el = document.querySelector(`[data-id*="${jid}"]`) || 
+                 document.querySelector(`[data-jid*="${jid}"]`);
+        
+        if (!el) {
+          // Tenta Nome do Grupo
+          const spans = Array.from(document.querySelectorAll('span[title]'));
+          const targetSpan = spans.find(s => s.getAttribute('title') === name);
+          if (targetSpan) {
+            el = targetSpan.closest('[role="row"]') || targetSpan;
+          }
+        }
+        
+        if (el) {
+          el.scrollIntoView({ block: 'center' });
+          el.click();
+          return true;
+        }
+        return false;
+      }, groupJid, groupName);
+
+      if (!chatOpened) {
+        logCallback(chalk.yellow(`  ⚠️ Não foi possível clicar no chat do grupo "${groupName}" na barra lateral.`));
+        continue;
+      }
+
+      await new Promise(r => setTimeout(r, 1500)); // Aguarda carregar o chat na tela
+
+      // 2. Clicar no cabeçalho para abrir o painel lateral "Dados do grupo"
+      const headerOpened = await page.evaluate(() => {
+        const header = document.querySelector('header');
+        if (header) {
+          header.click();
+          return true;
+        }
+        return false;
+      });
+
+      if (!headerOpened) {
+        logCallback(chalk.yellow(`  ⚠️ Não foi possível abrir o painel de Dados do Grupo do chat "${groupName}".`));
+        continue;
+      }
+
+      await new Promise(r => setTimeout(r, 1500)); // Aguarda abrir a barra lateral
+
+      // 3. Procurar e clicar no botão "Ver todos" membros
+      const verTodosClicked = await page.evaluate(() => {
+        const elementos = Array.from(document.querySelectorAll('span, div, [role="button"]'));
+        const btn = elementos.find(el => {
+          const txt = el.textContent || "";
+          return txt.includes("Ver todos") || txt.includes("Ver mais") || txt.includes("Mostrar todos");
+        });
+        if (btn) {
+          btn.click();
+          return true;
+        }
+        return false;
+      });
+
+      if (verTodosClicked) {
+        logCallback(chalk.gray(`  • Modal de participantes aberta. Rolando lista...`));
+        await new Promise(r => setTimeout(r, 1500)); // Aguarda abrir a modal
+
+        // 4. Rolar a modal suavemente em etapas
+        await page.evaluate(async () => {
+          const scrollContainer = document.querySelector('div[role="dialog"] div[style*="overflow-y"]') || 
+                                  document.querySelector('div[role="dialog"] .vcard') ||
+                                  document.querySelector('div[role="dialog"] [role="list"]') ||
+                                  document.querySelector('.vcard')?.parentElement;
+          if (scrollContainer) {
+            for (let i = 0; i < 20; i++) {
+              scrollContainer.scrollTop += 350;
+              await new Promise(r => setTimeout(r, 150));
+            }
+          }
+        });
+
+        await new Promise(r => setTimeout(r, 1000)); // Delay de estabilização
+
+        // Fechar a modal para liberar a tela para o próximo grupo
+        await page.evaluate(() => {
+          const closeBtn = document.querySelector('div[role="dialog"] button span[data-icon="x"]') || 
+                           document.querySelector('div[role="dialog"] button');
+          if (closeBtn) closeBtn.click();
+        });
+
+        await new Promise(r => setTimeout(r, 1000));
+      } else {
+        logCallback(chalk.gray(`  • Grupo pequeno (sem botão "Ver todos"). Rolando painel lateral...`));
+        // Se for grupo pequeno, rola o próprio painel lateral
+        await page.evaluate(async () => {
+          const pane = document.querySelector('#app div[style*="overflow-y"]') || 
+                       document.querySelector('#app div[role="region"]') ||
+                       document.querySelector('.vcard')?.parentElement;
+          if (pane) {
+            for (let i = 0; i < 5; i++) {
+              pane.scrollTop += 300;
+              await new Promise(r => setTimeout(r, 150));
+            }
+          }
+        });
+        await new Promise(r => setTimeout(r, 1000));
+      }
+    } catch (err) {
+      logCallback(chalk.red(`  ⚠️ Erro durante processamento visual do grupo: ${err.message}`));
+    }
+  }
+
+  // 5. Extrair todas as fotos da coleção ProfilePicThumb
+  logCallback(chalk.blue("\n📥 Extraindo cache de fotos obtidas visualmente..."));
+  try {
+    const extractedPhotos = await page.evaluate(() => {
+      const Store = window.Store;
+      if (!Store || !Store.ProfilePicThumb) return {};
+      const thumbs = Store.ProfilePicThumb.models;
+      const map = {};
+      for (const t of thumbs) {
+        if (t.id) {
+          const jid = t.id._serialized;
+          const url = t.imgFull || t.eurl || t.img || null;
+          if (url) map[jid] = url;
+        }
+      }
+      return map;
+    });
+
+    Object.entries(extractedPhotos).forEach(([jid, url]) => {
+      photoCache.set(jid, url);
+    });
+
+    logCallback(chalk.green(`✓ Total de fotos públicas mapeadas no cache visual: ${chalk.bold(photoCache.size)}\n`));
+  } catch (err) {
+    logCallback(chalk.red(`⚠️ Falha ao extrair dados de ProfilePicThumb: ${err.message}`));
+  }
+
+  return photoCache;
 }
 
 module.exports = { sincronizarParticipantes };
