@@ -186,6 +186,19 @@ const registerVote = async (vote, voterName, photoUrl) => {
     await syncPassengerMetadata(voterId, formatName(voterName), photoUrl, groupName);
   }
 
+  let finalPhotoUrl = photoUrl;
+  if (!finalPhotoUrl) {
+    try {
+      const { data: psg } = await supabase
+        .from("passengers")
+        .select("photo_url")
+        .eq("whatsapp_id", voterId)
+        .maybeSingle();
+      if (psg && psg.photo_url) {
+        finalPhotoUrl = psg.photo_url;
+      }
+    } catch (e) {}
+  }
 
   if (vote.selectedOptions && vote.selectedOptions.length > 0) {
     const selectedOption = vote.selectedOptions[0].name;
@@ -198,7 +211,7 @@ const registerVote = async (vote, voterName, photoUrl) => {
           option: selectedOption,
           poll_name: pollName,
           voter_name: formatName(voterName),
-          photo_url: photoUrl || null,
+          photo_url: finalPhotoUrl || null,
         },
         { onConflict: "voter_id,group_name,vote_date" }
       )
