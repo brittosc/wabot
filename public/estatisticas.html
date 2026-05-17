@@ -20,264 +20,417 @@
 </head>
 <body>
 
-    <div style="width: 100%; max-width: 1100px; margin: 0 auto; text-align: center;">
-        <h1>Estatísticas das Enquetes</h1>
-
-        <div class="controls">
+    <!-- Barra de Filtros Globais Fixa -->
+    <div class="controls">
+        <div class="controls-brand">
+            <i data-lucide="bus" style="color: var(--accent); width: 22px; height: 22px;"></i>
+            <span style="font-weight: 800; font-size: 1rem; color: #fff; letter-spacing: -0.01em;">Wabot Dash</span>
+        </div>
+        <div class="controls-inputs">
             <select id="groupSelect">
                 <option value="Todos">Todos os Grupos</option>
                 <!-- Preenchido via JS -->
             </select>
 
-            <select id="periodSelect">
-                <option value="7" selected>Últimos 7 dias</option>
+            <select id="periodSelect" onchange="handlePeriodChange(this.value)">
+                <option value="this_month" selected>Mês Atual</option>
+                <option value="7">Últimos 7 dias</option>
                 <option value="15">Últimos 15 dias</option>
                 <option value="30">Últimos 30 dias</option>
                 <option value="60">Últimos 2 meses</option>
                 <option value="90">Últimos 3 meses</option>
                 <option value="180">Últimos 6 meses</option>
-                <option value="365">Últimos 12 meses</option>
+                <option value="365">Último ano</option>
+                <option value="today">Hoje</option>
+                <option value="yesterday">Ontem</option>
             </select>
+
+            <div id="customRangeContainer" style="display: none; gap: 8px; align-items: center;">
+                <input type="date" id="customStartDate" style="padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--card-bg); color: #fff; outline: none;" onchange="updateDash()">
+                <span style="color: #888; font-size: 0.8rem;">até</span>
+                <input type="date" id="customEndDate" style="padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--card-bg); color: #fff; outline: none;" onchange="updateDash()">
+            </div>
         </div>
     </div>
 
-    <!-- Barra de Lotação do Dia -->
-    <div id="capacitySection" style="display: none; width: 100%; max-width: 1100px; margin: 0 auto 25px auto;">
-        <div class="card" style="width: 100%; align-items: stretch; padding: 25px; box-sizing: border-box;">
-            <div id="totalBusVotes" style="font-size: 0.85rem; font-weight: 600; color: var(--accent); margin-bottom: 5px; text-align: center; width: 100%;"></div>
-            <div id="capacityList" style="padding-top: 15px;">
+    <div class="dashboard-container">
+        <h1>Estatísticas das Enquetes</h1>
+
+        <!-- Navegação por Abas -->
+        <div class="tabs-container">
+            <button class="tab-button active" data-tab="resumo" onclick="switchTab('resumo')">
+                <i data-lucide="layout-dashboard" style="width: 18px; height: 18px;"></i>
+                <span>Resumo</span>
+            </button>
+            <button class="tab-button" data-tab="graficos" onclick="switchTab('graficos')">
+                <i data-lucide="bar-chart-3" style="width: 18px; height: 18px;"></i>
+                <span>Gráficos</span>
+            </button>
+            <button class="tab-button" data-tab="ranking" onclick="switchTab('ranking')">
+                <i data-lucide="award" style="width: 18px; height: 18px;"></i>
+                <span>Ranking & Respostas</span>
+            </button>
+            <button class="tab-button" data-tab="proximas" onclick="switchTab('proximas')">
+                <i data-lucide="calendar" style="width: 18px; height: 18px;"></i>
+                <span>Próximas</span>
+            </button>
+        </div>
+
+        <!-- ABA 1: RESUMO (Destaque Principal e métricas gerais) -->
+        <div id="tab-resumo" class="tab-content active">
+            <div class="tab-section-header">
+                <h2><i data-lucide="sparkles" style="color: var(--accent);"></i> Insights & Visão Geral</h2>
+                <p>Confira a previsão para a próxima viagem e o resumo de participação do grupo.</p>
+            </div>
+
+            <!-- Previsão Inteligente (Destaque Principal) -->
+            <div id="predictionSection" style="width: 100%; margin-bottom: 25px; display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px;">
                 <!-- Preenchido via JS -->
             </div>
-        </div>
-    </div>
 
-    <div class="dashboard">
-        <div class="card">
-            <h2 id="titlePieChart">Consolidado Geral</h2>
-            <div class="chart-container">
-                <canvas id="pieChart"></canvas>
-            </div>
-        </div>
-
-        <div class="card">
-            <h2 id="titleBarChart">Votos por Dia</h2>
-            <div class="chart-container">
-                <canvas id="barChart"></canvas>
-            </div>
-        </div>
-
-        <div class="card card-wide" style="position: relative;">
-            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
-                <h2 id="titleStackedBarChart" style="margin: 0;">Proporção Diária</h2>
-            </div>
-            <div class="chart-container">
-                <canvas id="stackedBarChart"></canvas>
-            </div>
-        </div>
-
-        <!-- Cards de Máximos e Mínimos -->
-        <div class="highlights">
-            <div class="highlight-card" style="background: linear-gradient(90deg, #182818, #281818);">
-                <div class="card-title"><h3>Ida/Volta</h3></div>
-                <div class="split-container">
-                    <div class="split-half split-peak">
-                        <span class="label">MÁXIMO</span>
-                        <span class="value" id="hlLotacaoVal">-</span>
-                        <span class="date" id="hlLotacaoDate">-</span>
-                    </div>
-                    <div class="split-half split-valley">
-                        <span class="label">MÍNIMO</span>
-                        <span class="value" id="hlLotacaoMinVal">-</span>
-                        <span class="date" id="hlLotacaoMinDate">-</span>
-                    </div>
-                </div>
-            </div>
-            <div class="highlight-card" style="background: linear-gradient(90deg, #182818, #281818);">
-                <div class="card-title"><h3>Ausência</h3></div>
-                <div class="split-container">
-                    <div class="split-half split-peak">
-                        <span class="label">MÁXIMO</span>
-                        <span class="value" id="hlAusenciaVal">-</span>
-                        <span class="date" id="hlAusenciaDate">-</span>
-                    </div>
-                    <div class="split-half split-valley">
-                        <span class="label">MÍNIMO</span>
-                        <span class="value" id="hlAusenciaMinVal">-</span>
-                        <span class="date" id="hlAusenciaMinDate">-</span>
-                    </div>
-                </div>
-            </div>
-            <div class="highlight-card" style="background: linear-gradient(90deg, #182818, #281818);">
-                <div class="card-title"><h3>Só Ida</h3></div>
-                <div class="split-container">
-                    <div class="split-half split-peak">
-                        <span class="label">MÁXIMO</span>
-                        <span class="value" id="hlSoIdaVal">-</span>
-                        <span class="date" id="hlSoIdaDate">-</span>
-                    </div>
-                    <div class="split-half split-valley">
-                        <span class="label">MÍNIMO</span>
-                        <span class="value" id="hlSoIdaMinVal">-</span>
-                        <span class="date" id="hlSoIdaMinDate">-</span>
-                    </div>
-                </div>
-            </div>
-            <div class="highlight-card" style="background: linear-gradient(90deg, #182818, #281818);">
-                <div class="card-title"><h3>Só Volta</h3></div>
-                <div class="split-container">
-                    <div class="split-half split-peak">
-                        <span class="label">MÁXIMO</span>
-                        <span class="value" id="hlSoVoltaVal">-</span>
-                        <span class="date" id="hlSoVoltaDate">-</span>
-                    </div>
-                    <div class="split-half split-valley">
-                        <span class="label">MÍNIMO</span>
-                        <span class="value" id="hlSoVoltaMinVal">-</span>
-                        <span class="date" id="hlSoVoltaMinDate">-</span>
-                    </div>
-                </div>
-            </div>
-            <div class="highlight-card" style="background: linear-gradient(145deg, #1e1e1e, #1a2a1a);">
-                <div class="card-title"><h3>Mais Presença</h3></div>
-                <div class="split-container">
-                    <div class="split-half split-peak" style="align-items: center; text-align: center;">
-                        <span class="label" id="hlWeekdayPeakLabel">DIA DE PICO</span>
-                        <span class="value" id="hlWeekdayPeakVal">-</span>
-                        <span class="date" id="hlWeekdayPeakDate">Carregando...</span>
-                    </div>
-                </div>
-            </div>
-            <div class="highlight-card" style="background: linear-gradient(145deg, #1e1e1e, #2a1a1a);">
-                <div class="card-title"><h3>Menos Presença</h3></div>
-                <div class="split-container">
-                    <div class="split-half split-valley" style="align-items: center; text-align: center;">
-                        <span class="label" id="hlWeekdayValleyLabel">DIA MÍNIMO</span>
-                        <span class="value" id="hlWeekdayValleyVal">-</span>
-                        <span class="date" id="hlWeekdayValleyDate">Carregando...</span>
-                    </div>
-                </div>
-            </div>
-            <div class="highlight-card" style="background: linear-gradient(145deg, #1e1e1e, #1a2a1a);">
-                <div class="card-title"><h3>Horário de Pico</h3></div>
-                <div class="split-container">
-                    <div class="split-half split-peak" style="align-items: center; text-align: center;">
-                        <span class="label">MAIS VOTOS</span>
-                        <span class="value" id="hlPeakHour">--</span>
-                        <span class="date" id="hlPeakHourCount"></span>
-                    </div>
-                </div>
-            </div>
-            <div class="highlight-card" style="background: linear-gradient(145deg, #1e1e1e, #2a1a1a);">
-                <div class="card-title"><h3>Horário Mais Calmo</h3></div>
-                <div class="split-container">
-                    <div class="split-half split-valley" style="align-items: center; text-align: center;">
-                        <span class="label">MENOS VOTOS</span>
-                        <span class="value" id="hlCalmHour">--</span>
-                        <span class="date" id="hlCalmHourCount"></span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Calendário de Próximas Enquetes -->
-        <div id="calendarSection" style="width: 100%;">
-            <div class="card card-wide" style="align-items: stretch;">
-                <h2 style="margin-bottom: 15px;">Próximas Enquetes</h2>
-                <div id="nextPollsList" style="display: flex; flex-direction: column; gap: 8px;">
-                    <!-- Preenchido via JS -->
-                </div>
-            </div>
-        </div>
-
-        <div class="summary-card">
-            <div class="summary-item">
-                <h3 id="lblTotalVotesTitle">Total Votos (7 dias)</h3>
-                <p id="lblTotalVotes">0</p>
-            </div>
-            <div class="summary-item">
-                <h3>Média de Presença</h3>
-
-                <p id="lblAverage">0</p>
-            </div>
-            <div class="summary-item">
-                <h3>Tempo Médio Voto</h3>
-                <p id="lblAvgVoteTime" class="accent-val">--</p>
-            </div>
-        </div>
-
-        <div class="feed-container">
-            <div style="display: flex; flex-direction: column; gap: 15px; margin-bottom: 15px;">
-                <div style="display: flex; align-items: center; gap: 15px;">
-                    <h2 style="margin: 0; font-size: 1.2rem;">Relatório de Respostas</h2>
-                    <div class="live-indicator"><div class="dot"></div> LIVE</div>
-                </div>
-                <div class="search-container" style="display: flex; gap: 10px; flex-wrap: wrap; width: 100%;">
-                    <select id="filterRouteSelect" onchange="handleFilterRoute(this.value)" style="padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.1); background: rgba(0, 0, 0, 0.2); color: white; outline: none; font-family: 'Inter', sans-serif; flex: 1; min-width: 140px;">
-                        <option value="">Todas as Rotas</option>
-                    </select>
-                    <select id="filterOptionSelect" onchange="handleFilterOption(this.value)" style="padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.1); background: rgba(0, 0, 0, 0.2); color: white; outline: none; font-family: 'Inter', sans-serif; flex: 1; min-width: 140px;">
-                        <option value="">Todas as Respostas</option>
-                        <option value="Irei, ida e volta.">Irei, ida e volta.</option>
-                        <option value="Irei, mas não retornarei.">Irei, mas não retornarei.</option>
-                        <option value="Não irei, apenas retornarei.">Não irei, apenas retornarei.</option>
-                        <option value="Não irei à faculdade hoje.">Não irei à faculdade hoje.</option>
-                    </select>
-                    <input type="text" id="searchFeedInput" placeholder="Pesquisar..." oninput="handleSearchFeed(this.value)" style="padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.1); background: rgba(0, 0, 0, 0.2); color: white; outline: none; font-family: 'Inter', sans-serif; flex: 2; min-width: 200px;">
-                </div>
-            </div>
-
-            <div class="card card-wide" style="padding: 0; border: none; background: transparent; box-shadow: none;">
-                <table class="feed-table">
-                    <thead>
-                        <tr id="feedHeader">
-                            <th>Horário</th>
-                            <th>Estudante</th>
-                            <th>Rota</th>
-                            <th>Resposta</th>
-                        </tr>
-                    </thead>
-                    <tbody id="voteFeedBody">
+            <!-- Barra de Lotação do Dia -->
+            <div id="capacitySection" style="display: none; width: 100%; margin-bottom: 25px;">
+                <div class="card" style="width: 100%; align-items: stretch; padding: 25px; box-sizing: border-box;">
+                    <div id="totalBusVotes" style="font-size: 0.85rem; font-weight: 600; color: var(--accent); margin-bottom: 5px; text-align: center; width: 100%;"></div>
+                    <div id="capacityList" style="padding-top: 15px;">
                         <!-- Preenchido via JS -->
-                    </tbody>
-                </table>
-                <div id="paginationContainer" class="pagination-container">
-                    <!-- Preenchido via JS -->
+                    </div>
                 </div>
             </div>
+
+            <!-- Insights Automáticos -->
+            <div id="insightsSection" style="width: 100%; margin-bottom: 25px;">
+                <div class="card" style="padding: 15px; align-items: flex-start; background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.1);">
+                    <div id="insightsList" style="display: flex; flex-direction: column; gap: 12px; width: 100%;">
+                        <!-- Preenchido via JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Métricas Rápidas -->
+            <div class="summary-card" style="margin-bottom: 25px;">
+                <div class="summary-item">
+                    <h3 id="lblTotalVotesTitle">Total Votos</h3>
+                    <p id="lblTotalVotes">0</p>
+                    <div id="lblTotalVotesTrend"></div>
+                </div>
+                <div class="summary-item">
+                    <h3>Média de Presença</h3>
+                    <p id="lblAverage">0</p>
+                    <div id="lblAverageTrend"></div>
+                </div>
+                <div class="summary-item">
+                    <h3>Tempo Médio Voto</h3>
+                    <p id="lblAvgVoteTime" class="accent-val">--</p>
+                    <div id="lblAvgVoteTimeTrend"></div>
+                </div>
+            </div>
+
+            <!-- Conquistas do Grupo -->
+            <div id="milestonesSection" style="width: 100%; margin-bottom: 25px; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 15px;">
+                <!-- Recorde de Participação -->
+                <div class="card" style="padding: 20px; align-items: flex-start; flex-direction: row; gap: 15px; background: linear-gradient(145deg, #1e1e1e, #1a1a1a);">
+                    <div style="background: rgba(255, 193, 7, 0.1); border-radius: 12px; padding: 12px; color: #ffc107;">
+                        <i data-lucide="trophy" style="width: 24px; height: 24px;"></i>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; color: #b3b3b3; font-weight: 700; text-transform: uppercase;">Recorde Histórico</div>
+                        <div id="milestoneRecord" style="font-size: 1.15rem; font-weight: 800; color: #fff;">-- alunos</div>
+                        <div id="milestoneRecordDate" style="font-size: 0.75rem; color: #9e9e9e;">--/--/----</div>
+                    </div>
+                </div>
+                <!-- Menor Ausência -->
+                <div class="card" style="padding: 20px; align-items: flex-start; flex-direction: row; gap: 15px; background: linear-gradient(145deg, #1e1e1e, #1a1a1a);">
+                    <div style="background: rgba(244, 67, 54, 0.1); border-radius: 12px; padding: 12px; color: #f44336;">
+                        <i data-lucide="user-minus" style="width: 24px; height: 24px;"></i>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; color: #b3b3b3; font-weight: 700; text-transform: uppercase;">Menor Ausência</div>
+                        <div id="milestoneMinAbsence" style="font-size: 1.15rem; font-weight: 800; color: #fff;">-- alunos</div>
+                        <div id="milestoneMinAbsenceDate" style="font-size: 0.75rem; color: #9e9e9e;">--/--/----</div>
+                    </div>
+                </div>
+                <!-- Resposta mais Rápida -->
+                <div class="card" style="padding: 20px; align-items: flex-start; flex-direction: row; gap: 15px; background: linear-gradient(145deg, #1e1e1e, #1a1a1a);">
+                    <div style="background: rgba(33, 150, 243, 0.1); border-radius: 12px; padding: 12px; color: #2196f3;">
+                        <i data-lucide="zap" style="width: 24px; height: 24px;"></i>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; color: #b3b3b3; font-weight: 700; text-transform: uppercase;">Mais Rápido</div>
+                        <div id="milestoneFastest" style="font-size: 1.15rem; font-weight: 800; color: #fff;">--:--</div>
+                        <div id="milestoneFastestDate" style="font-size: 0.75rem; color: #9e9e9e;">--/--/----</div>
+                    </div>
+                </div>
+                <!-- Engajamento Recente -->
+                <div class="card" style="padding: 20px; align-items: flex-start; flex-direction: row; gap: 15px; background: linear-gradient(145deg, #1e1e1e, #1a1a1a);">
+                    <div style="background: rgba(76, 175, 80, 0.1); border-radius: 12px; padding: 12px; color: #4caf50;">
+                        <i data-lucide="trending-up" style="width: 24px; height: 24px;"></i>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; color: #b3b3b3; font-weight: 700; text-transform: uppercase;">Engajamento</div>
+                        <div id="milestoneEngagement" style="font-size: 1.15rem; font-weight: 800; color: #fff;">--%</div>
+                        <div style="font-size: 0.75rem; color: #9e9e9e;">Últimos 30 dias</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Heatmap de Frequência Semanal -->
+            <div class="card card-wide" style="padding: 20px; align-items: stretch; margin-bottom: 25px;">
+                <div class="tab-section-header" style="margin-bottom: 15px; border-bottom: none; padding-bottom: 0;">
+                    <h3 style="margin: 0; font-size: 1.1rem; color: #fff; display: flex; align-items: center; gap: 8px;"><i data-lucide="calendar-days" style="color: var(--accent); width: 20px; height: 20px;"></i> Heatmap de Frequência</h3>
+                    <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: #b3b3b3;">Histórico visual de participação diária ao longo das semanas.</p>
+                </div>
+                <div id="heatmapContainer" class="heatmap-wrapper">
+                    <!-- Renderizado via JS -->
+                </div>
             </div>
         </div>
 
-        <div class="feed-container" style="margin-top: 40px;">
-            <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 15px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-                    <h2 style="margin: 0; font-size: 1.2rem;">Ranking de Presen&ccedil;a</h2>
-                    <button id="btnToggleRanking" class="btn-load-more" style="padding: 6px 15px; font-size: 0.8rem; display: flex; align-items: center; gap: 6px; margin: 0; border-radius: 8px;" onclick="toggleRankingOrder()">
-                        <i data-lucide="arrow-down-up" style="width: 16px; height: 16px;"></i> Mais Presen&ccedil;a
-                    </button>
+        <!-- ABA 2: GRÁFICOS (Tendências e Distribuição) -->
+        <div id="tab-graficos" class="tab-content">
+            <div class="tab-section-header">
+                <h2><i data-lucide="bar-chart-3" style="color: var(--accent);"></i> Análise Gráfica & Histórico</h2>
+                <p>Visualize as proporções de respostas e a tendência de engajamento diário.</p>
+            </div>
+
+            <div class="dashboard">
+                <div class="card">
+                    <h2 id="titlePieChart">Consolidado Geral</h2>
+                    <div class="chart-container">
+                        <canvas id="pieChart"></canvas>
+                    </div>
                 </div>
-                <div style="display: flex; gap: 10px; flex-wrap: wrap; width: 100%;">
-                    <select id="rankingRouteSelect" onchange="handleRankingRoute(this.value)" style="padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.1); background: rgba(0, 0, 0, 0.2); color: white; outline: none; font-family: 'Inter', sans-serif; flex: 1; min-width: 140px;">
-                        <option value="Todos">Todas as Rotas</option>
-                    </select>
-                    <input type="text" id="searchRankingInput" placeholder="Pesquisar por nome no ranking..." oninput="handleSearchRanking(this.value)" style="flex: 2; box-sizing: border-box; padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.1); background: rgba(0, 0, 0, 0.2); color: white; outline: none; font-family: 'Inter', sans-serif;">
+
+                <div class="card">
+                    <h2 id="titleBarChart">Votos por Dia</h2>
+                    <div class="chart-container">
+                        <canvas id="barChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="card card-wide" style="position: relative;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+                        <h2 id="titleStackedBarChart" style="margin: 0;">Proporção Diária</h2>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="stackedBarChart"></canvas>
+                    </div>
                 </div>
             </div>
-            <div class="card card-wide" style="padding: 0; border: none; background: transparent; box-shadow: none;">
-                <table class="feed-table">
-                    <thead>
-                        <tr>
-                            <th style="text-align: center;">Posição</th>
-                            <th>Estudante</th>
-                            <th>Info</th>
-                            <th style="text-align: right;">Desempate</th>
-                        </tr>
-                    </thead>
-                    <tbody id="rankingBody">
+
+            <!-- Cards de Máximos e Mínimos (Contexto extra) -->
+            <div class="tab-section-header" style="margin-top: 30px;">
+                <h3><i data-lucide="activity" style="color: var(--accent);"></i> Extremos do Período</h3>
+                <p>Identifique os recordes de pico e vale para cada uma das métricas analisadas.</p>
+            </div>
+            
+            <div class="highlights">
+                <div class="highlight-card" style="background: linear-gradient(90deg, #182818, #182828);">
+                    <div class="card-title"><h3>Lotação</h3></div>
+                    <div class="split-container">
+                        <div class="split-half split-peak">
+                            <span class="label">MÁXIMO</span>
+                            <span class="value" id="hlLotacaoVal">-</span>
+                            <span class="date" id="hlLotacaoDate">-</span>
+                            <div id="hlLotacaoTrend"></div>
+                        </div>
+                        <div class="split-half split-valley">
+                            <span class="label">MÍNIMO</span>
+                            <span class="value" id="hlLotacaoMinVal">-</span>
+                            <span class="date" id="hlLotacaoMinDate">-</span>
+                            <div id="hlLotacaoMinTrend"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="highlight-card" style="background: linear-gradient(90deg, #182818, #281818);">
+                    <div class="card-title"><h3>Ausência</h3></div>
+                    <div class="split-container">
+                        <div class="split-half split-peak">
+                            <span class="label">MÁXIMO</span>
+                            <span class="value" id="hlAusenciaVal">-</span>
+                            <span class="date" id="hlAusenciaDate">-</span>
+                            <div id="hlAusenciaTrend"></div>
+                        </div>
+                        <div class="split-half split-valley">
+                            <span class="label">MÍNIMO</span>
+                            <span class="value" id="hlAusenciaMinVal">-</span>
+                            <span class="date" id="hlAusenciaMinDate">-</span>
+                            <div id="hlAusenciaMinTrend"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="highlight-card" style="background: linear-gradient(90deg, #182818, #281818);">
+                    <div class="card-title"><h3>Só Ida</h3></div>
+                    <div class="split-container">
+                        <div class="split-half split-peak">
+                            <span class="label">MÁXIMO</span>
+                            <span class="value" id="hlSoIdaVal">-</span>
+                            <span class="date" id="hlSoIdaDate">-</span>
+                            <div id="hlSoIdaTrend"></div>
+                        </div>
+                        <div class="split-half split-valley">
+                            <span class="label">MÍNIMO</span>
+                            <span class="value" id="hlSoIdaMinVal">-</span>
+                            <span class="date" id="hlSoIdaMinDate">-</span>
+                            <div id="hlSoIdaMinTrend"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="highlight-card" style="background: linear-gradient(90deg, #182818, #281818);">
+                    <div class="card-title"><h3>Só Volta</h3></div>
+                    <div class="split-container">
+                        <div class="split-half split-peak">
+                            <span class="label">MÁXIMO</span>
+                            <span class="value" id="hlSoVoltaVal">-</span>
+                            <span class="date" id="hlSoVoltaDate">-</span>
+                            <div id="hlSoVoltaTrend"></div>
+                        </div>
+                        <div class="split-half split-valley">
+                            <span class="label">MÍNIMO</span>
+                            <span class="value" id="hlSoVoltaMinVal">-</span>
+                            <span class="date" id="hlSoVoltaMinDate">-</span>
+                            <div id="hlSoVoltaMinTrend"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="highlight-card" style="background: linear-gradient(145deg, #1e1e1e, #1a2a1a);">
+                    <div class="card-title"><h3>Mais Presença</h3></div>
+                    <div class="split-container">
+                        <div class="split-half split-peak" style="align-items: center; text-align: center;">
+                            <span class="label" id="hlWeekdayPeakLabel">DIA DE PICO</span>
+                            <span class="value" id="hlWeekdayPeakVal">-</span>
+                            <span class="date" id="hlWeekdayPeakDate">Carregando...</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="highlight-card" style="background: linear-gradient(145deg, #1e1e1e, #2a1a1a);">
+                    <div class="card-title"><h3>Menos Presença</h3></div>
+                    <div class="split-container">
+                        <div class="split-half split-valley" style="align-items: center; text-align: center;">
+                            <span class="label" id="hlWeekdayValleyLabel">DIA MÍNIMO</span>
+                            <span class="value" id="hlWeekdayValleyVal">-</span>
+                            <span class="date" id="hlWeekdayValleyDate">Carregando...</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="highlight-card" style="background: linear-gradient(145deg, #1e1e1e, #1a2a1a);">
+                    <div class="card-title"><h3>Horário de Pico</h3></div>
+                    <div class="split-container">
+                        <div class="split-half split-peak" style="align-items: center; text-align: center;">
+                            <span class="label">MAIS VOTOS</span>
+                            <span class="value" id="hlPeakHour">--</span>
+                            <span class="date" id="hlPeakHourCount"></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="highlight-card" style="background: linear-gradient(145deg, #1e1e1e, #2a1a1a);">
+                    <div class="card-title"><h3>Horário Mais Calmo</h3></div>
+                    <div class="split-container">
+                        <div class="split-half split-valley" style="align-items: center; text-align: center;">
+                            <span class="label">MENOS VOTOS</span>
+                            <span class="value" id="hlCalmHour">--</span>
+                            <span class="date" id="hlCalmHourCount"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ABA 3: RANKING & RESPOSTAS (Focado no aluno e live feed) -->
+        <div id="tab-ranking" class="tab-content">
+            <div class="tab-section-header">
+                <h2><i data-lucide="award" style="color: var(--accent);"></i> Ranking de Frequência & Feed Live</h2>
+                <p>Acompanhe o engajamento dos estudantes e o relatório de respostas em tempo real.</p>
+            </div>
+
+            <!-- Feed das Respostas do Dia -->
+            <div class="feed-container">
+                <div style="display: flex; flex-direction: column; gap: 15px; margin-bottom: 15px;">
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <h2 style="margin: 0; font-size: 1.2rem; color: #fff; font-weight: 700;">Relatório de Respostas Diárias</h2>
+                        <div class="live-indicator"><div class="dot"></div> LIVE</div>
+                    </div>
+                    <div class="search-container" style="display: flex; gap: 10px; flex-wrap: wrap; width: 100%;">
+                        <select id="filterRouteSelect" onchange="handleFilterRoute(this.value)" style="padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.1); background: rgba(0, 0, 0, 0.2); color: white; outline: none; font-family: 'Inter', sans-serif; flex: 1; min-width: 140px;">
+                            <option value="">Todas as Rotas</option>
+                        </select>
+                        <select id="filterOptionSelect" onchange="handleFilterOption(this.value)" style="padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.1); background: rgba(0, 0, 0, 0.2); color: white; outline: none; font-family: 'Inter', sans-serif; flex: 1; min-width: 140px;">
+                            <option value="">Todas as Respostas</option>
+                            <option value="Irei, ida e volta.">Irei, ida e volta.</option>
+                            <option value="Irei, mas não retornarei.">Irei, mas não retornarei.</option>
+                            <option value="Não irei, apenas retornarei.">Não irei, apenas retornarei.</option>
+                            <option value="Não irei à faculdade hoje.">Não irei à faculdade hoje.</option>
+                        </select>
+                        <input type="text" id="searchFeedInput" placeholder="Pesquisar..." oninput="handleSearchFeed(this.value)" style="padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.1); background: rgba(0, 0, 0, 0.2); color: white; outline: none; font-family: 'Inter', sans-serif; flex: 2; min-width: 200px;">
+                    </div>
+                </div>
+
+                <div class="card card-wide" style="padding: 0; border: none; background: transparent; box-shadow: none; align-items: stretch;">
+                    <table class="feed-table">
+                        <thead>
+                            <tr id="feedHeader">
+                                <th>Horário</th>
+                                <th>Estudante</th>
+                                <th>Rota</th>
+                                <th>Resposta</th>
+                            </tr>
+                        </thead>
+                        <tbody id="voteFeedBody">
+                            <!-- Preenchido via JS -->
+                        </tbody>
+                    </table>
+                    <div id="paginationContainer" class="pagination-container">
                         <!-- Preenchido via JS -->
-                    </tbody>
-                </table>
-                <div id="rankingPaginationContainer" class="pagination-container">
-                    <!-- Preenchido via JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabela de Ranking -->
+            <div class="feed-container" style="margin-top: 30px;">
+                <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 15px;">
+                    <h2 style="margin: 0; font-size: 1.2rem; color: #fff; font-weight: 700;">Ranking Geral de Frequência</h2>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; width: 100%;">
+                        <select id="rankingRouteSelect" onchange="handleRankingRoute(this.value)" style="padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.1); background: rgba(0, 0, 0, 0.2); color: white; outline: none; font-family: 'Inter', sans-serif; flex: 1; min-width: 140px;">
+                            <option value="Todos">Todas as Rotas</option>
+                        </select>
+                        <input type="text" id="searchRankingInput" placeholder="Pesquisar por nome no ranking..." oninput="handleSearchRanking(this.value)" style="flex: 2; box-sizing: border-box; padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.1); background: rgba(0, 0, 0, 0.2); color: white; outline: none; font-family: 'Inter', sans-serif;">
+                    </div>
+                </div>
+                <div class="card card-wide" style="padding: 0; border: none; background: transparent; box-shadow: none; align-items: stretch;">
+                    <table class="feed-table">
+                        <thead>
+                            <tr>
+                                <th style="text-align: center;">Posição</th>
+                                <th>Estudante</th>
+                                <th>Info</th>
+                                <th style="text-align: right;">Desempate</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rankingBody">
+                            <!-- Preenchido via JS -->
+                        </tbody>
+                    </table>
+                    <div id="rankingPaginationContainer" class="pagination-container">
+                        <!-- Preenchido via JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ABA 4: PRÓXIMAS (Calendário de Viagens) -->
+        <div id="tab-proximas" class="tab-content">
+            <div class="tab-section-header">
+                <h2><i data-lucide="calendar" style="color: var(--accent);"></i> Calendário de Viagens</h2>
+                <p>Acompanhe o cronograma das próximas enquetes e a previsão de condições climáticas.</p>
+            </div>
+
+            <!-- Calendário de Próximas Enquetes -->
+            <div id="calendarSection" style="width: 100%;">
+                <div class="card card-wide" style="align-items: stretch; padding: 25px; box-sizing: border-box;">
+                    <h2 style="margin-bottom: 20px; display: flex; align-items: center; gap: 10px;"><i data-lucide="calendar-check" style="color: var(--accent);"></i> Enquetes Agendadas</h2>
+                    <div id="nextPollsList" style="display: flex; flex-direction: column; gap: 10px;">
+                        <!-- Preenchido via JS -->
+                    </div>
                 </div>
             </div>
         </div>
