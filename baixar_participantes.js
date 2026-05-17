@@ -30,6 +30,10 @@ async function main() {
 
   const client = new Client({
     authStrategy: new LocalAuth({ dataPath: "./auth_info" }),
+    webVersionCache: {
+      type: "remote",
+      remotePath: "https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/{version}.html"
+    },
     puppeteer: {
       headless: true,
       args: [
