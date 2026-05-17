@@ -187,6 +187,20 @@ async function precarregarFotosVisualmente(client, groups, logCallback) {
 
       // 2. Clicar no cabeçalho do chat ativo de forma ultra-precisa e recursiva nos filhos
       const headerOpened = await page.evaluate(() => {
+        // Encontra o container com as informações do contato/grupo (React escuta o clique aqui)
+        const titleEl = document.querySelector('[data-testid="conversation-info-header-chat-title"]') || 
+                         document.querySelector('#main header [role="button"]') ||
+                         document.querySelector('[data-testid="chat-avatar"]');
+        if (titleEl) {
+          titleEl.click();
+          // Clica recursivamente nos filhos dele
+          const childs = Array.from(titleEl.querySelectorAll('span, div, img'));
+          for (const c of childs) {
+            try { c.click(); } catch(e) {}
+          }
+          return true;
+        }
+
         const header = document.querySelector('[data-testid="conversation-header"]') || 
                        document.querySelector('#main header') || 
                        document.querySelector('header');
@@ -221,15 +235,15 @@ async function precarregarFotosVisualmente(client, groups, logCallback) {
       const verTodosClicked = await page.evaluate(async () => {
         const rightPane = document.querySelector('[style*="overflow-y"] [role="region"]') || 
                           document.querySelector('#app [role="region"] div[style*="overflow-y"]') || 
-                          document.querySelector('#app div[style*="overflow-y"]') || 
-                          document;
+                          document.querySelector('#app div[style*="overflow-y"]');
 
         if (rightPane && rightPane.scrollTo) {
           rightPane.scrollTop = 9999;
           await new Promise(r => setTimeout(r, 800));
         }
 
-        const elementos = Array.from(rightPane.querySelectorAll('span, div, [role="button"]'));
+        const container = rightPane || document;
+        const elementos = Array.from(container.querySelectorAll('span, div, [role="button"]'));
         const btn = elementos.find(el => {
           const txt = el.textContent || "";
           return txt.includes("Ver todos") || txt.includes("Ver mais") || txt.includes("Mostrar todos");
