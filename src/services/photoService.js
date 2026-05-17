@@ -21,63 +21,59 @@ async function getProfilePhoto(client, id) {
       } catch (e) {}
     }
 
-    // 1. Tenta a estratégia avançada e oficial do wa-js no Puppeteer
+    // 1. Tenta a API padrão e oficial do whatsapp-web.js (prioritária sob User Agent real)
     try {
-      photoUrl = await client.pupPage.evaluate(async (targetJid) => {
-        try {
-          const Store = window.Store;
-          if (!Store) return null;
+      photoUrl = await client.getProfilePicUrl(jidStr).catch(() => null);
+    } catch (e) {}
 
-          const WidFactory = Store.WidFactory || (Store.Wid && Store.Wid.WidFactory);
-          if (!WidFactory) return null;
+    // 2. Fallback avançado usando a estratégia do wa-js no Puppeteer caso a API oficial venha vazia
+    if (!photoUrl) {
+      try {
+        photoUrl = await client.pupPage.evaluate(async (targetJid) => {
+          try {
+            const Store = window.Store;
+            if (!Store) return null;
 
-          const wid = WidFactory.createWid(targetJid);
-          const ProfilePicThumb = Store.ProfilePicThumb;
-          if (!ProfilePicThumb) return null;
+            const WidFactory = Store.WidFactory || (Store.Wid && Store.Wid.WidFactory);
+            if (!WidFactory) return null;
 
-          // Busca ou instancia dinamicamente o modelo de foto de perfil na coleção oficial
-          let thumb = ProfilePicThumb.get(wid);
-          if (!thumb && ProfilePicThumb.modelClass) {
-            try {
-              thumb = new ProfilePicThumb.modelClass({ id: wid });
-              ProfilePicThumb.add(thumb);
-            } catch (e) {}
-          }
+            const wid = WidFactory.createWid(targetJid);
+            const ProfilePicThumb = Store.ProfilePicThumb;
+            if (!ProfilePicThumb) return null;
 
-          // Se a miniatura não possui imagem válida no cache local, força a sincronização com o servidor
-          if (thumb && (!thumb.imgFull && !thumb.eurl && !thumb.img)) {
-            if (Store.ProfilePic && Store.ProfilePic.profilePicResync) {
+            let thumb = ProfilePicThumb.get(wid);
+            if (!thumb && ProfilePicThumb.modelClass) {
               try {
-                await Store.ProfilePic.profilePicResync([thumb]);
-              } catch (err) {
-                // Fallback para requestProfilePicFromServer passando o objeto thumb
-                if (Store.ProfilePic.requestProfilePicFromServer) {
-                  try {
-                    await Store.ProfilePic.requestProfilePicFromServer(thumb);
-                  } catch (e2) {}
+                thumb = new ProfilePicThumb.modelClass({ id: wid });
+                ProfilePicThumb.add(thumb);
+              } catch (e) {}
+            }
+
+            if (thumb && (!thumb.imgFull && !thumb.eurl && !thumb.img)) {
+              if (Store.ProfilePic && Store.ProfilePic.profilePicResync) {
+                try {
+                  await Store.ProfilePic.profilePicResync([thumb]);
+                } catch (err) {
+                  if (Store.ProfilePic.requestProfilePicFromServer) {
+                    try {
+                      await Store.ProfilePic.requestProfilePicFromServer(thumb);
+                    } catch (e2) {}
+                  }
                 }
               }
             }
+
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            if (thumb) {
+              return thumb.imgFull || thumb.eurl || thumb.img || null;
+            }
+
+            return null;
+          } catch (e) {
+            return null;
           }
-
-          // Curto atraso para garantir o recebimento dos pacotes da CDN
-          await new Promise(resolve => setTimeout(resolve, 500));
-
-          if (thumb) {
-            return thumb.imgFull || thumb.eurl || thumb.img || null;
-          }
-
-          return null;
-        } catch (e) {
-          return null;
-        }
-      }, jidStr);
-    } catch (e) {}
-
-    // 2. Fallback final usando a API padrão do whatsapp-web.js (caso seja corrigida no futuro)
-    if (!photoUrl) {
-      try {
-        photoUrl = await client.getProfilePicUrl(jidStr).catch(() => null);
+        }, jidStr);
       } catch (e) {}
     }
 
