@@ -122,7 +122,30 @@ const fetchStats = async () => {
                 return;
             }
             
-            if (JSON.stringify(rawDB) !== JSON.stringify(data.votes) || isPollSentToday !== data.isPollSentToday || JSON.stringify(weatherForecast) !== JSON.stringify(data.weather) || JSON.stringify(passengers) !== JSON.stringify(data.passengers) || JSON.stringify(rankingHighlights) !== JSON.stringify(data.rankingHighlights) || JSON.stringify(highlightNames) !== JSON.stringify(data.highlightNames)) {
+            // Sincroniza rankingHighlights e highlightNames da API com fallbacks locais estáticos ricos
+            window.rankingHighlights = data.rankingHighlights || {
+                "Mauricio de Britto": {
+                    "badge": "Dev",
+                    "color": "linear-gradient(135deg, #00f7ff, #0088ff)",
+                    "animation": "glow",
+                    "customCss": "background: rgba(12, 12, 12, 0.03) !important; border-left: 2px solid #00f7ff !important;"
+                },
+                "Duda Martins": {
+                    "badge": "Friend",
+                    "color": "linear-gradient(175deg, #00f7ff, #0088ff)",
+                    "animation": "glow",
+                    "customCss": "background: rgba(12, 12, 12, 0.03) !important; border-left: 2px solid #00f7ff !important;"
+                },
+                "Marcos Santos": {
+                    "badge": "Friend",
+                    "color": "linear-gradient(190deg, #00f7ff, #0088ff)",
+                    "animation": "glow",
+                    "customCss": "background: rgba(12, 12, 12, 0.03) !important; border-left: 2px solid #00f7ff !important;"
+                }
+            };
+            window.highlightNames = data.highlightNames || ["Mauricio de Britto", "Duda Martins", "Marcos Santos"];
+
+            if (JSON.stringify(rawDB) !== JSON.stringify(data.votes) || isPollSentToday !== data.isPollSentToday || JSON.stringify(weatherForecast) !== JSON.stringify(data.weather) || JSON.stringify(passengers) !== JSON.stringify(data.passengers)) {
                 
                 // Detecta se houve novos votos para tocar o som
                 const oldVoteCount = countTotalVotes(rawDB);
@@ -134,29 +157,6 @@ const fetchStats = async () => {
                 window.capacities = data.capacities || {};
                 window.groupAliases = data.aliases || {};
                 window.skipDates = data.skipDates || {};
-                window.rankingHighlights = data.rankingHighlights || {};
-
-                // Fallback rico e garantido no frontend para o Mauricio de Britto (Desenvolvedor)
-                if (!window.rankingHighlights["Mauricio de Britto"]) {
-                    window.rankingHighlights["Mauricio de Britto"] = {
-                        badge: "Desenvolvedor",
-                        color: "linear-gradient(135deg, #00f7ff, #0088ff)",
-                        animation: "glow",
-                        customCss: "background: rgba(0, 247, 255, 0.03) !important; border-left: 3px solid #00f7ff !important;"
-                    };
-                }
-
-                // Fallback para a Duda Martins também, separada para o ranking (front-end)
-                if (!window.rankingHighlights["Duda Martins"]) {
-                    window.rankingHighlights["Duda Martins"] = {
-                        badge: "Destaque",
-                        color: "linear-gradient(135deg, #ff0844 0%, #ffb199 100%)",
-                        animation: "pulse",
-                        customCss: "background: rgba(255, 8, 68, 0.02) !important; border-left: 3px solid #ff0844 !important;"
-                    };
-                }
-
-                window.highlightNames = data.highlightNames || ["Duda Martins", "Mauricio de Britto"];
                 window.weatherForecast = data.weather || [];
                 window.pollTime = data.pollTime || '05:30';
 
