@@ -181,9 +181,36 @@ const registerVote = async (vote, voterName, photoUrl) => {
 
   const voterId = vote.voter;
 
+  let finalPhotoUrl = photoUrl;
+  if (!finalPhotoUrl) {
+    try {
+      const { data: dbPass } = await supabase
+        .from("passageiros")
+        .select("foto_publica")
+        .eq("id", voterId)
+        .maybeSingle();
+      if (dbPass && dbPass.foto_publica) {
+        finalPhotoUrl = dbPass.foto_publica;
+      }
+    } catch (e) {}
+
+    if (!finalPhotoUrl) {
+      try {
+        const { data: dbPass2 } = await supabase
+          .from("passengers")
+          .select("photo_url")
+          .eq("whatsapp_id", voterId)
+          .maybeSingle();
+        if (dbPass2 && dbPass2.photo_url) {
+          finalPhotoUrl = dbPass2.photo_url;
+        }
+      } catch (e2) {}
+    }
+  }
+
   // Sincroniza metadados do passageiro (incluindo a foto de perfil) na tabela passengers
   if (voterName) {
-    await syncPassengerMetadata(voterId, formatName(voterName), photoUrl, groupName);
+    await syncPassengerMetadata(voterId, formatName(voterName), finalPhotoUrl, groupName);
   }
 
   if (vote.selectedOptions && vote.selectedOptions.length > 0) {
@@ -197,7 +224,7 @@ const registerVote = async (vote, voterName, photoUrl) => {
           option: selectedOption,
           poll_name: pollName,
           voter_name: formatName(voterName),
-          photo_url: photoUrl || null,
+          photo_url: finalPhotoUrl || null,
         },
         { onConflict: "voter_id,group_name,vote_date" }
       )
@@ -233,11 +260,14 @@ const syncPassengerMetadata = async (whatsappId, name, photoUrl, groupName) => {
 
     // Sincroniza também na tabela passageiros do Supabase para manter o cache unificado
     try {
-      await supabase.from("passageiros").upsert({
+      const passengerData = {
         id: whatsappId,
-        nome: name ? formatName(name) : "Sem Nome",
-        foto_publica: photoUrl || null
-      }, { onConflict: "id" });
+        nome: name ? formatName(name) : "Sem Nome"
+      };
+      if (photoUrl) {
+        passengerData.foto_publica = photoUrl;
+      }
+      await supabase.from("passageiros").upsert(passengerData, { onConflict: "id" });
     } catch (ePass) {}
 
     const cleanNumber = normalizePhone(whatsappId.split('@')[0]);
