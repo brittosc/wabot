@@ -180,7 +180,28 @@ const updateRanking = (targetGroupFromDash, _targetDaysStr) => {
 
     const renderRow = (user, globalIndex) => {
         const row = document.createElement("tr");
-        row.className = "feed-row";
+
+        // Verifica destaques customizados via config
+        const highlights = window.userHighlights || {};
+        const userHighlight = highlights[user.name];
+        
+        let rowClass = "feed-row";
+        let avatarClass = "user-avatar";
+        let nameSuffixHtml = "";
+
+        if (userHighlight) {
+            const hType = userHighlight.type || "generic";
+            rowClass += " row-highlight-" + hType;
+            avatarClass += " avatar-highlight-" + hType;
+            
+            let iconHtml = "";
+            if (hType === "dev") {
+                iconHtml = '<i data-lucide="code-2" style="width:10px;height:10px;margin-right:2px;display:inline-block;vertical-align:middle;"></i>';
+            }
+            nameSuffixHtml = ' <span class="user-badge-special user-badge-' + hType + '">' + iconHtml + userHighlight.badge + '</span>';
+        }
+        
+        row.className = rowClass;
 
         let rankBadge = '<span class="rank-badge">' + (globalIndex + 1) + 'º</span>';
         if (rankingOrder === 'desc') {
@@ -197,8 +218,8 @@ const updateRanking = (targetGroupFromDash, _targetDaysStr) => {
         row.innerHTML =
             '<td style="width:60px;text-align:center;">' + rankBadge + '</td>' +
             '<td><div class="user-cell">' +
-                '<img src="' + photo + '" class="user-avatar" onerror="this.src=\'https://ui-avatars.com/api/?name=?\'">' +
-                '<span class="user-name">' + user.name + '</span>' +
+                '<img src="' + photo + '" class="' + avatarClass + '" onerror="this.src=\'https://ui-avatars.com/api/?name=?\'">' +
+                '<span class="user-name">' + user.name + nameSuffixHtml + '</span>' +
             '</div></td>' +
             '<td><div style="display:flex;flex-direction:column;gap:4px;align-items:flex-start;">' +
                 '<span class="tag tag-vote" style="font-size:0.75rem;">' + user.presenceCount + ' ' + presenceLabel + '</span>' +
