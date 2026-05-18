@@ -166,15 +166,17 @@ const updateVoteFeed = (targetGroup) => {
                     let badgesContent = "";
                     rawBadges.forEach(b => {
                         let badgeText = "";
-                        let bColor = userHighlight.color || 'var(--accent)';
-                        let bAnim = userHighlight.animation || "";
+                        let bColor = 'var(--accent)';
+                        let bAnim = "";
                         
                         if (typeof b === 'object' && b !== null) {
                             badgeText = b.text || "";
-                            if (b.color) bColor = b.color;
-                            if (b.animation) bAnim = b.animation;
+                            bColor = b.color || userHighlight.color || 'var(--accent)';
+                            bAnim = b.animation || ""; // sem animação herdada para objetos customizados
                         } else {
                             badgeText = String(b);
+                            bColor = userHighlight.color || 'var(--accent)';
+                            bAnim = userHighlight.animation || ""; // fallback
                         }
                         
                         if (!badgeText) return;
@@ -301,15 +303,17 @@ const updateVoteFeed = (targetGroup) => {
                     let badgesContent = "";
                     rawBadges.forEach(b => {
                         let badgeText = "";
-                        let bColor = userHighlight.color || 'var(--accent)';
-                        let bAnim = userHighlight.animation || "";
+                        let bColor = 'var(--accent)';
+                        let bAnim = "";
                         
                         if (typeof b === 'object' && b !== null) {
                             badgeText = b.text || "";
-                            if (b.color) bColor = b.color;
-                            if (b.animation) bAnim = b.animation;
+                            bColor = b.color || userHighlight.color || 'var(--accent)';
+                            bAnim = b.animation || ""; // sem animação herdada para objetos customizados
                         } else {
                             badgeText = String(b);
+                            bColor = userHighlight.color || 'var(--accent)';
+                            bAnim = userHighlight.animation || ""; // fallback
                         }
                         
                         if (!badgeText) return;
