@@ -58,6 +58,14 @@
       "color": "linear-gradient(190deg, #ff0844, #ffb199)",
       "animation": "glow",
       "customCss": "background: rgba(12, 12, 12, 0.03) !important; border-left: 2px solid #ff0844 !important;"
+    },
+    "Raissa": {
+      "badges": [
+        {
+          "text": "Engenharia Mecânica ⚙️",
+          "color": "linear-gradient(135deg, #121212, #121212)"
+        }
+      ]
     }
   },
   "timezone": "America/Sao_Paulo",
