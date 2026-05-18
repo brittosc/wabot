@@ -122,7 +122,7 @@ const fetchStats = async () => {
                 return;
             }
             
-            if (JSON.stringify(rawDB) !== JSON.stringify(data.votes) || isPollSentToday !== data.isPollSentToday || JSON.stringify(weatherForecast) !== JSON.stringify(data.weather) || JSON.stringify(passengers) !== JSON.stringify(data.passengers)) {
+            if (JSON.stringify(rawDB) !== JSON.stringify(data.votes) || isPollSentToday !== data.isPollSentToday || JSON.stringify(weatherForecast) !== JSON.stringify(data.weather) || JSON.stringify(passengers) !== JSON.stringify(data.passengers) || JSON.stringify(userHighlights) !== JSON.stringify(data.userHighlights)) {
                 
                 // Detecta se houve novos votos para tocar o som
                 const oldVoteCount = countTotalVotes(rawDB);
@@ -134,6 +134,7 @@ const fetchStats = async () => {
                 window.capacities = data.capacities || {};
                 window.groupAliases = data.aliases || {};
                 window.skipDates = data.skipDates || {};
+                window.userHighlights = data.userHighlights || {};
                 window.weatherForecast = data.weather || [];
                 window.pollTime = data.pollTime || '05:30';
 
@@ -143,6 +144,7 @@ const fetchStats = async () => {
                 capacities = window.capacities;
                 groupAliases = window.groupAliases;
                 skipDates = window.skipDates;
+                userHighlights = window.userHighlights;
                 weatherForecast = window.weatherForecast;
                 pollTime = window.pollTime;
                 
