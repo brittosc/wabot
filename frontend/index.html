@@ -194,14 +194,14 @@
             </div>
 
             <div class="dashboard">
-                <div class="card card-wide">
+                <div class="card">
                     <h2 id="titlePieChart">Consolidado Geral</h2>
                     <div class="chart-container">
                         <canvas id="pieChart"></canvas>
                     </div>
                 </div>
 
-                <div class="card" style="display: none;">
+                <div class="card">
                     <h2 id="titleBarChart">Votos por Dia</h2>
                     <div class="chart-container">
                         <canvas id="barChart"></canvas>
@@ -427,6 +427,7 @@
             <!-- Calendário de Próximas Enquetes -->
             <div id="calendarSection" style="width: 100%;">
                 <div class="card card-wide" style="align-items: stretch; padding: 25px; box-sizing: border-box;">
+                    <h2 style="margin-bottom: 20px; display: flex; align-items: center; gap: 10px;"><i data-lucide="calendar-check" style="color: var(--accent);"></i> Enquetes Agendadas</h2>
                     <div id="nextPollsList" style="display: flex; flex-direction: column; gap: 10px;">
                         <!-- Preenchido via JS -->
                     </div>
@@ -453,8 +454,6 @@
         window.capacities = {};
         window.groupAliases = {};
         window.skipDates = {};
-        window.rankingHighlights = {};
-        window.highlightNames = [];
         window.pollTime = '05:30';
         window.targetGroups = [];
         window.weatherForecast = [];
@@ -465,8 +464,6 @@
         let capacities = window.capacities;
         let groupAliases = window.groupAliases;
         let skipDates = window.skipDates;
-        let rankingHighlights = window.rankingHighlights;
-        let highlightNames = window.highlightNames;
         let pollTime = window.pollTime;
         let targetGroups = window.targetGroups;
 
