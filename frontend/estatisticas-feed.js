@@ -135,26 +135,48 @@ const updateVoteFeed = (targetGroup) => {
                 const displayName = fullName;
 
                 // Verifica destaques customizados via config
-                const highlights = window.userHighlights || {};
+                const highlights = window.rankingHighlights || {};
                 const userHighlight = highlights[displayName];
                 
-                let rowClass = "feed-row";
                 let avatarClass = "user-avatar";
                 let nameSuffixHtml = "";
 
                 if (userHighlight) {
-                    const hType = userHighlight.type || "generic";
-                    rowClass += " row-highlight-" + hType;
-                    avatarClass += " avatar-highlight-" + hType;
+                    // Aplicar CSS customizado na linha
+                    if (userHighlight.customCss) {
+                        row.style.cssText = userHighlight.customCss;
+                    } else {
+                        row.className = "feed-row row-highlight-generic";
+                    }
+                    
+                    // Estilizar o avatar
+                    if (userHighlight.animation === "glow") {
+                        avatarClass += " avatar-highlight-dev";
+                    } else {
+                        avatarClass += " avatar-highlight-generic";
+                    }
+                    
+                    // Configurar badge com cor e animação dinâmicas
+                    let animClass = "";
+                    if (userHighlight.animation === "glow") {
+                        animClass = "user-badge-dev";
+                    } else if (userHighlight.animation === "pulse") {
+                        animClass = "user-badge-generic";
+                    } else {
+                        animClass = "user-badge-special";
+                    }
                     
                     let iconHtml = "";
-                    if (hType === "dev") {
+                    const badgeText = userHighlight.badge || "";
+                    if (badgeText.toLowerCase().includes("desenvolvedor")) {
                         iconHtml = '<i data-lucide="code-2" style="width:10px;height:10px;margin-right:2px;display:inline-block;vertical-align:middle;"></i>';
                     }
-                    nameSuffixHtml = ' <span class="user-badge-special user-badge-' + hType + '">' + iconHtml + userHighlight.badge + '</span>';
+                    
+                    const badgeStyle = `background: ${userHighlight.color || 'var(--accent)'};`;
+                    nameSuffixHtml = ' <span class="user-badge-special ' + animClass + '" style="' + badgeStyle + '">' + iconHtml + badgeText + '</span>';
+                } else {
+                    row.className = "feed-row";
                 }
-                
-                row.className = rowClass;
 
                 const photo = vote.photo_url || (pass && pass.photo_url) || "https://ui-avatars.com/api/?name=" + encodeURIComponent(displayName) + "&background=333&color=fff";
                 const routeAlias = groupAliases[vote.group] || vote.group;
@@ -219,26 +241,48 @@ const updateVoteFeed = (targetGroup) => {
                 const displayName = fullName;
 
                 // Verifica destaques customizados via config
-                const highlights = window.userHighlights || {};
+                const highlights = window.rankingHighlights || {};
                 const userHighlight = highlights[displayName];
                 
-                let rowClass = "feed-row";
                 let avatarClass = "user-avatar";
                 let nameSuffixHtml = "";
 
                 if (userHighlight) {
-                    const hType = userHighlight.type || "generic";
-                    rowClass += " row-highlight-" + hType;
-                    avatarClass += " avatar-highlight-" + hType;
+                    // Aplicar CSS customizado na linha
+                    if (userHighlight.customCss) {
+                        row.style.cssText = userHighlight.customCss;
+                    } else {
+                        row.className = "feed-row row-highlight-generic";
+                    }
+                    
+                    // Estilizar o avatar
+                    if (userHighlight.animation === "glow") {
+                        avatarClass += " avatar-highlight-dev";
+                    } else {
+                        avatarClass += " avatar-highlight-generic";
+                    }
+                    
+                    // Configurar badge com cor e animação dinâmicas
+                    let animClass = "";
+                    if (userHighlight.animation === "glow") {
+                        animClass = "user-badge-dev";
+                    } else if (userHighlight.animation === "pulse") {
+                        animClass = "user-badge-generic";
+                    } else {
+                        animClass = "user-badge-special";
+                    }
                     
                     let iconHtml = "";
-                    if (hType === "dev") {
+                    const badgeText = userHighlight.badge || "";
+                    if (badgeText.toLowerCase().includes("desenvolvedor")) {
                         iconHtml = '<i data-lucide="code-2" style="width:10px;height:10px;margin-right:2px;display:inline-block;vertical-align:middle;"></i>';
                     }
-                    nameSuffixHtml = ' <span class="user-badge-special user-badge-' + hType + '">' + iconHtml + userHighlight.badge + '</span>';
+                    
+                    const badgeStyle = `background: ${userHighlight.color || 'var(--accent)'};`;
+                    nameSuffixHtml = ' <span class="user-badge-special ' + animClass + '" style="' + badgeStyle + '">' + iconHtml + badgeText + '</span>';
+                } else {
+                    row.className = "feed-row";
                 }
-                
-                row.className = rowClass;
 
                 const photo = user.photo_url || "https://ui-avatars.com/api/?name=" + encodeURIComponent(displayName) + "&background=333&color=fff";
                 row.innerHTML = `<td><div class="user-cell"><img src="${photo}" class="${avatarClass}" onerror="this.src='https://ui-avatars.com/api/?name=?'"><span class="user-name">${displayName}${nameSuffixHtml}</span></div></td><td><span class="tag tag-route">${routeAlias}</span></td><td><span class="tag tag-pending">PENDENTE</span></td>`;
