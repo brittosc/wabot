@@ -182,6 +182,48 @@ const updateRanking = (targetGroupFromDash, _targetDaysStr) => {
         const row = document.createElement("tr");
         row.className = "feed-row";
 
+        // Verifica destaques customizados via config
+        const highlights = window.rankingHighlights || {};
+        const userHighlight = highlights[user.name];
+        
+        let avatarClass = "user-avatar";
+        let nameSuffixHtml = "";
+
+        if (userHighlight) {
+            // Aplicar CSS customizado na linha
+            if (userHighlight.customCss) {
+                row.style.cssText = userHighlight.customCss;
+            } else {
+                row.className = "feed-row row-highlight-generic";
+            }
+            
+            // Estilizar o avatar
+            if (userHighlight.animation === "glow") {
+                avatarClass += " avatar-highlight-dev";
+            } else {
+                avatarClass += " avatar-highlight-generic";
+            }
+            
+            // Configurar badge com cor e animação dinâmicas
+            let animClass = "";
+            if (userHighlight.animation === "glow") {
+                animClass = "user-badge-dev";
+            } else if (userHighlight.animation === "pulse") {
+                animClass = "user-badge-generic"; // e o CSS aplica a pulsação
+            } else {
+                animClass = "user-badge-special";
+            }
+            
+            let iconHtml = "";
+            const badgeText = userHighlight.badge || "";
+            if (badgeText.toLowerCase().includes("dev") || badgeText.toLowerCase().includes("desenvolvedor")) {
+                iconHtml = '<i data-lucide="code-2" style="width:10px;height:10px;margin-right:2px;display:inline-block;vertical-align:middle;"></i>';
+            }
+            
+            const badgeStyle = `background: ${userHighlight.color || 'var(--accent)'};`;
+            nameSuffixHtml = ' <span class="user-badge-special ' + animClass + '" style="' + badgeStyle + '">' + iconHtml + badgeText + '</span>';
+        }
+
         let rankBadge = '<span class="rank-badge">' + (globalIndex + 1) + 'º</span>';
         if (rankingOrder === 'desc') {
             if (globalIndex === 0) rankBadge = '<span class="rank-badge rank-gold"><i data-lucide="medal" style="width:16px;height:16px;margin-right:2px;"></i>1º</span>';
@@ -197,8 +239,8 @@ const updateRanking = (targetGroupFromDash, _targetDaysStr) => {
         row.innerHTML =
             '<td style="width:60px;text-align:center;">' + rankBadge + '</td>' +
             '<td><div class="user-cell">' +
-                '<img src="' + photo + '" class="user-avatar" onerror="this.src=\'https://ui-avatars.com/api/?name=?\'">' +
-                '<span class="user-name">' + user.name + '</span>' +
+                '<img src="' + photo + '" class="' + avatarClass + '" onerror="this.src=\'https://ui-avatars.com/api/?name=?\'">' +
+                '<span class="user-name">' + user.name + nameSuffixHtml + '</span>' +
             '</div></td>' +
             '<td><div style="display:flex;flex-direction:column;gap:4px;align-items:flex-start;">' +
                 '<span class="tag tag-vote" style="font-size:0.75rem;">' + user.presenceCount + ' ' + presenceLabel + '</span>' +
