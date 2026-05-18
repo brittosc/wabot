@@ -16,13 +16,13 @@
       "date": "19/05",
       "max": 18,
       "min": 9,
-      "condition_code": 2
+      "condition_code": 1
     },
     {
       "date": "20/05",
       "max": 18,
       "min": 5,
-      "condition_code": 0
+      "condition_code": 2
     },
     {
       "date": "21/05",
@@ -43,5 +43,5 @@
       "condition_code": 51
     }
   ],
-  "lastUpdate": 1779030015237
+  "lastUpdate": 1779051614391
 }
