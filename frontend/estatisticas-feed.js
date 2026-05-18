@@ -144,14 +144,14 @@ const updateVoteFeed = (targetGroup) => {
                     // Aplicar CSS customizado na linha
                     if (userHighlight.customCss) {
                         row.style.cssText = userHighlight.customCss;
-                    } else {
+                    } else if (userHighlight.animation === "glow" || userHighlight.animation === "pulse") {
                         row.className = "feed-row vote-row row-highlight-generic";
                     }
                     
                     // Estilizar o avatar
                     if (userHighlight.animation === "glow") {
                         avatarClass += " avatar-highlight-dev";
-                    } else {
+                    } else if (userHighlight.animation === "pulse") {
                         avatarClass += " avatar-highlight-generic";
                     }
                     
@@ -281,14 +281,14 @@ const updateVoteFeed = (targetGroup) => {
                     // Aplicar CSS customizado na linha
                     if (userHighlight.customCss) {
                         row.style.cssText = userHighlight.customCss;
-                    } else {
+                    } else if (userHighlight.animation === "glow" || userHighlight.animation === "pulse") {
                         row.className = "feed-row pending-row row-highlight-generic";
                     }
                     
                     // Estilizar o avatar
                     if (userHighlight.animation === "glow") {
                         avatarClass += " avatar-highlight-dev";
-                    } else {
+                    } else if (userHighlight.animation === "pulse") {
                         avatarClass += " avatar-highlight-generic";
                     }
                     
