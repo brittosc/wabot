@@ -122,7 +122,7 @@ const fetchStats = async () => {
                 return;
             }
             
-            if (JSON.stringify(rawDB) !== JSON.stringify(data.votes) || isPollSentToday !== data.isPollSentToday || JSON.stringify(weatherForecast) !== JSON.stringify(data.weather) || JSON.stringify(passengers) !== JSON.stringify(data.passengers) || JSON.stringify(userHighlights) !== JSON.stringify(data.userHighlights) || JSON.stringify(highlightNames) !== JSON.stringify(data.highlightNames)) {
+            if (JSON.stringify(rawDB) !== JSON.stringify(data.votes) || isPollSentToday !== data.isPollSentToday || JSON.stringify(weatherForecast) !== JSON.stringify(data.weather) || JSON.stringify(passengers) !== JSON.stringify(data.passengers) || JSON.stringify(rankingHighlights) !== JSON.stringify(data.rankingHighlights) || JSON.stringify(highlightNames) !== JSON.stringify(data.highlightNames)) {
                 
                 // Detecta se houve novos votos para tocar o som
                 const oldVoteCount = countTotalVotes(rawDB);
@@ -134,27 +134,29 @@ const fetchStats = async () => {
                 window.capacities = data.capacities || {};
                 window.groupAliases = data.aliases || {};
                 window.skipDates = data.skipDates || {};
-                window.userHighlights = data.userHighlights || {};
+                window.rankingHighlights = data.rankingHighlights || {};
 
-                // Fallback local no frontend para o Mauricio de Britto (Desenvolvedor)
-                if (!window.userHighlights["Mauricio de Britto"]) {
-                    window.userHighlights["Mauricio de Britto"] = {
+                // Fallback rico e garantido no frontend para o Mauricio de Britto (Desenvolvedor)
+                if (!window.rankingHighlights["Mauricio de Britto"]) {
+                    window.rankingHighlights["Mauricio de Britto"] = {
                         badge: "Desenvolvedor",
-                        type: "dev"
+                        color: "linear-gradient(135deg, #00f7ff, #0088ff)",
+                        animation: "glow",
+                        customCss: "background: rgba(0, 247, 255, 0.03) !important; border-left: 3px solid #00f7ff !important;"
+                    };
+                }
+
+                // Fallback para a Duda Martins também, separada para o ranking (front-end)
+                if (!window.rankingHighlights["Duda Martins"]) {
+                    window.rankingHighlights["Duda Martins"] = {
+                        badge: "Destaque",
+                        color: "linear-gradient(135deg, #ff0844 0%, #ffb199 100%)",
+                        animation: "pulse",
+                        customCss: "background: rgba(255, 8, 68, 0.02) !important; border-left: 3px solid #ff0844 !important;"
                     };
                 }
 
                 window.highlightNames = data.highlightNames || ["Duda Martins", "Mauricio de Britto"];
-                // Aplicar destaques genéricos para nomes do highlightNames
-                window.highlightNames.forEach(name => {
-                    if (name !== "Mauricio de Britto" && !window.userHighlights[name]) {
-                        window.userHighlights[name] = {
-                            badge: "Destacado",
-                            type: "generic"
-                        };
-                    }
-                });
-
                 window.weatherForecast = data.weather || [];
                 window.pollTime = data.pollTime || '05:30';
 
@@ -164,7 +166,7 @@ const fetchStats = async () => {
                 capacities = window.capacities;
                 groupAliases = window.groupAliases;
                 skipDates = window.skipDates;
-                userHighlights = window.userHighlights;
+                rankingHighlights = window.rankingHighlights;
                 highlightNames = window.highlightNames;
                 weatherForecast = window.weatherForecast;
                 pollTime = window.pollTime;
