@@ -14,7 +14,7 @@ async function getProfilePhoto(client, id) {
     if (id.includes("@lid")) {
       try {
         const contact = await client.getContactById(id);
-        const contactNumber = contact.number || (contact.id && contact.id.user);
+        const contactNumber = contact.number;
         if (contactNumber && !contactNumber.includes("@")) {
           jidStr = `${contactNumber}@c.us`;
         }
