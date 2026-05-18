@@ -53,6 +53,7 @@ const startServer = () => {
             pollTime: config.pollTime || "05:30",
             skipDates: config.skipDates || {},
             userHighlights: config.userHighlights || {},
+            highlightNames: config.highlightNames || [],
           }),
         );
       } catch (err) {
