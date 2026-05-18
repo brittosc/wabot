@@ -20,9 +20,8 @@
           "animation": "glow"
         },
         {
-          "text": "Vip",
-          "color": "linear-gradient(135deg, #f12711, #f5af19)",
-          "animation": "pulse"
+          "text": "Direito ⚖️",
+          "color": "linear-gradient(135deg, #121212, #121212)"
         }
       ],
       "color": "linear-gradient(135deg, #00f7ff, #0088ff)",
@@ -34,13 +33,12 @@
       "badges": [
         {
           "text": "Friend",
-          "color": "linear-gradient(135deg, #ff0844 0%, #ffb199 100%)",
+          "color": "linear-gradient(135deg, #ff0844 100%, #ffb199 0%)",
           "animation": "pulse"
         },
         {
-          "text": "Vip",
-          "color": "linear-gradient(135deg, #f12711, #f5af19)",
-          "animation": "pulse"
+          "text": "Direito ⚖️",
+          "color": "linear-gradient(135deg, #121212, #121212)"
         }
       ],
       "color": "linear-gradient(175deg, #ff0844, #ffb199)",
@@ -52,8 +50,12 @@
       "badges": [
         {
           "text": "Friend",
-          "color": "linear-gradient(135deg, #ff0844 0%, #ffb199 100%)",
+          "color": "linear-gradient(135deg, #ff0844 100%, #ffb199 0%)",
           "animation": "pulse"
+        },
+        {
+          "text": "Engenharia 🏗️",
+          "color": "linear-gradient(135deg, #121212, #121212)"
         }
       ],
       "color": "linear-gradient(190deg, #ff0844, #ffb199)",
