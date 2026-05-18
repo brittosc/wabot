@@ -180,28 +180,49 @@ const updateRanking = (targetGroupFromDash, _targetDaysStr) => {
 
     const renderRow = (user, globalIndex) => {
         const row = document.createElement("tr");
+        row.className = "feed-row";
 
         // Verifica destaques customizados via config
-        const highlights = window.userHighlights || {};
+        const highlights = window.rankingHighlights || {};
         const userHighlight = highlights[user.name];
         
-        let rowClass = "feed-row";
         let avatarClass = "user-avatar";
         let nameSuffixHtml = "";
 
         if (userHighlight) {
-            const hType = userHighlight.type || "generic";
-            rowClass += " row-highlight-" + hType;
-            avatarClass += " avatar-highlight-" + hType;
+            // Aplicar CSS customizado na linha
+            if (userHighlight.customCss) {
+                row.style.cssText = userHighlight.customCss;
+            } else {
+                row.className = "feed-row row-highlight-generic";
+            }
+            
+            // Estilizar o avatar
+            if (userHighlight.animation === "glow") {
+                avatarClass += " avatar-highlight-dev";
+            } else {
+                avatarClass += " avatar-highlight-generic";
+            }
+            
+            // Configurar badge com cor e animação dinâmicas
+            let animClass = "";
+            if (userHighlight.animation === "glow") {
+                animClass = "user-badge-dev";
+            } else if (userHighlight.animation === "pulse") {
+                animClass = "user-badge-generic"; // e o CSS aplica a pulsação
+            } else {
+                animClass = "user-badge-special";
+            }
             
             let iconHtml = "";
-            if (hType === "dev") {
+            const badgeText = userHighlight.badge || "";
+            if (badgeText.toLowerCase().includes("desenvolvedor")) {
                 iconHtml = '<i data-lucide="code-2" style="width:10px;height:10px;margin-right:2px;display:inline-block;vertical-align:middle;"></i>';
             }
-            nameSuffixHtml = ' <span class="user-badge-special user-badge-' + hType + '">' + iconHtml + userHighlight.badge + '</span>';
+            
+            const badgeStyle = `background: ${userHighlight.color || 'var(--accent)'};`;
+            nameSuffixHtml = ' <span class="user-badge-special ' + animClass + '" style="' + badgeStyle + '">' + iconHtml + badgeText + '</span>';
         }
-        
-        row.className = rowClass;
 
         let rankBadge = '<span class="rank-badge">' + (globalIndex + 1) + 'º</span>';
         if (rankingOrder === 'desc') {
