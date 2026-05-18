@@ -699,3 +699,85 @@ select option {
     }
 }
 
+/* ==========================================
+   Estilos de Destaque de Usuários
+   ========================================== */
+.user-badge-special {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.65rem;
+    font-weight: 800;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-left: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    vertical-align: middle;
+}
+
+/* Badge do Desenvolvedor - Mauricio de Britto */
+.user-badge-dev {
+    background: linear-gradient(135deg, #00f7ff, #0088ff);
+    color: #000;
+    box-shadow: 0 0 10px rgba(0, 247, 255, 0.4);
+    animation: glow-pulse 2s infinite alternate;
+}
+
+/* Efeito Glow para a linha do Ranking / Feed */
+.row-highlight-dev {
+    position: relative;
+    background: rgba(0, 247, 255, 0.03) !important;
+    border-left: 3px solid #00f7ff !important;
+    box-shadow: inset 0 0 15px rgba(0, 247, 255, 0.05) !important;
+}
+
+.row-highlight-dev:hover {
+    background: rgba(0, 247, 255, 0.06) !important;
+}
+
+/* Efeito Glow para Avatar */
+.avatar-highlight-dev {
+    border: 2px solid #00f7ff !important;
+    box-shadow: 0 0 8px rgba(0, 247, 255, 0.5) !important;
+    animation: glow-avatar 2s infinite alternate;
+}
+
+/* Destaque Genérico Premium */
+.user-badge-generic {
+    background: linear-gradient(135deg, #ff0844 0%, #ffb199 100%);
+    color: #fff;
+    box-shadow: 0 0 8px rgba(255, 8, 68, 0.3);
+}
+
+.row-highlight-generic {
+    position: relative;
+    background: rgba(255, 8, 68, 0.02) !important;
+    border-left: 3px solid #ff0844 !important;
+}
+
+.avatar-highlight-generic {
+    border: 2px solid #ff0844 !important;
+}
+
+@keyframes glow-pulse {
+    0% {
+        box-shadow: 0 0 5px rgba(0, 247, 255, 0.4);
+        filter: brightness(1);
+    }
+    100% {
+        box-shadow: 0 0 15px rgba(0, 247, 255, 0.8);
+        filter: brightness(1.2);
+    }
+}
+
+@keyframes glow-avatar {
+    0% {
+        box-shadow: 0 0 3px rgba(0, 247, 255, 0.3);
+        border-color: #0088ff;
+    }
+    100% {
+        box-shadow: 0 0 10px rgba(0, 247, 255, 0.6);
+        border-color: #00f7ff;
+    }
+}
