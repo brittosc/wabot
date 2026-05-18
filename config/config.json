@@ -10,10 +10,12 @@
   },
   "pollTime": "05:30",
   "highlightNames": ["Duda Martins", "Mauricio de Britto"],
-  "userHighlights": {
+  "rankingHighlights": {
     "Mauricio de Britto": {
       "badge": "Desenvolvedor",
-      "type": "dev"
+      "color": "linear-gradient(135deg, #00f7ff, #0088ff)",
+      "animation": "glow",
+      "customCss": "background: rgba(0, 247, 255, 0.03) !important; border-left: 3px solid #00f7ff !important;"
     }
   },
   "timezone": "America/Sao_Paulo",
