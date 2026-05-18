@@ -703,6 +703,7 @@ select option {
    Estilos de Destaque de Usuários
    ========================================== */
 .user-badge-special {
+    color: #fff;
     display: inline-flex;
     align-items: center;
     gap: 4px;
