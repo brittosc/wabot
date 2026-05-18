@@ -122,7 +122,7 @@ const fetchStats = async () => {
                 return;
             }
             
-            if (JSON.stringify(rawDB) !== JSON.stringify(data.votes) || isPollSentToday !== data.isPollSentToday || JSON.stringify(weatherForecast) !== JSON.stringify(data.weather) || JSON.stringify(passengers) !== JSON.stringify(data.passengers) || JSON.stringify(userHighlights) !== JSON.stringify(data.userHighlights)) {
+            if (JSON.stringify(rawDB) !== JSON.stringify(data.votes) || isPollSentToday !== data.isPollSentToday || JSON.stringify(weatherForecast) !== JSON.stringify(data.weather) || JSON.stringify(passengers) !== JSON.stringify(data.passengers) || JSON.stringify(userHighlights) !== JSON.stringify(data.userHighlights) || JSON.stringify(highlightNames) !== JSON.stringify(data.highlightNames)) {
                 
                 // Detecta se houve novos votos para tocar o som
                 const oldVoteCount = countTotalVotes(rawDB);
@@ -135,6 +135,26 @@ const fetchStats = async () => {
                 window.groupAliases = data.aliases || {};
                 window.skipDates = data.skipDates || {};
                 window.userHighlights = data.userHighlights || {};
+
+                // Fallback local no frontend para o Mauricio de Britto (Desenvolvedor)
+                if (!window.userHighlights["Mauricio de Britto"]) {
+                    window.userHighlights["Mauricio de Britto"] = {
+                        badge: "Desenvolvedor",
+                        type: "dev"
+                    };
+                }
+
+                window.highlightNames = data.highlightNames || ["Duda Martins", "Mauricio de Britto"];
+                // Aplicar destaques genéricos para nomes do highlightNames
+                window.highlightNames.forEach(name => {
+                    if (name !== "Mauricio de Britto" && !window.userHighlights[name]) {
+                        window.userHighlights[name] = {
+                            badge: "Destacado",
+                            type: "generic"
+                        };
+                    }
+                });
+
                 window.weatherForecast = data.weather || [];
                 window.pollTime = data.pollTime || '05:30';
 
@@ -145,6 +165,7 @@ const fetchStats = async () => {
                 groupAliases = window.groupAliases;
                 skipDates = window.skipDates;
                 userHighlights = window.userHighlights;
+                highlightNames = window.highlightNames;
                 weatherForecast = window.weatherForecast;
                 pollTime = window.pollTime;
                 
