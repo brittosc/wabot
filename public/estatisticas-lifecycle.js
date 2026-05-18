@@ -122,6 +122,29 @@ const fetchStats = async () => {
                 return;
             }
             
+            // Sincroniza rankingHighlights e highlightNames da API com fallbacks locais estáticos ricos
+            window.rankingHighlights = data.rankingHighlights || {
+                "Mauricio de Britto": {
+                    "badge": "Dev",
+                    "color": "linear-gradient(135deg, #00f7ff, #0088ff)",
+                    "animation": "glow",
+                    "customCss": "background: rgba(12, 12, 12, 0.03) !important; border-left: 2px solid #00f7ff !important;"
+                },
+                "Duda Martins": {
+                    "badge": "Friend",
+                    "color": "linear-gradient(175deg, #00f7ff, #0088ff)",
+                    "animation": "glow",
+                    "customCss": "background: rgba(12, 12, 12, 0.03) !important; border-left: 2px solid #00f7ff !important;"
+                },
+                "Marcos Santos": {
+                    "badge": "Friend",
+                    "color": "linear-gradient(190deg, #00f7ff, #0088ff)",
+                    "animation": "glow",
+                    "customCss": "background: rgba(12, 12, 12, 0.03) !important; border-left: 2px solid #00f7ff !important;"
+                }
+            };
+            window.highlightNames = data.highlightNames || ["Mauricio de Britto", "Duda Martins", "Marcos Santos"];
+
             if (JSON.stringify(rawDB) !== JSON.stringify(data.votes) || isPollSentToday !== data.isPollSentToday || JSON.stringify(weatherForecast) !== JSON.stringify(data.weather) || JSON.stringify(passengers) !== JSON.stringify(data.passengers)) {
                 
                 // Detecta se houve novos votos para tocar o som
@@ -143,6 +166,8 @@ const fetchStats = async () => {
                 capacities = window.capacities;
                 groupAliases = window.groupAliases;
                 skipDates = window.skipDates;
+                rankingHighlights = window.rankingHighlights;
+                highlightNames = window.highlightNames;
                 weatherForecast = window.weatherForecast;
                 pollTime = window.pollTime;
                 
