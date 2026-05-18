@@ -126,7 +126,7 @@ const updateVoteFeed = (targetGroup) => {
             visibleVotes.forEach(vote => {
                 const pass = getPassengerByJid(vote.voter_id);
                 const row = document.createElement("tr");
-                row.className = "feed-row";
+                row.className = "feed-row vote-row";
 
                 let fullName = "Ext";
                 if (vote.voter_name) fullName = vote.voter_name;
@@ -145,7 +145,7 @@ const updateVoteFeed = (targetGroup) => {
                     if (userHighlight.customCss) {
                         row.style.cssText = userHighlight.customCss;
                     } else {
-                        row.className = "feed-row row-highlight-generic";
+                        row.className = "feed-row vote-row row-highlight-generic";
                     }
                     
                     // Estilizar o avatar
@@ -184,7 +184,7 @@ const updateVoteFeed = (targetGroup) => {
                 if (vote.option.includes("não retornarei")) optClass = "tag-one-way";
                 if (vote.option.includes("Não irei")) optClass = "tag-absence";
                 if (vote.option.includes("apenas retornarei")) optClass = "tag-waiting";
-                row.innerHTML = `<td class="timestamp-cell">${timeStr}</td><td><div class="user-cell"><img src="${photo}" class="${avatarClass}" onerror="this.src='https://ui-avatars.com/api/?name=?'"><span class="user-name">${displayName}${nameSuffixHtml}</span></div></td><td><span class="tag tag-route">${routeAlias}</span></td><td><span class="tag ${optClass}">${vote.option}</span></td>`;
+                row.innerHTML = `<td class="timestamp-cell">${timeStr}</td><td><div class="user-cell"><img src="${photo}" class="${avatarClass}" onerror="this.src='https://ui-avatars.com/api/?name=?'"><div class="user-info"><span class="user-name">${displayName}</span>${nameSuffixHtml}</div></div></td><td><span class="tag tag-route">${routeAlias}</span></td><td><span class="tag ${optClass}">${vote.option}</span></td>`;
                 body.appendChild(row);
             });
             
@@ -235,7 +235,7 @@ const updateVoteFeed = (targetGroup) => {
         } else {
             pendingUsers.forEach(user => {
                 const row = document.createElement("tr");
-                row.className = "feed-row";
+                row.className = "feed-row pending-row";
 
                 const displayName = user.name;
 
@@ -251,7 +251,7 @@ const updateVoteFeed = (targetGroup) => {
                     if (userHighlight.customCss) {
                         row.style.cssText = userHighlight.customCss;
                     } else {
-                        row.className = "feed-row row-highlight-generic";
+                        row.className = "feed-row pending-row row-highlight-generic";
                     }
                     
                     // Estilizar o avatar
@@ -283,7 +283,7 @@ const updateVoteFeed = (targetGroup) => {
 
                 const routeAlias = groupAliases[user.group_name] || user.group_name;
                 const photo = user.photo_url || "https://ui-avatars.com/api/?name=" + encodeURIComponent(displayName) + "&background=333&color=fff";
-                row.innerHTML = `<td><div class="user-cell"><img src="${photo}" class="${avatarClass}" onerror="this.src='https://ui-avatars.com/api/?name=?'"><span class="user-name">${displayName}${nameSuffixHtml}</span></div></td><td><span class="tag tag-route">${routeAlias}</span></td><td><span class="tag tag-pending">PENDENTE</span></td>`;
+                row.innerHTML = `<td><div class="user-cell"><img src="${photo}" class="${avatarClass}" onerror="this.src='https://ui-avatars.com/api/?name=?'"><div class="user-info"><span class="user-name">${displayName}</span>${nameSuffixHtml}</div></div></td><td><span class="tag tag-route">${routeAlias}</span></td><td><span class="tag tag-pending">PENDENTE</span></td>`;
                 body.appendChild(row);
             });
         }
