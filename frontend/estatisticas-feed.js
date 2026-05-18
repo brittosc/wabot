@@ -126,20 +126,43 @@ const updateVoteFeed = (targetGroup) => {
             visibleVotes.forEach(vote => {
                 const pass = getPassengerByJid(vote.voter_id);
                 const row = document.createElement("tr");
-                row.className = "feed-row";
+
                 const timeStr = vote.timestamp ? moment(vote.timestamp).tz("America/Sao_Paulo").format("HH:mm") : "--:--";
                 const maskedPhone = formatPhone(vote.voter_id.split('@')[0]);
                 let fullName = "Ext";
                 if (vote.voter_name) fullName = vote.voter_name;
                 else if (pass && pass.name) fullName = pass.name;
                 const displayName = fullName;
+
+                // Verifica destaques customizados via config
+                const highlights = window.userHighlights || {};
+                const userHighlight = highlights[displayName];
+                
+                let rowClass = "feed-row";
+                let avatarClass = "user-avatar";
+                let nameSuffixHtml = "";
+
+                if (userHighlight) {
+                    const hType = userHighlight.type || "generic";
+                    rowClass += " row-highlight-" + hType;
+                    avatarClass += " avatar-highlight-" + hType;
+                    
+                    let iconHtml = "";
+                    if (hType === "dev") {
+                        iconHtml = '<i data-lucide="code-2" style="width:10px;height:10px;margin-right:2px;display:inline-block;vertical-align:middle;"></i>';
+                    }
+                    nameSuffixHtml = ' <span class="user-badge-special user-badge-' + hType + '">' + iconHtml + userHighlight.badge + '</span>';
+                }
+                
+                row.className = rowClass;
+
                 const photo = vote.photo_url || (pass && pass.photo_url) || "https://ui-avatars.com/api/?name=" + encodeURIComponent(displayName) + "&background=333&color=fff";
                 const routeAlias = groupAliases[vote.group] || vote.group;
                 let optClass = "tag-vote";
                 if (vote.option.includes("não retornarei")) optClass = "tag-one-way";
                 if (vote.option.includes("Não irei")) optClass = "tag-absence";
                 if (vote.option.includes("apenas retornarei")) optClass = "tag-waiting";
-                row.innerHTML = `<td class="timestamp-cell">${timeStr}</td><td><div class="user-cell"><img src="${photo}" class="user-avatar" onerror="this.src='https://ui-avatars.com/api/?name=?'"><span class="user-name">${displayName}</span></div></td><td><span class="tag tag-route">${routeAlias}</span></td><td><span class="tag ${optClass}">${vote.option}</span></td>`;
+                row.innerHTML = `<td class="timestamp-cell">${timeStr}</td><td><div class="user-cell"><img src="${photo}" class="${avatarClass}" onerror="this.src='https://ui-avatars.com/api/?name=?'"><span class="user-name">${displayName}${nameSuffixHtml}</span></div></td><td><span class="tag tag-route">${routeAlias}</span></td><td><span class="tag ${optClass}">${vote.option}</span></td>`;
                 body.appendChild(row);
             });
             
@@ -190,12 +213,35 @@ const updateVoteFeed = (targetGroup) => {
         } else {
             pendingUsers.forEach(user => {
                 const row = document.createElement("tr");
-                row.className = "feed-row";
+
                 const routeAlias = groupAliases[user.group_name] || user.group_name;
                 const fullName = user.name;
                 const displayName = fullName;
+
+                // Verifica destaques customizados via config
+                const highlights = window.userHighlights || {};
+                const userHighlight = highlights[displayName];
+                
+                let rowClass = "feed-row";
+                let avatarClass = "user-avatar";
+                let nameSuffixHtml = "";
+
+                if (userHighlight) {
+                    const hType = userHighlight.type || "generic";
+                    rowClass += " row-highlight-" + hType;
+                    avatarClass += " avatar-highlight-" + hType;
+                    
+                    let iconHtml = "";
+                    if (hType === "dev") {
+                        iconHtml = '<i data-lucide="code-2" style="width:10px;height:10px;margin-right:2px;display:inline-block;vertical-align:middle;"></i>';
+                    }
+                    nameSuffixHtml = ' <span class="user-badge-special user-badge-' + hType + '">' + iconHtml + userHighlight.badge + '</span>';
+                }
+                
+                row.className = rowClass;
+
                 const photo = user.photo_url || "https://ui-avatars.com/api/?name=" + encodeURIComponent(displayName) + "&background=333&color=fff";
-                row.innerHTML = `<td><div class="user-cell"><img src="${photo}" class="user-avatar" onerror="this.src='https://ui-avatars.com/api/?name=?'"><span class="user-name">${displayName}</span></div></td><td><span class="tag tag-route">${routeAlias}</span></td><td><span class="tag tag-pending">PENDENTE</span></td>`;
+                row.innerHTML = `<td><div class="user-cell"><img src="${photo}" class="${avatarClass}" onerror="this.src='https://ui-avatars.com/api/?name=?'"><span class="user-name">${displayName}${nameSuffixHtml}</span></div></td><td><span class="tag tag-route">${routeAlias}</span></td><td><span class="tag tag-pending">PENDENTE</span></td>`;
                 body.appendChild(row);
             });
         }
