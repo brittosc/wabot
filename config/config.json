@@ -9,7 +9,13 @@
     "Ônibus unesc 02": "Linha 02 - UNESC"
   },
   "pollTime": "05:30",
-  "highlightNames": ["Duda Martins"],
+  "highlightNames": ["Duda Martins", "Mauricio de Britto"],
+  "userHighlights": {
+    "Mauricio de Britto": {
+      "badge": "Desenvolvedor",
+      "type": "dev"
+    }
+  },
   "timezone": "America/Sao_Paulo",
   "skipDates": {
     "02/04/2026": "Feriado Nacional e Recesso - Páscoa",
