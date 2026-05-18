@@ -216,7 +216,7 @@ const updateRanking = (targetGroupFromDash, _targetDaysStr) => {
             
             let iconHtml = "";
             const badgeText = userHighlight.badge || "";
-            if (badgeText.toLowerCase().includes("desenvolvedor")) {
+            if (badgeText.toLowerCase().includes("dev") || badgeText.toLowerCase().includes("desenvolvedor")) {
                 iconHtml = '<i data-lucide="code-2" style="width:10px;height:10px;margin-right:2px;display:inline-block;vertical-align:middle;"></i>';
             }
             
