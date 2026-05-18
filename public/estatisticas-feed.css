@@ -53,6 +53,7 @@
 .user-name {
     font-weight: 600;
     font-size: 0.9rem;
+    line-height: 1.2;
 }
 .tag {
     display: inline-block;
