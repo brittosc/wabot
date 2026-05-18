@@ -16,8 +16,7 @@
       "badges": [
         {
           "text": "Dev",
-          "color": "linear-gradient(135deg, #00f7ff, #0088ff)",
-          "animation": "glow"
+          "color": "linear-gradient(135deg, #00f7ff, #0088ff)"
         },
         {
           "text": "Direito ⚖️",
@@ -33,8 +32,7 @@
       "badges": [
         {
           "text": "Friend",
-          "color": "linear-gradient(135deg, #ff0844 100%, #ffb199 0%)",
-          "animation": "pulse"
+          "color": "linear-gradient(135deg, #ff0844 100%, #ffb199 0%)"
         },
         {
           "text": "Direito ⚖️",
@@ -42,7 +40,7 @@
         }
       ],
       "color": "linear-gradient(175deg, #ff0844, #ffb199)",
-      "animation": "pulse",
+      "animation": "glow",
       "customCss": "background: rgba(12, 12, 12, 0.03) !important; border-left: 2px solid #ff0844 !important;"
     },
     "Marcos Santos": {
@@ -50,16 +48,15 @@
       "badges": [
         {
           "text": "Friend",
-          "color": "linear-gradient(135deg, #ff0844 100%, #ffb199 0%)",
-          "animation": "pulse"
+          "color": "linear-gradient(135deg, #ff0844 100%, #ffb199 0%)"
         },
         {
-          "text": "Engenharia 🏗️",
+          "text": "Engenharia Mecânica ⚙️",
           "color": "linear-gradient(135deg, #121212, #121212)"
         }
       ],
       "color": "linear-gradient(190deg, #ff0844, #ffb199)",
-      "animation": "pulse",
+      "animation": "glow",
       "customCss": "background: rgba(12, 12, 12, 0.03) !important; border-left: 2px solid #ff0844 !important;"
     }
   },
