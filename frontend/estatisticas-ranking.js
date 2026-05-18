@@ -187,7 +187,7 @@ const updateRanking = (targetGroupFromDash, _targetDaysStr) => {
         const userHighlight = highlights[user.name];
         
         let avatarClass = "user-avatar";
-        let nameSuffixHtml = "";
+        let badgesHtml = "";
 
         if (userHighlight) {
             // Aplicar CSS customizado na linha
@@ -204,24 +204,53 @@ const updateRanking = (targetGroupFromDash, _targetDaysStr) => {
                 avatarClass += " avatar-highlight-generic";
             }
             
-            // Configurar badge com cor e animação dinâmicas
-            let animClass = "";
-            if (userHighlight.animation === "glow") {
-                animClass = "user-badge-dev";
-            } else if (userHighlight.animation === "pulse") {
-                animClass = "user-badge-generic"; // e o CSS aplica a pulsação
-            } else {
-                animClass = "user-badge-special";
+            // Normalizar a lista de badges (suporta badge único ou array badges, limite de 2)
+            let rawBadges = [];
+            if (userHighlight.badges && Array.isArray(userHighlight.badges)) {
+                rawBadges = userHighlight.badges.slice(0, 2);
+            } else if (userHighlight.badge) {
+                rawBadges = [userHighlight.badge];
             }
             
-            let iconHtml = "";
-            const badgeText = userHighlight.badge || "";
-            if (badgeText.toLowerCase().includes("dev") || badgeText.toLowerCase().includes("desenvolvedor")) {
-                iconHtml = '<i data-lucide="code-2" style="width:10px;height:10px;margin-right:2px;display:inline-block;vertical-align:middle;"></i>';
-            }
+            let badgesContent = "";
+            rawBadges.forEach(b => {
+                let badgeText = "";
+                let bColor = userHighlight.color || 'var(--accent)';
+                let bAnim = userHighlight.animation || "";
+                
+                if (typeof b === 'object' && b !== null) {
+                    badgeText = b.text || "";
+                    if (b.color) bColor = b.color;
+                    if (b.animation) bAnim = b.animation;
+                } else {
+                    badgeText = String(b);
+                }
+                
+                if (!badgeText) return;
+                
+                let animClass = "";
+                if (bAnim === "glow") {
+                    animClass = "user-badge-dev";
+                } else if (bAnim === "pulse") {
+                    animClass = "user-badge-generic";
+                } else {
+                    animClass = "user-badge-special";
+                }
+                
+                let iconHtml = "";
+                if (badgeText.toLowerCase().includes("dev") || badgeText.toLowerCase().includes("desenvolvedor")) {
+                    iconHtml = '<i data-lucide="code-2" style="width:10px;height:10px;margin-right:2px;display:inline-block;vertical-align:middle;"></i>';
+                } else if (badgeText.toLowerCase().includes("friend") || badgeText.toLowerCase().includes("amigo")) {
+                    iconHtml = '<i data-lucide="heart" style="width:10px;height:10px;margin-right:2px;display:inline-block;vertical-align:middle;"></i>';
+                }
+                
+                const badgeStyle = `background: ${bColor};`;
+                badgesContent += '<span class="user-badge-special ' + animClass + '" style="' + badgeStyle + '">' + iconHtml + badgeText + '</span>';
+            });
             
-            const badgeStyle = `background: ${userHighlight.color || 'var(--accent)'};`;
-            nameSuffixHtml = ' <span class="user-badge-special ' + animClass + '" style="' + badgeStyle + '">' + iconHtml + badgeText + '</span>';
+            if (badgesContent) {
+                badgesHtml = '<div class="user-badges">' + badgesContent + '</div>';
+            }
         }
 
         let rankBadge = '<span class="rank-badge">' + (globalIndex + 1) + 'º</span>';
@@ -242,7 +271,7 @@ const updateRanking = (targetGroupFromDash, _targetDaysStr) => {
                 '<img src="' + photo + '" class="' + avatarClass + '" onerror="this.src=\'https://ui-avatars.com/api/?name=?\'">' +
                 '<div class="user-info">' +
                     '<span class="user-name">' + user.name + '</span>' +
-                    nameSuffixHtml +
+                    badgesHtml +
                 '</div>' +
             '</div></td>' +
             '<td><div class="ranking-tags-container">' +
