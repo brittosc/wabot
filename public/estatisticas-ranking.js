@@ -180,7 +180,7 @@ const updateRanking = (targetGroupFromDash, _targetDaysStr) => {
 
     const renderRow = (user, globalIndex) => {
         const row = document.createElement("tr");
-        row.className = "feed-row";
+        row.className = "feed-row ranking-row";
 
         // Verifica destaques customizados via config
         const highlights = window.rankingHighlights || {};
@@ -194,7 +194,7 @@ const updateRanking = (targetGroupFromDash, _targetDaysStr) => {
             if (userHighlight.customCss) {
                 row.style.cssText = userHighlight.customCss;
             } else {
-                row.className = "feed-row row-highlight-generic";
+                row.className = "feed-row ranking-row row-highlight-generic";
             }
             
             // Estilizar o avatar
@@ -240,9 +240,12 @@ const updateRanking = (targetGroupFromDash, _targetDaysStr) => {
             '<td style="width:60px;text-align:center;">' + rankBadge + '</td>' +
             '<td><div class="user-cell">' +
                 '<img src="' + photo + '" class="' + avatarClass + '" onerror="this.src=\'https://ui-avatars.com/api/?name=?\'">' +
-                '<span class="user-name">' + user.name + nameSuffixHtml + '</span>' +
+                '<div class="user-info">' +
+                    '<span class="user-name">' + user.name + '</span>' +
+                    nameSuffixHtml +
+                '</div>' +
             '</div></td>' +
-            '<td><div style="display:flex;flex-direction:column;gap:4px;align-items:flex-start;">' +
+            '<td><div class="ranking-tags-container">' +
                 '<span class="tag tag-vote" style="font-size:0.75rem;">' + user.presenceCount + ' ' + presenceLabel + '</span>' +
                 '<span class="tag tag-route" style="opacity:0.8;">' + user.routeAlias + '</span>' +
             '</div></td>' +
