@@ -791,6 +791,21 @@ select option {
     }
 }
 
+/* Container de info do usuário */
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.user-badges {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
 /* Responsividade Mobile - Foto e Badges */
 @media (max-width: 768px) {
     .user-info {
