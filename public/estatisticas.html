@@ -194,14 +194,14 @@
             </div>
 
             <div class="dashboard">
-                <div class="card">
+                <div class="card card-wide">
                     <h2 id="titlePieChart">Consolidado Geral</h2>
                     <div class="chart-container">
                         <canvas id="pieChart"></canvas>
                     </div>
                 </div>
 
-                <div class="card">
+                <div class="card" style="display: none;">
                     <h2 id="titleBarChart">Votos por Dia</h2>
                     <div class="chart-container">
                         <canvas id="barChart"></canvas>
@@ -427,7 +427,6 @@
             <!-- Calendário de Próximas Enquetes -->
             <div id="calendarSection" style="width: 100%;">
                 <div class="card card-wide" style="align-items: stretch; padding: 25px; box-sizing: border-box;">
-                    <h2 style="margin-bottom: 20px; display: flex; align-items: center; gap: 10px;"><i data-lucide="calendar-check" style="color: var(--accent);"></i> Enquetes Agendadas</h2>
                     <div id="nextPollsList" style="display: flex; flex-direction: column; gap: 10px;">
                         <!-- Preenchido via JS -->
                     </div>
