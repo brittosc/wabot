@@ -33,26 +33,33 @@ async function main() {
     process.exit(1);
   }
 
-  // 2. Inicialização do cliente com User Agent Real de alta fidelidade
+  // 2. Inicialização do cliente com detecção automática do Microsoft Edge padrão do Windows
+  const edgePath = "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe";
+  const puppeteerOptions = {
+    headless: true,
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+      "--disable-accelerated-2d-canvas",
+      "--no-first-run",
+      "--no-zygote",
+      "--disable-gpu",
+    ],
+  };
+
+  if (fs.existsSync(edgePath)) {
+    puppeteerOptions.executablePath = edgePath;
+  }
+
   const client = new Client({
     authStrategy: new LocalAuth({ dataPath: "./auth_info" }),
-    userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+    userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 Edg/122.0.0.0",
     webVersionCache: {
       type: "remote",
       remotePath: "https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/{version}.html"
     },
-    puppeteer: {
-      headless: true,
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--disable-accelerated-2d-canvas",
-        "--no-first-run",
-        "--no-zygote",
-        "--disable-gpu",
-      ],
-    },
+    puppeteer: puppeteerOptions,
   });
 
   client.on("qr", (qr) => {
