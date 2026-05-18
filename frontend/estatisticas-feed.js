@@ -138,7 +138,7 @@ const updateVoteFeed = (targetGroup) => {
                 const userHighlight = highlights[displayName];
                 
                 let avatarClass = "user-avatar";
-                let nameSuffixHtml = "";
+                let badgesHtml = "";
 
                 if (userHighlight) {
                     // Aplicar CSS customizado na linha
@@ -155,24 +155,53 @@ const updateVoteFeed = (targetGroup) => {
                         avatarClass += " avatar-highlight-generic";
                     }
                     
-                    // Configurar badge com cor e animação dinâmicas
-                    let animClass = "";
-                    if (userHighlight.animation === "glow") {
-                        animClass = "user-badge-dev";
-                    } else if (userHighlight.animation === "pulse") {
-                        animClass = "user-badge-generic"; // e o CSS aplica a pulsação
-                    } else {
-                        animClass = "user-badge-special";
+                    // Normalizar a lista de badges (suporta badge único ou array badges, limite de 2)
+                    let rawBadges = [];
+                    if (userHighlight.badges && Array.isArray(userHighlight.badges)) {
+                        rawBadges = userHighlight.badges.slice(0, 2);
+                    } else if (userHighlight.badge) {
+                        rawBadges = [userHighlight.badge];
                     }
                     
-                    let iconHtml = "";
-                    const badgeText = userHighlight.badge || "";
-                    if (badgeText.toLowerCase().includes("dev") || badgeText.toLowerCase().includes("desenvolvedor")) {
-                        iconHtml = '<i data-lucide="code-2" style="width:10px;height:10px;margin-right:2px;display:inline-block;vertical-align:middle;"></i>';
-                    }
+                    let badgesContent = "";
+                    rawBadges.forEach(b => {
+                        let badgeText = "";
+                        let bColor = userHighlight.color || 'var(--accent)';
+                        let bAnim = userHighlight.animation || "";
+                        
+                        if (typeof b === 'object' && b !== null) {
+                            badgeText = b.text || "";
+                            if (b.color) bColor = b.color;
+                            if (b.animation) bAnim = b.animation;
+                        } else {
+                            badgeText = String(b);
+                        }
+                        
+                        if (!badgeText) return;
+                        
+                        let animClass = "";
+                        if (bAnim === "glow") {
+                            animClass = "user-badge-dev";
+                        } else if (bAnim === "pulse") {
+                            animClass = "user-badge-generic";
+                        } else {
+                            animClass = "user-badge-special";
+                        }
+                        
+                        let iconHtml = "";
+                        if (badgeText.toLowerCase().includes("dev") || badgeText.toLowerCase().includes("desenvolvedor")) {
+                            iconHtml = '<i data-lucide="code-2" style="width:10px;height:10px;margin-right:2px;display:inline-block;vertical-align:middle;"></i>';
+                        } else if (badgeText.toLowerCase().includes("friend") || badgeText.toLowerCase().includes("amigo")) {
+                            iconHtml = '<i data-lucide="heart" style="width:10px;height:10px;margin-right:2px;display:inline-block;vertical-align:middle;"></i>';
+                        }
+                        
+                        const badgeStyle = `background: ${bColor};`;
+                        badgesContent += '<span class="user-badge-special ' + animClass + '" style="' + badgeStyle + '">' + iconHtml + badgeText + '</span>';
+                    });
                     
-                    const badgeStyle = `background: ${userHighlight.color || 'var(--accent)'};`;
-                    nameSuffixHtml = ' <span class="user-badge-special ' + animClass + '" style="' + badgeStyle + '">' + iconHtml + badgeText + '</span>';
+                    if (badgesContent) {
+                        badgesHtml = '<div class="user-badges">' + badgesContent + '</div>';
+                    }
                 }
 
                 const timeStr = vote.timestamp ? moment(vote.timestamp).tz("America/Sao_Paulo").format("HH:mm") : "--:--";
@@ -184,7 +213,7 @@ const updateVoteFeed = (targetGroup) => {
                 if (vote.option.includes("não retornarei")) optClass = "tag-one-way";
                 if (vote.option.includes("Não irei")) optClass = "tag-absence";
                 if (vote.option.includes("apenas retornarei")) optClass = "tag-waiting";
-                row.innerHTML = `<td class="timestamp-cell">${timeStr}</td><td><div class="user-cell"><img src="${photo}" class="${avatarClass}" onerror="this.src='https://ui-avatars.com/api/?name=?'"><div class="user-info"><span class="user-name">${displayName}</span>${nameSuffixHtml}</div></div></td><td><span class="tag tag-route">${routeAlias}</span></td><td><span class="tag ${optClass}">${vote.option}</span></td>`;
+                row.innerHTML = `<td class="timestamp-cell">${timeStr}</td><td><div class="user-cell"><img src="${photo}" class="${avatarClass}" onerror="this.src='https://ui-avatars.com/api/?name=?'"><div class="user-info"><span class="user-name">${displayName}</span>${badgesHtml}</div></div></td><td><span class="tag tag-route">${routeAlias}</span></td><td><span class="tag ${optClass}">${vote.option}</span></td>`;
                 body.appendChild(row);
             });
             
@@ -244,7 +273,7 @@ const updateVoteFeed = (targetGroup) => {
                 const userHighlight = highlights[displayName];
                 
                 let avatarClass = "user-avatar";
-                let nameSuffixHtml = "";
+                let badgesHtml = "";
 
                 if (userHighlight) {
                     // Aplicar CSS customizado na linha
@@ -261,29 +290,58 @@ const updateVoteFeed = (targetGroup) => {
                         avatarClass += " avatar-highlight-generic";
                     }
                     
-                    // Configurar badge com cor e animação dinâmicas
-                    let animClass = "";
-                    if (userHighlight.animation === "glow") {
-                        animClass = "user-badge-dev";
-                    } else if (userHighlight.animation === "pulse") {
-                        animClass = "user-badge-generic"; // e o CSS aplica a pulsação
-                    } else {
-                        animClass = "user-badge-special";
+                    // Normalizar a lista de badges (suporta badge único ou array badges, limite de 2)
+                    let rawBadges = [];
+                    if (userHighlight.badges && Array.isArray(userHighlight.badges)) {
+                        rawBadges = userHighlight.badges.slice(0, 2);
+                    } else if (userHighlight.badge) {
+                        rawBadges = [userHighlight.badge];
                     }
                     
-                    let iconHtml = "";
-                    const badgeText = userHighlight.badge || "";
-                    if (badgeText.toLowerCase().includes("dev") || badgeText.toLowerCase().includes("desenvolvedor")) {
-                        iconHtml = '<i data-lucide="code-2" style="width:10px;height:10px;margin-right:2px;display:inline-block;vertical-align:middle;"></i>';
-                    }
+                    let badgesContent = "";
+                    rawBadges.forEach(b => {
+                        let badgeText = "";
+                        let bColor = userHighlight.color || 'var(--accent)';
+                        let bAnim = userHighlight.animation || "";
+                        
+                        if (typeof b === 'object' && b !== null) {
+                            badgeText = b.text || "";
+                            if (b.color) bColor = b.color;
+                            if (b.animation) bAnim = b.animation;
+                        } else {
+                            badgeText = String(b);
+                        }
+                        
+                        if (!badgeText) return;
+                        
+                        let animClass = "";
+                        if (bAnim === "glow") {
+                            animClass = "user-badge-dev";
+                        } else if (bAnim === "pulse") {
+                            animClass = "user-badge-generic";
+                        } else {
+                            animClass = "user-badge-special";
+                        }
+                        
+                        let iconHtml = "";
+                        if (badgeText.toLowerCase().includes("dev") || badgeText.toLowerCase().includes("desenvolvedor")) {
+                            iconHtml = '<i data-lucide="code-2" style="width:10px;height:10px;margin-right:2px;display:inline-block;vertical-align:middle;"></i>';
+                        } else if (badgeText.toLowerCase().includes("friend") || badgeText.toLowerCase().includes("amigo")) {
+                            iconHtml = '<i data-lucide="heart" style="width:10px;height:10px;margin-right:2px;display:inline-block;vertical-align:middle;"></i>';
+                        }
+                        
+                        const badgeStyle = `background: ${bColor};`;
+                        badgesContent += '<span class="user-badge-special ' + animClass + '" style="' + badgeStyle + '">' + iconHtml + badgeText + '</span>';
+                    });
                     
-                    const badgeStyle = `background: ${userHighlight.color || 'var(--accent)'};`;
-                    nameSuffixHtml = ' <span class="user-badge-special ' + animClass + '" style="' + badgeStyle + '">' + iconHtml + badgeText + '</span>';
+                    if (badgesContent) {
+                        badgesHtml = '<div class="user-badges">' + badgesContent + '</div>';
+                    }
                 }
 
                 const routeAlias = groupAliases[user.group_name] || user.group_name;
                 const photo = user.photo_url || "https://ui-avatars.com/api/?name=" + encodeURIComponent(displayName) + "&background=333&color=fff";
-                row.innerHTML = `<td><div class="user-cell"><img src="${photo}" class="${avatarClass}" onerror="this.src='https://ui-avatars.com/api/?name=?'"><div class="user-info"><span class="user-name">${displayName}</span>${nameSuffixHtml}</div></div></td><td><span class="tag tag-route">${routeAlias}</span></td><td><span class="tag tag-pending">PENDENTE</span></td>`;
+                row.innerHTML = `<td><div class="user-cell"><img src="${photo}" class="${avatarClass}" onerror="this.src='https://ui-avatars.com/api/?name=?'"><div class="user-info"><span class="user-name">${displayName}</span>${badgesHtml}</div></div></td><td><span class="tag tag-route">${routeAlias}</span></td><td><span class="tag tag-pending">PENDENTE</span></td>`;
                 body.appendChild(row);
             });
         }
